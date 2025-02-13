@@ -1,0 +1,102 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Meta Data -->
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1" />
+    <title>ModelMint - {% block title %} {% endblock title %}</title>
+
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'img/fav/logo-green.svg' %}" />
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/fav/logo-green.svg' %}" />
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'img/fav/logo-green.svg' %}" />
+    <link rel="mask-icon" href="{% static 'img/fav/logo-green.svg' %}" color="#2bba64" />
+
+    <meta name="msapplication-TileColor" content="#2bba64" />
+    <meta name="theme-color" content="#2bba64" />
+
+    <!-- Dependency Styles -->
+    <link rel="stylesheet" href="{% static 'dependencies/bootstrap/css/bootstrap.min.css' %}" type="text/css" />
+    <link rel="stylesheet" href="{% static 'dependencies/fontawesome/css/all.min.css' %}" type="text/css" />
+    <link rel="stylesheet" href="{% static 'dependencies/swiper/css/swiper.min.css' %}" type="text/css" />
+    <link rel="stylesheet" href="{% static 'dependencies/wow/css/animate.css' %}" type="text/css" />
+    <link rel="stylesheet" href="{% static 'dependencies/magnific-popup/css/magnific-popup.css' %}" type="text/css" />
+    <link rel="stylesheet" href="{% static 'dependencies/components-elegant-icons/css/elegant-icons.min.css' %}" type="text/css" />
+    <link rel="stylesheet" href="{% static 'dependencies/simple-line-icons/css/simple-line-icons.css' %}" type="text/css" />
+
+    <!-- Site Stylesheet -->
+    <link rel="stylesheet" href="{% static 'css/app.css' %}" type="text/css" />
+
+    <!-- Google Web Fonts -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat+Alternates:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Satisfy&display=swap" rel="stylesheet" />
+
+
+</head>
+
+
+<body id="home-version-1" class="home-version-4" data-style="default">
+    <a href="#main_content" data-type="section-switch" class="return-to-top">
+        <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <div class="page-loader">
+        <div class="loader">
+            <!-- Loader -->
+            <div class="blobs">
+                <div class="blob-center"></div>
+                <div class="blob"></div>
+                <div class="blob"></div>
+                <div class="blob"></div>
+                <div class="blob"></div>
+                <div class="blob"></div>
+                <div class="blob"></div>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" version="1.1">
+                <defs>
+                    <filter id="goo">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+                        <feColorMatrix in="blur" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+                        <feBlend in="SourceGraphic" in2="goo" />
+                    </filter>
+                </defs>
+            </svg>
+        </div>
+    </div>
+    <!-- /.page-loader -->
+
+    <div id="main_content">
+
+        {% include "includes/navbar.html" %}
+
+        {% block content %}
+
+
+        {% endblock content %}
+
+        {% include "includes/footer.html" %}
+
+    </div>
+    <!-- /#site -->
+
+    <!-- Dependency Scripts -->
+    <script src="{% static 'dependencies/jquery/jquery.min.js' %}"></script>
+    <script src="{% static 'dependencies/bootstrap/js/bootstrap.min.js' %}"></script>
+    <script src="{% static 'dependencies/swiper/js/swiper.min.js' %}"></script>
+    <script src="{% static 'dependencies/jquery.appear/jquery.appear.js' %}"></script>
+    <script src="{% static 'dependencies/wow/js/wow.min.js' %}"></script>
+    <script src="{% static 'dependencies/countUp.js/countUp.min.js' %}"></script>
+    <script src="{% static 'dependencies/isotope-layout/isotope.pkgd.min.js' %}"></script>
+    <script src="{% static 'dependencies/imagesloaded/imagesloaded.pkgd.min.js' %}"></script>
+    <script src="{% static 'dependencies/jquery.parallax-scroll/js/jquery.parallax-scroll.js' %}"></script>
+    <script src="{% static 'dependencies/magnific-popup/js/jquery.magnific-popup.min.js' %}"></script>
+    <script src="{% static 'dependencies/gmap3/js/gmap3.min.js' %}"></script>
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDk2HrmqE4sWSei0XdKGbOMOHN3Mm2Bf-M&#038;ver=2.1.6"></script>
+
+    <!-- Site Scripts -->
+    <script src="{% static 'js/header.js' %}"></script>
+    <script src="{% static 'js/app.js' %}"></script>
+
+</body>

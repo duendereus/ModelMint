@@ -1,0 +1,63 @@
+{% load static %}
+<header class="site-header header_trans-fixed" data-top="992"">
+    <div class="container">
+        <div class="header-inner">
+            <div class="toggle-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+            <!-- /.toggle-menu -->
+
+            <div class="site-mobile-logo">
+                <a href="{% url 'home' %}" class="logo">
+                    <img src="{% static 'img/logo-white.svg' %}" alt="site logo" class="main-logo" />
+                    <img src="{% static 'img/logo-green.svg' %}" alt="site logo" class="sticky-logo" />
+                </a>
+            </div>
+            
+            <nav class="site-nav">
+                <div class="close-menu">
+                    <span>Close</span>
+                    <i class="ei ei-icon_close"></i>
+                </div>
+            
+                <div class="site-logo" style="display: flex; align-items: center; gap: 10px;">
+                    <a href="{% url 'home' %}" class="logo" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
+                        <!-- White logo -->
+                        <img src="{% static 'img/logo-white.svg' %}" alt="site logo" class="main-logo" style="max-width: 40px; height: auto;"/>
+                
+                        <!-- White text -->
+                        <span class="main-logo" style="font-family: 'Poppins', sans-serif; font-size: 2rem; font-weight: bold; color: white;">
+                            Model<span style="color: #00FF7F;">Mint</span>
+                        </span>
+                
+                        <!-- Sticky (Scrolled) logo -->
+                        <img src="{% static 'img/logo-green.svg' %}" alt="site logo" class="sticky-logo" style="max-width: 40px; height: auto; display: none;"/>
+                
+                        <!-- Sticky (Scrolled) text -->
+                        <span class="sticky-logo" style="font-family: 'Poppins', sans-serif; font-size: 2rem; font-weight: bold; color: black; display: none;">
+                            Model<span style="color: #00FF7F;">Mint</span>
+                        </span>
+                    </a>
+                </div>
+                
+                <!-- /.site-logo -->
+
+                <div class="menu-wrapper" data-top="992">
+                    <ul class="site-main-menu">
+                        <li>
+                            <a href="{% url 'home' %}">Home</a>
+                        </li>
+
+                        <li><a href="{% url 'contact' %}">Contact</a></li>
+                    </ul>
+                </div>
+                <!-- /.menu-wrapper -->
+            </nav>
+            <!-- /.site-nav -->
+        </div>
+        <!-- /.header-inner -->
+    </div>
+    <!-- /.container -->
+</header>
