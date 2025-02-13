@@ -28,10 +28,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     ".railway.app",
+    "modelmint-production.up.railway.app",
 ]
 
 if DEBUG:
-    ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+    ALLOWED_HOSTS += ["127.0.0.1", "localhost"]
 
 
 # Application definition
