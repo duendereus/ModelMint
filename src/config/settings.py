@@ -97,18 +97,11 @@ DATABASES = {
     }
 }
 
-
-from urllib.parse import urlparse
-import dj_database_url
-
 CONN_MAX_AGE = config("CONN_MAX_AGE", cast=int, default=300)
+DATABASE_URL = config("DATABASE_URL", cast=str)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if DATABASE_URL:
-    parsed_url = urlparse(DATABASE_URL)
-    endpoint_id = parsed_url.hostname.split(".")[0]
-    DATABASE_URL += f"?options=endpoint%3D{endpoint_id}"
+if DATABASE_URL is not None:
+    import dj_database_url
 
     DATABASES = {
         "default": dj_database_url.config(
