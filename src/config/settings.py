@@ -114,7 +114,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Replace the DATABASES section of your settings.py with this
 from urllib.parse import urlparse
 
-tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
+tmpPostgres = urlparse(config("DATABASE_URL"))
 
 DATABASES = {
     "default": {
