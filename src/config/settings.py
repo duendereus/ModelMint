@@ -90,15 +90,15 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#     }
-# }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
+}
 
 # CONN_MAX_AGE = config("CONN_MAX_AGE", cast=int, default=300)
-# DATABASE_URL = config("DATABASE_URL", default=None)
+DATABASE_URL = config("DATABASE_URL", default=None)
 
 # if DATABASE_URL is not None:
 #     import dj_database_url
@@ -114,19 +114,22 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Replace the DATABASES section of your settings.py with this
 from urllib.parse import urlparse
 
-tmpPostgres = urlparse(config("DATABASE_URL"))
+if DATABASE_URL:
+    tmpPostgres = urlparse(DATABASE_URL)
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": tmpPostgres.path.replace("/", ""),
-        "USER": tmpPostgres.username,
-        "PASSWORD": tmpPostgres.password,
-        "HOST": tmpPostgres.hostname,
-        "PORT": 5432,
+    # Extract only the database name correctly
+    db_name = tmpPostgres.path.lstrip("/")  # Removes the leading "/"
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": db_name,  # Ensuring the correct database name
+            "USER": tmpPostgres.username,
+            "PASSWORD": tmpPostgres.password,
+            "HOST": tmpPostgres.hostname,
+            "PORT": tmpPostgres.port or 5432,  # Default PostgreSQL port
+        }
     }
-}
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
