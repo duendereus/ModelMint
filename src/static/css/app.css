@@ -4923,7 +4923,7 @@ select {
     -webkit-transform: translateY(100%);
     -ms-transform: translateY(100%);
     transform: translateY(100%);
-    margin-top: -150px !important;
+    /* margin-top: -150px !important; */
   }
   .banner.banner-one .banner-content .banner-title {
     font-size: 50px;
