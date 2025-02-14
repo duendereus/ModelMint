@@ -13,8 +13,6 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 import os
 from decouple import config
-import dj_database_url
-from urllib.parse import urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -100,17 +98,18 @@ DATABASES = {
 }
 
 CONN_MAX_AGE = config("CONN_MAX_AGE", cast=int, default=300)
-DATABASE_URL = config("DATABASE_URL", cast=str)
+DATABASE_URL = config("DATABASE_URL", default=None)
 
-if DATABASE_URL:
-    parsed_url = urlparse(DATABASE_URL)
-    endpoint_id = parsed_url.hostname.split(".")[0]  # Extract endpoint ID
-    DATABASE_URL += f"?options=endpoint%3D{endpoint_id}"  # Append to URL
+if DATABASE_URL is not None:
+    import dj_database_url
 
-    DATABASES["default"] = dj_database_url.parse(
-        DATABASE_URL, conn_max_age=CONN_MAX_AGE, conn_health_checks=True
-    )
-
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=CONN_MAX_AGE,
+            conn_health_checks=True,
+        )
+    }
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
