@@ -89,7 +89,6 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -97,39 +96,20 @@ DATABASES = {
     }
 }
 
-# CONN_MAX_AGE = config("CONN_MAX_AGE", cast=int, default=300)
-DATABASE_URL = config("DATABASE_URL", default=None)
+CONN_MAX_AGE = config("CONN_MAX_AGE", cast=int, default=300)
+DATABASE_URL = config("DB_URL", default=None)
 
-# if DATABASE_URL is not None:
-#     import dj_database_url
-
-#     DATABASES = {
-#         "default": dj_database_url.config(
-#             default=DATABASE_URL,
-#             conn_max_age=CONN_MAX_AGE,
-#             conn_health_checks=True,
-#         )
-#     }
-
-# Replace the DATABASES section of your settings.py with this
-from urllib.parse import urlparse
-
-if DATABASE_URL:
-    tmpPostgres = urlparse(DATABASE_URL)
-
-    # Extract only the database name correctly
-    db_name = tmpPostgres.path.lstrip("/")  # Removes the leading "/"
+if DATABASE_URL is not None:
+    import dj_database_url
 
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": db_name,  # Ensuring the correct database name
-            "USER": tmpPostgres.username,
-            "PASSWORD": tmpPostgres.password,
-            "HOST": tmpPostgres.hostname,
-            "PORT": tmpPostgres.port or 5432,  # Default PostgreSQL port
-        }
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=CONN_MAX_AGE,
+            conn_health_checks=True,
+        )
     }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
