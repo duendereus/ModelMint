@@ -4948,7 +4948,7 @@ select {
     -webkit-transform: translateY(60%);
     -ms-transform: translateY(60%);
     transform: translateY(60%);
-    margin-top: -100px !important;
+    /* margin-top: -100px !important; */
   }
   .banner.banner-two .banner-content .banner-title {
     font-size: 40px;
@@ -5095,7 +5095,7 @@ select {
     -webkit-transform: translateY(60%);
     -ms-transform: translateY(60%);
     transform: translateY(60%);
-    margin-top: -50px !important;
+    /* margin-top: -50px !important; */
   }
   .banner.banner-one .banner-content .banner-title {
     font-size: 40px;
