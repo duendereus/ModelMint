@@ -96,8 +96,8 @@ DATABASES = {
     }
 }
 
-CONN_MAX_AGE = config("CONN_MAX_AGE", cast=int, default=300)
-DATABASE_URL = config("DB_URL", default=None)
+CONN_MAX_AGE = config("CONN_MAX_AGE", cast=int, default=30)
+DATABASE_URL = "postgresql://neondb_owner:npg_E8bHfoI4wATC@ep-plain-shadow-a6veo1x1-pooler.us-west-2.aws.neon.tech/neondb?sslmode=require"
 
 if DATABASE_URL is not None:
     import dj_database_url
@@ -110,6 +110,20 @@ if DATABASE_URL is not None:
         )
     }
 
+# Replace the DATABASES section of your settings.py with this
+# DATABASES = {
+#   'default': {
+#     'ENGINE': 'django.db.backends.postgresql',
+#     'NAME': config('PGDATABASE'),
+#     'USER': config('PGUSER'),
+#     'PASSWORD': config('PGPASSWORD'),
+#     'HOST': config('PGHOST'),
+#     'PORT': config('PGPORT', 5432),
+#     'OPTIONS': {
+#       'sslmode': 'require',
+#     },
+#   }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
