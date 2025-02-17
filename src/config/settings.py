@@ -55,6 +55,7 @@ DEBUG = config("DEBUG", cast=bool)
 ALLOWED_HOSTS = [
     ".railway.app",
     "modelmint-production.up.railway.app",
+    "modelmint.co",
 ]
 
 if DEBUG:
