@@ -212,3 +212,6 @@ AUTH_USER_MODEL = "accounts.User"
 MESSAGE_TAGS = {
     messages.ERROR: "danger",
 }
+
+
+CSRF_TRUSTED_ORIGINS = ["https://yourdomain.com", "https://www.yourdomain.com"]
