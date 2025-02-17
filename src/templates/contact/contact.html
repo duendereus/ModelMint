@@ -57,29 +57,32 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-8">
-                <div class="contact-froms">
-                    <form method="POST" action="#" class="contact-form" data-pixsaas="contact-froms">
+                <div class="contact-forms">
+                    <form method="POST" class="contact-form">
+                        {% csrf_token %}
+
                         <div class="row">
                             <div class="col-md-6">
-                                <input type="text" name="name" placeholder="Name" required>
+                                <label for="{{ form.name.id_for_label }}">Full Name <span style="color: red;">*</span></label>
+                                {{ form.name }}
                             </div>
 
                             <div class="col-md-6">
-                                <input type="email" name="email" placeholder="Email" required>
+                                <label for="{{ form.email.id_for_label }}">Email Address <span style="color: red;">*</span></label>
+                                {{ form.email }}
                             </div>
                         </div>
 
-                        <input type="text" name="subject" placeholder="Subject">
+                        <label for="{{ form.subject.id_for_label }}">Subject</label>
+                        {{ form.subject }}
 
-                        <textarea name="content" placeholder="Your Comment" required></textarea>
+                        <label for="{{ form.content.id_for_label }}">Your Message <span style="color: red;">*</span></label>
+                        {{ form.content }}
 
                         <button type="submit" class="pix-btn submit-btn">
-                            <span class="btn-text">Send Your Massage</span>
+                            <span class="btn-text">Send Your Message</span>
                             <i class="fas fa-spinner fa-spin"></i>
                         </button>
-                        
-                        <input type="hidden" name="recaptcha_response" id="recaptchaResponse">
-
 
                         <div class="row">
                             <div class="form-result alert">
@@ -87,15 +90,19 @@
                             </div>
                         </div>
                     </form>
-                    <!-- /.contact-froms -->
+
+                    {% if messages %}
+                        <div class="alert alert-success">
+                            {% for message in messages %}
+                                {{ message }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
                 </div>
-                <!-- /.faq-froms -->
             </div>
-            <!-- /.col-md-8 -->
         </div>
-        <!-- /.row -->
     </div>
-    <!-- /.container -->
 </section>
 <!-- /.contactus -->
 {% endblock content %}
