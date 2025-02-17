@@ -214,4 +214,4 @@ MESSAGE_TAGS = {
 }
 
 
-CSRF_TRUSTED_ORIGINS = ["https://yourdomain.com", "https://www.yourdomain.com"]
+CSRF_TRUSTED_ORIGINS = ["https://modelmint.co", "https://www.modelmint.co"]
