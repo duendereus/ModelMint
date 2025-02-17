@@ -51,6 +51,16 @@
                         </li>
 
                         <li><a href="{% url 'landing:contact' %}">Contact</a></li>
+
+                        {% if request.user.is_authenticated %}
+
+                        <li><a href="#">Logout</a></li>
+
+                        {% else %}
+
+                        <li><a href="{% url 'accounts:login' %}">Login</a></li>
+
+                        {% endif %}
                     </ul>
                 </div>
                 <!-- /.menu-wrapper -->

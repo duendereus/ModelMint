@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Login{% endblock title %}
+
+{% block content %}
+<section class="signin" style="background-color: rgb(152, 234, 152) !important;">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-7">
+                <div class="signin-from-wrapper">
+                    <div class="signin-from-inner">
+                        <h2 class="title">Welcome Back! 🚀</h2>
+                        <p>
+                            Access your <b>AI-powered analytics, custom reports, and machine learning tools</b> instantly.  
+                            Sign in to manage your data, generate insights, and unlock the full power of <b>ModelMint</b>.  
+                        </p>
+                        <form method="POST" action="{% url 'accounts:login' %}" class="singn-form">
+                            {% csrf_token %}
+                            <input type="text" placeholder="Email" name="email">
+                            <input type="password" placeholder="Password" name="password">
+
+                            <div class="forget-link">
+                                <a href="#" class="forget">Forgot Password?</a>
+                            </div>
+
+                            <button type="submit" class="pix-btn">Login</button>
+
+                            <p>Don’t have any account? <a href="#">Register</a> now.</p>
+                        </form>
+                    </div>
+                    <!-- /.signin-from-inner -->
+
+                    <ul class="animate-ball">
+                        <li class="ball"></li>
+                        <li class="ball"></li>
+                        <li class="ball"></li>
+                        <li class="ball"></li>
+                        <li class="ball"></li>
+                    </ul>
+                </div>
+                <!-- /.signin-from-wrapper -->
+            </div>
+            <!-- /.col-lg-7 -->
+        </div>
+        <!-- /.row -->
+    </div>
+    <!-- /.container -->
+
+    <div class="signin-banner">
+        <img src="" alt="" class="image-one wow pixFadeDown">
+        <img src="{% static 'img/animated/login.svg' %}" alt="">
+
+    </div>
+    <!-- /.signin-banner -->
+</section>
+{% endblock content %}
