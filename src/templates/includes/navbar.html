@@ -63,6 +63,13 @@
                         {% endif %}
                     </ul>
                 </div>
+
+                {% if request.user.is_authenticated %}
+                {% else %}
+                <div class="nav-right">
+                    <a href="{% url 'accounts:register' %}" class="nav-btn">Start Leveraging your Data</a>
+                </div>
+                {% endif %}
                 <!-- /.menu-wrapper -->
             </nav>
             <!-- /.site-nav -->

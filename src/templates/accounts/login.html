@@ -21,12 +21,12 @@
                             <input type="password" placeholder="Password" name="password">
 
                             <div class="forget-link">
-                                <a href="#" class="forget">Forgot Password?</a>
+                                <a href="{% url 'accounts:password_reset_request' %}" class="forget">Forgot Password?</a>
                             </div>
 
                             <button type="submit" class="pix-btn">Login</button>
 
-                            <p>Don’t have any account? <a href="#">Register</a> now.</p>
+                            <p>Don’t have any account? <a href="{% url 'accounts:register' %}">Register</a> now.</p>
                         </form>
                     </div>
                     <!-- /.signin-from-inner -->

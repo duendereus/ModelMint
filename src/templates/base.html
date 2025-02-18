@@ -72,8 +72,8 @@
 
         {% include "includes/navbar.html" %}
 
-        {% include "includes/messages.html" %}
-
+        {% include "includes/messages.html" with messages=messages %}
+    
         {% block content %}
 
 
