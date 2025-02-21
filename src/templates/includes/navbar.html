@@ -50,6 +50,8 @@
                             <a href="{% url 'home' %}">Home</a>
                         </li>
 
+                        <li><a href="{% url 'subscriptions:pricing' %}">Pricing</a></li>
+
                         <li><a href="{% url 'landing:contact' %}">Contact</a></li>
 
                         {% if request.user.is_authenticated %}

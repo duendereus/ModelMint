@@ -1,0 +1,16 @@
+<section class="pricing-hosting">
+    <div class="container">
+        <div class="section-title text-center">
+            <h2 class="title">Choose the Perfect Plan for Your Data Needs</h2>
+            <p>Unlock the power of ML-driven analytics with a plan that fits your business.</p>
+        </div>
+
+        <div class="row justify-content-center">
+            {% for price_obj in object_list %}
+                {% include 'subscriptions/snippets/pricing-card.html' with object=price_obj %}
+            {% empty %}
+                <p class="text-center text-gray-500">No pricing plans available at the moment.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>

@@ -1,0 +1,27 @@
+<div class="col-lg-4">
+    <div class="pricing-table style-three wow pixFadeLeft" data-wow-delay="0.5s">
+        <div class="pricing-header pricing-amount">
+            <h2>{{ object.display_sub_name  }}</h2> 
+            {% if object.display_sub_subtitle %}
+            <p>{{ object.display_sub_subtitle  }}</p> 
+            {% endif %}
+
+            {% if object.price == 0 %}
+                <h2 class="price">Free Forever</h2>
+            {% else %}
+                <h2 class="price">${{ object.price }}<span>/Month</span></h2>
+            {% endif %}
+        </div>
+        
+        <ul class="price-feture">
+            {% for feature in object.subscription.features.all %}
+                <li>{{ feature.description }}</li>
+            {% endfor %}
+        </ul>
+
+        <div class="action text-left">
+            <a href="#" class="pix-btn btn-outline-two">Get Started</a>
+        </div>
+    </div>
+</div>
+

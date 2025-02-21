@@ -4,11 +4,11 @@ from django.contrib.auth import get_user_model
 from django.contrib import messages, auth
 from django.contrib.auth.decorators import login_required
 from .forms import UserRegistrationForm, CustomPasswordResetForm, CustomSetPasswordForm
-from .utils import send_verification_email
+from .utils import send_verification_email, anonymous_required
+from .signals import user_signed_up, email_confirmed
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
-from .utils import anonymous_required
 
 
 User = get_user_model()
@@ -52,16 +52,18 @@ def logout(request):
 
 @anonymous_required
 def register_view(request):
-    """Handles user registration and sends email verification."""
     if request.user.is_authenticated:
-        return redirect("home")  # Redirect logged-in users
+        return redirect("home")
 
     if request.method == "POST":
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.is_active = False  # User must activate account via email
+            user.is_active = False  # Require email activation
             user.save()
+
+            # Dispatch the user_signed_up signal
+            user_signed_up.send(sender=user.__class__, request=request, user=user)
 
             send_verification_email(
                 request,
@@ -71,10 +73,9 @@ def register_view(request):
             )
 
             messages.success(
-                request,
-                "Registration successful! Please check your email to activate your account.",
+                request, "Registration successful! Please check your email."
             )
-            return redirect("accounts:login")  # Redirect to login page
+            return redirect("accounts:login")
     else:
         form = UserRegistrationForm()
 
@@ -82,7 +83,6 @@ def register_view(request):
 
 
 def activate_account(request, uidb64, token):
-    """Handles user account activation via email link"""
     try:
         uid = urlsafe_base64_decode(uidb64).decode()
         user = User.objects.get(pk=uid)
@@ -92,13 +92,16 @@ def activate_account(request, uidb64, token):
     if user is not None and default_token_generator.check_token(user, token):
         user.is_active = True
         user.save()
+
+        # Dispatch the email_confirmed signal
+        email_confirmed.send(sender=user.__class__, request=request, user=user)
+
         login(request, user)
         messages.success(request, "Your account has been activated successfully!")
         return redirect("accounts:login")
     else:
         messages.error(request, "Activation link is invalid or expired.")
         return redirect("accounts:login")
-        # return HttpResponse("Activation link is invalid or expired.", status=400)
 
 
 def password_reset_request(request):

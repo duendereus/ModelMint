@@ -9,6 +9,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", home, name="home"),
     path("", include("landing.urls", namespace="landing")),
+    path("", include("subscriptions.urls", namespace="subscriptions")),
     path("accounts/", include("accounts.urls", namespace="accounts")),
 ]
 
