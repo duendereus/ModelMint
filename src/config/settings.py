@@ -53,6 +53,8 @@ SECRET_KEY = config("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", cast=bool)
 
+BASE_URL = config("BASE_URL", default=None)
+
 ALLOWED_HOSTS = [
     ".railway.app",
     "modelmint-production.up.railway.app",
@@ -82,6 +84,7 @@ LOCAL_APPS = [
     "landing.apps.LandingConfig",
     "subscriptions.apps.SubscriptionsConfig",
     "customers.apps.CustomersConfig",
+    "checkouts.apps.CheckoutsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
