@@ -10,7 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      DJANGO_DEBUG: 0
+      DEBUG: 0
       # DJANGO_SECRET_KEY: not-good
     steps:
       - name: Checkout Code
