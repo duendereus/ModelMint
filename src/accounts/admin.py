@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from accounts.models import User
+from accounts.models import User, Organization
 
 
 # Register your models here.
@@ -41,3 +41,29 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
     )
+
+
+@admin.register(Organization)
+class OrganizationAdmin(admin.ModelAdmin):
+    """
+    Admin class for managing organizations in the Django admin panel.
+    """
+
+    list_display = ("name", "owner", "created_at")
+    search_fields = (
+        "name",
+        "owner__email",
+        "owner__username",
+    )
+    list_filter = ("created_at",)
+    ordering = ("-created_at",)
+    raw_id_fields = ("owner", "users")
+    filter_horizontal = ("users",)
+
+    fieldsets = (
+        (None, {"fields": ("name", "owner")}),
+        ("Users", {"fields": ("users",)}),
+        ("Metadata", {"fields": ("created_at",)}),
+    )
+
+    readonly_fields = ("created_at",)

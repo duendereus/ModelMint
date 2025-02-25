@@ -4,9 +4,8 @@ from . import date_utils
 
 DEBUG = config("DEBUG", default=False, cast=bool)
 STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="", cast=str)
-STRIPE_TEST_OVERRIDE = config("STRIPE_TEST_OVERRIDE", default=False, cast=bool)
 
-if "sk_test" in STRIPE_SECRET_KEY and not DEBUG and not STRIPE_TEST_OVERRIDE:
+if "sk_test" in STRIPE_SECRET_KEY and not DEBUG:
     raise ValueError("Invalid stripe key for prod")
 
 stripe.api_key = STRIPE_SECRET_KEY

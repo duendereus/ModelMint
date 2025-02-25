@@ -58,9 +58,7 @@ def register_view(request):
     if request.method == "POST":
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
-            user = form.save(commit=False)
-            user.is_active = False  # Require email activation
-            user.save()
+            user = form.save()
 
             # Dispatch the user_signed_up signal
             user_signed_up.send(sender=user.__class__, request=request, user=user)

@@ -83,8 +83,8 @@
         <div class="content">
             <h2>Activate Your Account</h2>
             <p>Hello {{ user.username }},</p>
-            <p class="mb-3">Click the button below to activate your account:</p>
-            <p style="text-align: center;">
+            <p class="mb-4">Click the button below to activate your account:</p>
+            <p style="text-align: center;" class="mt-4">
                 <a href="{{ scheme }}://{{ domain }}{% url 'accounts:activate' uidb64=uid token=token %}"
                    style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
                     Activate My Account

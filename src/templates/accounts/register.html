@@ -34,7 +34,18 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
-                        
+                            
+                            <div class="form-group">
+                                <input type="text" name="organization_name" placeholder="Company/Project Name" autocomplete="off" value="{{ form.organization_name.value|default:'' }}">
+                                {% if form.organization_name.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.organization_name.errors %}
+                                            <p>{{ error }}</p>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
                             <!-- Username Field -->
                             <div class="form-group">
                                 <input type="text" name="username" placeholder="Username" autocomplete="off" value="{{ form.username.value|default:'' }}">

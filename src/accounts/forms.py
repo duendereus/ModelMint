@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
+from .models import Organization
 from .utils import custom_password_validator
 
 User = get_user_model()
@@ -20,18 +21,19 @@ class UserRegistrationForm(forms.ModelForm):
         label="Confirm Password",
         widget=forms.PasswordInput(attrs={"placeholder": "Confirm Password"}),
     )
+    organization_name = forms.CharField(
+        label="Organization Name",
+        max_length=255,
+        widget=forms.TextInput(attrs={"placeholder": "Company/Project Name"}),
+    )
 
     class Meta:
         model = User
         fields = ["username", "email"]
-        widgets = {
-            "username": forms.TextInput(attrs={"placeholder": "Username"}),
-            "email": forms.EmailInput(attrs={"placeholder": "Email"}),
-        }
 
     def clean_email(self):
         email = self.cleaned_data.get("email")
-        validate_email(email)  # Validate email format
+        validate_email(email)
         if User.objects.filter(email=email).exists():
             raise ValidationError("An account with this email already exists.")
         return email
@@ -49,9 +51,18 @@ class UserRegistrationForm(forms.ModelForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password1"])
-        user.is_active = False  # Mark inactive until email verification
+        user.is_active = False  # Require email verification
+
         if commit:
             user.save()
+
+            # Check if organization exists, else create it
+            org_name = self.cleaned_data.get("organization_name")
+            organization, created = Organization.objects.get_or_create(
+                name=org_name, defaults={"owner": user}
+            )
+            organization.users.add(user)
+
         return user
 
 
