@@ -1,0 +1,11 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Home{% endblock title %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between">
+    <div>
+        <h6 class="text-muted mb-1">Welcome back, {{request.user.username}}!</h6>
+    </div>
+</div>
+{% endblock content %}

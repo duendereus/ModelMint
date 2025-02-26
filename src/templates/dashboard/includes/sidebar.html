@@ -1,0 +1,28 @@
+{% load static %}
+<!-- sidebar-wrapper -->
+<nav id="sidebar" class="sidebar-wrapper sidebar-dark">
+    <div class="sidebar-content" data-simplebar style="height: calc(100% - 60px);">
+        <div class="sidebar-brand">
+            <a href="{% url 'dashboard:dashboard_home' %}">
+                <img src="{% static 'img/logo-green.svg' %}" height="24" class="logo-light-mode" alt="">
+                <img src="{% static 'img/logo-green.svg' %}" height="24" class="logo-dark-mode" alt="">
+                <span class="sidebar-colored">
+                    <img src="{% static 'img/logo-green.svg' %}" height="24" alt="">
+                </span>
+            </a>
+        </div>
+
+        <ul class="sidebar-menu">
+            <li class="sidebar-dropdown">
+                <a href="javascript:void(0)"><i class="ti ti-home me-2"></i>Dashboard</a>
+                <div class="sidebar-submenu">
+                    <ul>
+                        <li><a href="{% url 'dashboard:dashboard_home' %}">Analytics</a></li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        <!-- sidebar-menu  -->
+    </div>
+</nav>
+<!-- sidebar-wrapper  -->

@@ -12,6 +12,7 @@ urlpatterns = [
     path("", include("subscriptions.urls", namespace="subscriptions")),
     path("", include("checkouts.urls", namespace="checkouts")),
     path("accounts/", include("accounts.urls", namespace="accounts")),
+    path("dashboard/", include("dashboard.urls", namespace="dashboard")),
 ]
 
 if settings.DEBUG:
