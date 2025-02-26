@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
     let alerts = document.querySelectorAll(".alert");
-    
+
     alerts.forEach((alert) => {
         // Show animation
         setTimeout(() => {
@@ -9,18 +9,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Auto-close after 5 seconds
         setTimeout(() => {
-            alert.style.opacity = "0";
-            setTimeout(() => {
-                alert.remove();
-            }, 500);
-        }, 5000);
-
-        // Close button action
-        alert.querySelector(".close").addEventListener("click", function () {
-            alert.style.opacity = "0";
-            setTimeout(() => {
-                alert.remove();
-            }, 500);
-        });
+            closeAlert(alert);
+        }, 1000);
     });
+
+    // Event delegation for close button
+    document.addEventListener("click", function (event) {
+        if (event.target.classList.contains("close")) {
+            let alert = event.target.closest(".alert");
+            closeAlert(alert);
+        }
+    });
+
+    // Function to close alerts with animation
+    function closeAlert(alert) {
+        if (alert) {
+            alert.style.opacity = "0";
+            setTimeout(() => {
+                alert.remove();
+            }, 500);
+        }
+    }
 });
