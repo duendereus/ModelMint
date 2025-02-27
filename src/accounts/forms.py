@@ -15,7 +15,6 @@ class UserRegistrationForm(forms.ModelForm):
     password1 = forms.CharField(
         label="Password",
         widget=forms.PasswordInput(attrs={"placeholder": "Password"}),
-        validators=[custom_password_validator],
     )
     password2 = forms.CharField(
         label="Confirm Password",
@@ -46,6 +45,13 @@ class UserRegistrationForm(forms.ModelForm):
         if password1 and password2 and password1 != password2:
             raise ValidationError("Passwords do not match.")
 
+        # Validate organization uniqueness
+        org_name = cleaned_data.get("organization_name")
+        if Organization.objects.filter(name=org_name).exists():
+            raise ValidationError(
+                "This organization name is already taken. Please choose another."
+            )
+
         return cleaned_data
 
     def save(self, commit=True):
@@ -54,14 +60,16 @@ class UserRegistrationForm(forms.ModelForm):
         user.is_active = False  # Require email verification
 
         if commit:
-            user.save()
+            user.save()  # Save user first to get an ID
 
-            # Check if organization exists, else create it
-            org_name = self.cleaned_data.get("organization_name")
-            organization, created = Organization.objects.get_or_create(
-                name=org_name, defaults={"owner": user}
+            # Create a new organization (ensured unique in clean())
+            organization = Organization.objects.create(
+                name=self.cleaned_data["organization_name"], owner=user
             )
-            organization.users.add(user)
+
+            # The owner should **not** be a member
+            # Users should be added to `users` only when necessary
+            organization.save()
 
         return user
 

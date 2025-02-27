@@ -5,6 +5,7 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
 from accounts.utils import validate_phone_number
 
 
@@ -95,16 +96,51 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class Organization(models.Model):
-    """
-    Represents either a company or an individual project.
-    """
-
     name = models.CharField(max_length=255, unique=True)
-    owner = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="owned_organizations"
+    owner = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="owned_organization"
     )
-    users = models.ManyToManyField(User, related_name="organizations")
+    users = models.ManyToManyField(User, related_name="organization", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        """
+        Enforce validation rules:
+        1. Owner cannot be in `users` list.
+        2. A user can only belong to one organization.
+        3. A user cannot be both an owner and a member in any organization.
+        """
+        if self.pk:  # Only enforce rules for existing instances
+            for user in self.users.all():
+                if user == self.owner:
+                    raise ValidationError(
+                        f"Owner {user.username} cannot be in the members list."
+                    )
+
+                if Organization.objects.exclude(id=self.id).filter(users=user).exists():
+                    raise ValidationError(
+                        f"User {user.username} is already a member of another organization."
+                    )
+
+                if Organization.objects.filter(owner=user).exists():
+                    raise ValidationError(
+                        f"User {user.username} is already an owner of another organization."
+                    )
+
+        if Organization.objects.exclude(id=self.id).filter(owner=self.owner).exists():
+            raise ValidationError(
+                f"User {self.owner.username} already owns another organization."
+            )
+
+    def save(self, *args, **kwargs):
+        """
+        Save the Organization instance before adding users.
+        """
+        is_new = not self.pk
+        super().save(*args, **kwargs)  # Save first to generate an ID
+
+        if not is_new:
+            self.clean()  # Validate constraints
