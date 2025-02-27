@@ -44,17 +44,6 @@ class OrganizationAdminForm(forms.ModelForm):
         return users
 
 
-class OrganizationUserInline(admin.TabularInline):
-    """
-    Inline admin to allow bulk user assignments to organizations.
-    Users can be searched dynamically instead of using a dropdown.
-    """
-
-    model = Organization.users.through  # Directly references the M2M relation
-    extra = 1
-    autocomplete_fields = ["user"]  # Allows searching for users by name or email
-
-
 class OrganizationAdmin(admin.ModelAdmin):
     """
     Admin panel for Organization model with optimized user management.
@@ -69,9 +58,6 @@ class OrganizationAdmin(admin.ModelAdmin):
     # Optimized Fields
     raw_id_fields = ("owner",)  # Efficient owner selection
     autocomplete_fields = ["users"]  # Allows user search instead of dropdown
-
-    # Add users as an inline model for bulk addition
-    inlines = [OrganizationUserInline]
 
     fieldsets = (
         (None, {"fields": ("name", "owner", "users")}),
