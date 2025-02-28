@@ -1,87 +1,64 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from accounts.models import User, Organization
-from django.core.exceptions import ValidationError
+from accounts.models import User, Organization, OrganizationMembership
 from django import forms
+
+
+class OrganizationMembershipInline(admin.TabularInline):
+    """
+    Inline admin to manage organization members directly from the Organization page.
+    """
+
+    model = OrganizationMembership
+    extra = 1  # Allows adding new members inline
+    autocomplete_fields = ["user"]  # Efficient user search
+
+
+@admin.register(OrganizationMembership)
+class OrganizationMembershipAdmin(admin.ModelAdmin):
+    """
+    Admin panel for managing user memberships in organizations.
+    """
+
+    list_display = ("user", "organization", "role", "joined_at")
+    search_fields = ("user__email", "organization__name")
+    list_filter = ("role", "joined_at")
+    ordering = ("-joined_at",)
+    autocomplete_fields = ["user", "organization"]
 
 
 class OrganizationAdminForm(forms.ModelForm):
     """
-    Custom form for Organization to handle ManyToMany user relationships properly.
+    Custom form for Organization to prevent invalid memberships.
     """
 
     class Meta:
         model = Organization
         fields = "__all__"
 
-    def clean_users(self):
-        """
-        Ensure users belong to only one organization and are not also owners.
-        """
-        users = self.cleaned_data.get("users", [])
-        owner = self.cleaned_data.get("owner")
 
-        for user in users:
-            if (
-                Organization.objects.exclude(id=self.instance.id)
-                .filter(users=user)
-                .exists()
-            ):
-                raise ValidationError(
-                    f"User {user.username} is already a member of another organization."
-                )
-
-            if Organization.objects.filter(owner=user).exists():
-                raise ValidationError(
-                    f"User {user.username} is an owner of another organization."
-                )
-
-            if user == owner:
-                raise ValidationError(
-                    f"Owner {user.username} should not be in the members list."
-                )
-
-        return users
-
-
+@admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
     """
-    Admin panel for Organization model with optimized user management.
+    Admin panel for Organization model.
     """
 
-    form = OrganizationAdminForm
     list_display = ("name", "owner", "created_at")
     search_fields = ("name", "owner__email", "owner__username")
     list_filter = ("created_at",)
     ordering = ("-created_at",)
-
-    # Optimized Fields
-    raw_id_fields = ("owner",)  # Efficient owner selection
-    autocomplete_fields = ["users"]  # Allows user search instead of dropdown
-
-    fieldsets = (
-        (None, {"fields": ("name", "owner", "users")}),
-        ("Metadata", {"fields": ("created_at",)}),
-    )
     readonly_fields = ("created_at",)
+    inlines = [OrganizationMembershipInline]  # Add the inline
 
     def save_model(self, request, obj, form, change):
         """
-        Save the Organization instance before adding users.
+        Validate constraints before saving.
         """
         if not obj.pk:
-            super().save_model(request, obj, form, change)  # Save first to get an ID
+            super().save_model(request, obj, form, change)  # Save first
 
-        try:
-            obj.clean()  # Validate constraints
-        except ValidationError as e:
-            form.add_error(None, e)
-            return
-
-        super().save_model(request, obj, form, change)  # Save again after validation
-
-
-admin.site.register(Organization, OrganizationAdmin)
+        obj.clean()
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(User)

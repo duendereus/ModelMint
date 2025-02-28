@@ -96,11 +96,14 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class Organization(models.Model):
+    """
+    Organization model representing a company or project.
+    """
+
     name = models.CharField(max_length=255, unique=True)
     owner = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="owned_organization"
     )
-    users = models.ManyToManyField(User, related_name="organization", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -108,28 +111,9 @@ class Organization(models.Model):
 
     def clean(self):
         """
-        Enforce validation rules:
-        1. Owner cannot be in `users` list.
-        2. A user can only belong to one organization.
-        3. A user cannot be both an owner and a member in any organization.
+        Validation rules:
+        1. The owner must not be a member in another organization.
         """
-        if self.pk:  # Only enforce rules for existing instances
-            for user in self.users.all():
-                if user == self.owner:
-                    raise ValidationError(
-                        f"Owner {user.username} cannot be in the members list."
-                    )
-
-                if Organization.objects.exclude(id=self.id).filter(users=user).exists():
-                    raise ValidationError(
-                        f"User {user.username} is already a member of another organization."
-                    )
-
-                if Organization.objects.filter(owner=user).exists():
-                    raise ValidationError(
-                        f"User {user.username} is already an owner of another organization."
-                    )
-
         if Organization.objects.exclude(id=self.id).filter(owner=self.owner).exists():
             raise ValidationError(
                 f"User {self.owner.username} already owns another organization."
@@ -137,10 +121,29 @@ class Organization(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Save the Organization instance before adding users.
+        Save the Organization instance and validate constraints.
         """
-        is_new = not self.pk
-        super().save(*args, **kwargs)  # Save first to generate an ID
+        super().save(*args, **kwargs)
+        self.clean()
 
-        if not is_new:
-            self.clean()  # Validate constraints
+
+class OrganizationMembership(models.Model):
+    ROLE_CHOICES = [
+        ("admin", "Admin"),
+        ("member", "Member"),
+    ]
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="organization_memberships"
+    )
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="members"
+    )
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="member")
+    joined_at = models.DateTimeField(auto_now_add=True)  # ✅ This must exist
+
+    class Meta:
+        unique_together = ("user", "organization")
+
+    def __str__(self):
+        return f"{self.user.username} - {self.organization.name} ({self.role})"

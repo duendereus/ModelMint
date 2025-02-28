@@ -340,7 +340,7 @@ try {
               autoSelected: 'zoom'
             },
         },
-        colors: ['#2f55d4', '#2eca8b'],
+        colors: ['#2bba64', '#2eca8b'],
         dataLabels: {
             enabled: false
         },
@@ -421,7 +421,7 @@ try {
                 enabled: true
             }
         },
-        colors: ["#2f55d4"],
+        colors: ["#2bba64"],
         plotOptions: {
             bar: {
                 columnWidth: '30%'
@@ -489,7 +489,7 @@ try {
         theme: {
             monochrome: {
                 enabled: true,
-                color: '#2f55d4',
+                color: '#2bba64',
             }
         },
         responsive: [{

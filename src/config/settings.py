@@ -86,6 +86,7 @@ LOCAL_APPS = [
     "customers.apps.CustomersConfig",
     "checkouts.apps.CheckoutsConfig",
     "dashboard.apps.DashboardConfig",
+    "analytics.apps.AnalyticsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -114,6 +115,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # custom context processors
+                "accounts.context_processors.organization_context",
             ],
         },
     },
@@ -200,6 +203,12 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": MEDIA_ROOT,  # Use local media storage
+        },
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },

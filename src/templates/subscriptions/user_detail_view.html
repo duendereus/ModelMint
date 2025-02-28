@@ -6,20 +6,52 @@
 
 {% block content %}
 <h1 class="text-lg font-medium">Your Subscription</h1>
-<form class="mt-5" action="" method="POST">
-    {% csrf_token %}
-    <button type="submit" >Refresh</button>
-</form>
 
-<a href="{{ subscription.get_cancel_url }}">Cancel Membership</a>
+{% if subscription.plan_name  %}
 
-<p>Plan name: {{ subscription.plan_name }}</p>
+<div class="card shadow-sm p-4">
+    <h4 class="mb-3">Subscription Details</h4>
 
-<p>Status: {{ subscription.status|title }}</p>
+    <form class="mb-3" action="" method="POST">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-info">Refresh</button>
+    </form>
 
-<p>Membership age: {{ subscription.original_period_start|timesince }} </p>
-<p>Start: {{ subscription.current_period_start }}</p>
+    <div class="mb-3">
+        <a href="{{ subscription.get_cancel_url }}" class="btn btn-danger">Cancel Membership</a>
+    </div>
 
-<p>End: {{ subscription.current_period_end|timeuntil }} ({{ subscription.current_period_end }})</p>
+    <ul class="list-group">
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <strong>Plan Name:</strong> <span>{{ subscription.plan_name }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <strong>Status:</strong> 
+            <span class="badge 
+                {% if subscription.status == 'active' %} bg-success 
+                {% elif subscription.status == 'pending' %} bg-warning 
+                {% else %} bg-danger {% endif %}">
+                {{ subscription.status|title }}
+            </span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <strong>Membership Age:</strong> <span>{{ subscription.original_period_start|timesince }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <strong>Start Date:</strong> <span>{{ subscription.current_period_start }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <strong>Ends In:</strong> <span>{{ subscription.current_period_end|timeuntil }} ({{ subscription.current_period_end }})</span>
+        </li>
+    </ul>
+</div>
+
+
+{% else %}
+<p>You don't have an active subscription!</p>
+
+<p>Select the <a href="{% url 'subscriptions:pricing' %}" target="_blank">subscriptions</a> that fits your objectives and start growing your organization!</p>
+
+{% endif %}
 
 {% endblock content %}

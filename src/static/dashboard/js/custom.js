@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Auto-close after 5 seconds
         setTimeout(() => {
             closeAlert(alert);
-        }, 2000);
+        }, 4000);
     });
 
     // Event delegation for close button

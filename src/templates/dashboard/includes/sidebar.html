@@ -17,7 +17,18 @@
                 <a href="javascript:void(0)"><i class="ti ti-home me-2"></i>Dashboard</a>
                 <div class="sidebar-submenu">
                     <ul>
-                        <li><a href="{% url 'dashboard:dashboard_home' %}">Analytics</a></li>
+                        <li><a href="{% url 'dashboard:dashboard_home' %}">Main Dashboard</a></li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+
+        <ul class="sidebar-menu">
+            <li class="sidebar-dropdown">
+                <a href="javascript:void(0)"><i class="ti ti-chart-line"></i>Analytics</a>
+                <div class="sidebar-submenu">
+                    <ul>
+                        <li><a href="{% url 'dashboard:analytics:upload_data' %}">Upload Data</a></li>
                     </ul>
                 </div>
             </li>
