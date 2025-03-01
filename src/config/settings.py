@@ -196,24 +196,64 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = "/static/"
-MEDIA_URL = "/media/"
+# Determine whether to use S3
+USE_S3 = config("USE_S3", default=False, cast=bool)
+
+if USE_S3:
+    # ✅ Use AWS S3 for both static and media storage
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
+        },
+    }
+
+    # AWS S3 Configurations
+    AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
+    AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-west-2")
+
+    # Custom S3 Domain
+    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+
+    # Optional: Use CloudFront in the future
+    AWS_CLOUDFRONT_DOMAIN = config("AWS_CLOUDFRONT_DOMAIN", default="")
+
+    # URLs for static and media files
+    STATIC_URL = f"https://{AWS_CLOUDFRONT_DOMAIN or AWS_S3_CUSTOM_DOMAIN}/static/"
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
+
+    # Signed URLs only for media (not static)
+    AWS_QUERYSTRING_AUTH = True  # Enable signed URLs for media files
+    AWS_S3_OBJECT_PARAMETERS = {
+        "CacheControl": "max-age=86400",
+    }
+
+else:
+    # ✅ Use local storage for media and Whitenoise for static files
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": os.path.join(BASE_DIR, "media")},
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+
+    # Local Development URLs
+    STATIC_URL = "/static/"
+    MEDIA_URL = "/media/"
+
+# ✅ Static & Media Paths
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
-STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-        "OPTIONS": {
-            "location": MEDIA_ROOT,  # Use local media storage
-        },
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
-    },
-}
-
+# ✅ Enable gzip compression & caching for better performance
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 
 # Default primary key field type
