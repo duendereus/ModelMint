@@ -255,6 +255,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # ✅ Enable gzip compression & caching for better performance
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
+# Ignore missing files during collectstatic
+WHITENOISE_IGNORE_MISSING = True
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
