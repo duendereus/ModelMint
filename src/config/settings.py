@@ -200,35 +200,33 @@ USE_TZ = True
 USE_S3 = config("USE_S3", default=False, cast=bool)
 
 if USE_S3:
-    # ❌ Remove S3 Static Settings (We will add them later)
+    # 🔹 Use S3 for media files
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
         },
         "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
 
-    # AWS S3 Configurations (Will not be used now)
+    # ✅ AWS S3 Configurations (For Media Files)
     AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
     AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
     AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-west-2")
 
-    # Custom S3 Domain
+    # 🔒 Secure Media Files (Not Publicly Accessible)
     AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-
-    # ✅ Static & Media URLs (For later when enabling S3)
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
-
-    AWS_QUERYSTRING_AUTH = True
     AWS_S3_OBJECT_PARAMETERS = {
         "CacheControl": "max-age=86400",
     }
 
+    # ✅ Media URL points to S3
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
+
 else:
-    # ✅ Use Whitenoise for Static Files (No S3)
+    # 🔹 Use Local Storage for media files
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -239,18 +237,19 @@ else:
         },
     }
 
-    # ✅ Local Development URLs
-    STATIC_URL = "/static/"
+    # ✅ Local Media URL
     MEDIA_URL = "/media/"
+
+# ✅ Static URL (Always WhiteNoise)
+STATIC_URL = "/static/"
 
 # ✅ Static & Media Paths
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")  # Only used when USE_S3=False
 
-# ✅ Enable gzip compression & caching for better performance
+# ✅ Enable WhiteNoise Compression & Caching
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
-
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
