@@ -197,68 +197,51 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 # ✅ Use S3 for media, WhiteNoise for static files
-# USE_S3 = config("USE_S3", default=False, cast=bool)
-
-# STORAGES = {
-#     # 🔹 Use S3 for media files
-#     "default": (
-#         {
-#             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-#         }
-#         if USE_S3
-#         else {
-#             "BACKEND": "django.core.files.storage.FileSystemStorage",
-#             "OPTIONS": {"location": os.path.join(BASE_DIR, "media")},
-#         }
-#     ),
-#     # 🔹 Use WhiteNoise for static files
-#     "staticfiles": {
-#         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-#     },
-# }
-
-# # ✅ AWS S3 Configurations (For Media Files)
-# if USE_S3:
-#     AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
-#     AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
-#     AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
-#     AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-west-2")
-#     AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-
-#     # 🔒 Secure Media Files (Not Publicly Accessible)
-#     AWS_S3_OBJECT_PARAMETERS = {
-#         "CacheControl": "max-age=86400",
-#     }
-
-# # ✅ Static & Media URLs
-# STATIC_URL = "/static/"  # Served via WhiteNoise
-# MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/" if USE_S3 else "/media/"
-
-# # ✅ Static & Media Paths
-# STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
-# STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-# MEDIA_ROOT = (
-#     os.path.join(BASE_DIR, "media") if not USE_S3 else None
-# )  # Only for local dev
-
-# # ✅ Enable WhiteNoise Compression & Caching
-# WHITENOISE_KEEP_ONLY_HASHED_FILES = True
-
-STATIC_URL = "/static/"
-MEDIA_URL = "/media/"
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+USE_S3 = config("USE_S3", default=False, cast=bool)
 
 STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-    },
+    # 🔹 Use S3 for media files
+    "default": (
+        {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        }
+        if USE_S3
+        else {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": os.path.join(BASE_DIR, "media")},
+        }
+    ),
+    # 🔹 Use WhiteNoise for static files
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
+# ✅ AWS S3 Configurations (For Media Files)
+if USE_S3:
+    AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
+    AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-west-2")
+    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+
+    # 🔒 Secure Media Files (Not Publicly Accessible)
+    AWS_S3_OBJECT_PARAMETERS = {
+        "CacheControl": "max-age=86400",
+    }
+
+# ✅ Static & Media URLs
+STATIC_URL = "/static/"  # Served via WhiteNoise
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/" if USE_S3 else "/media/"
+
+# ✅ Static & Media Paths
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+MEDIA_ROOT = (
+    os.path.join(BASE_DIR, "media") if not USE_S3 else None
+)  # Only for local dev
+
+# ✅ Enable WhiteNoise Compression & Caching
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 
 # Default primary key field type
@@ -274,21 +257,3 @@ MESSAGE_TAGS = {
 
 
 CSRF_TRUSTED_ORIGINS = ["https://modelmint.co", "https://www.modelmint.co"]
-
-# AWS S3 Configurations
-AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
-AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
-AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="")
-AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-west-2")
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-
-# Optional Settings for Performance & Security
-AWS_QUERYSTRING_AUTH = config(
-    "AWS_QUERYSTRING_AUTH", default=False, cast=bool
-)  # No signed URLs for public access
-AWS_S3_OBJECT_PARAMETERS = {
-    "CacheControl": "max-age=86400",
-}
-
-# Media file URL
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
