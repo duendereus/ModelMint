@@ -1,0 +1,40 @@
+.notification-container {
+    position: fixed;
+    top: 25px;  /* Adjusted from 10% */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50%; /* Adjust width based on your design */
+    z-index: 9999; /* Ensure it stays on top */
+}
+
+.show-notification {
+    padding: 15px;
+    border-radius: 5px;
+    text-align: center;
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.alert-danger {
+    background-color: #f8d7da !important; /* Light red background */
+    color: #721c24 !important; /* Dark red text */
+    border: 1px solid #f5c6cb !important;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+
+/* Close button styling */
+.show-notification .close {
+    color: #212421;
+    opacity: 0.7;
+}
+
+/* Ensure it does not affect navbar expansion */
+.navbar {
+    position: relative;
+    z-index: 1000;
+}
