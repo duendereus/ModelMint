@@ -255,14 +255,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # ✅ Enable gzip compression & caching for better performance
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
-# Ignore missing files during collectstatic
-WHITENOISE_IGNORE_MISSING = True
-
-# STATICFILES SETTINGS
-WHITENOISE_MANIFEST_STRICT = False  # Prevent collectstatic crashes on missing files
-
-# Exclude problematic `.map` files during collectstatic
-WHITENOISE_IGNORE_PATTERNS = ["*.map"]
 
 
 # Default primary key field type
