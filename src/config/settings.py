@@ -222,9 +222,7 @@ if USE_S3:
     # ✅ Static & Media URLs (For later when enabling S3)
     MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 
-    AWS_QUERYSTRING_AUTH = config(
-        "AWS_QUERYSTRING_AUTH", default=False, cast=bool
-    )  # No signed URLs for public access
+    AWS_QUERYSTRING_AUTH = True
     AWS_S3_OBJECT_PARAMETERS = {
         "CacheControl": "max-age=86400",
     }
