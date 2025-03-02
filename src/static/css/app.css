@@ -282,22 +282,7 @@ section {
   }
 }
 
-@font-face {
-  font-family: "Flaticon";
-  src: url("./Flaticon.eot");
-  src: url("../fonts/Flaticon.eot?#iefix") format("embedded-opentype"),
-    url("../fonts/Flaticon.woff") format("woff"),
-    url("../fonts/Flaticon.ttf") format("truetype"),
-    url("../fonts/Flaticon.svg#Flaticon") format("svg");
-  font-weight: normal;
-  font-style: normal;
-}
-@media screen and (-webkit-min-device-pixel-ratio: 0) {
-  @font-face {
-    font-family: "Flaticon";
-    src: url("../fonts/Flaticon.svg#Flaticon") format("svg");
-  }
-}
+
 .fi:before {
   display: inline-block;
   font-family: "Flaticon";
@@ -4259,19 +4244,7 @@ select {
     padding: 150px 0 100px;
   }
 }
-.banner.banner-eleven {
-  height: 100vh;
-  background-image: url(../../media/banner/banner_travel.png);
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  display: -webkit-box;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-}
+
 .banner.banner-eleven .subtitle {
   font-family: "Satisfy", cursive;
   font-size: 20px;
@@ -4333,14 +4306,6 @@ select {
   border-color: #fff;
   text-shadow: 0px 6px 6px rgba(118, 43, 255, 0.4);
   color: #7052fb;
-}
-.banner.banner-ai-image {
-  background-color: #050c1e;
-  padding: 232px 0 110px;
-  background-image: url(../../media/banner/ai/banner-ai.png);
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
 }
 @media (max-width: 1024px) {
   .banner.banner-ai-image {
@@ -12115,13 +12080,7 @@ Logo List
   padding: 15px 43px;
 }
 
-.call-to-action-hosting {
-  padding: 130px 0 140px;
-  background-image: url("../../media/background/call-to-action.jpg");
-  background-position: center center;
-  background-size: cover;
-  background-repeat: no-repeat;
-}
+
 .call-to-action-hosting .section-title {
   margin-bottom: 38px;
 }
@@ -12393,29 +12352,7 @@ Logo List
   background-color: rgba(255, 255, 255, 0.02);
 }
 
-.call-to-action-six {
-  background-image: -webkit-gradient(
-    linear,
-    left bottom,
-    left top,
-    from(rgb(124, 84, 223)),
-    to(rgb(145, 71, 200))
-  );
-  background-image: -o-linear-gradient(
-    bottom,
-    rgb(124, 84, 223) 0%,
-    rgb(145, 71, 200) 100%
-  );
-  background-image: linear-gradient(
-    0deg,
-    rgb(124, 84, 223) 0%,
-    rgb(145, 71, 200) 100%
-  );
-  padding: 120px 0;
-  background-image: url(../../media/background/call-to-action-bg.png);
-  background-size: cover;
-  background-position: center center;
-}
+
 @media (max-width: 991px) {
   .call-to-action-six {
     padding: 80px 0;
@@ -17279,13 +17216,7 @@ Download Two
   box-shadow: 0px 20px 50px 0px rgba(14, 3, 52, 0.1);
 }
 
-.blog-grid-ai {
-  padding: 135px 0 100px;
-  background-image: url(../../media/background/blog-ai-bg.png);
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-}
+
 @media (max-width: 991px) {
   .blog-grid-ai {
     padding: 80px 0 50px;
@@ -17720,16 +17651,6 @@ Download Two
   border-bottom: 0;
   overflow: hidden;
   border-radius: 6px;
-}
-.quote-post:before {
-  content: "";
-  position: absolute;
-  left: 28px;
-  top: -20px;
-  background-image: url(../../media/blog/quote2.png);
-  width: 140px;
-  height: 80px;
-  z-index: 1;
 }
 .quote-post p {
   font-size: 20px;
@@ -19668,13 +19589,6 @@ Download Two
 
 #footer-ai {
   background-color: #0f1629;
-}
-#footer-ai .footer-widgets {
-  background-image: url("../../media/background/footer-ai-bg.png");
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  padding: 100px 0 70px;
 }
 @media (max-width: 991px) {
   #footer-ai .footer-widgets {
