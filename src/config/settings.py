@@ -196,57 +196,50 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-# ✅ Ensure we are NOT using S3 (only Whitenoise)
+# ✅ Use S3 for media, WhiteNoise for static files
 USE_S3 = config("USE_S3", default=False, cast=bool)
 
-if USE_S3:
+STORAGES = {
     # 🔹 Use S3 for media files
-    STORAGES = {
-        "default": {
+    "default": (
+        {
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
-    }
+        }
+        if USE_S3
+        else {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": os.path.join(BASE_DIR, "media")},
+        }
+    ),
+    # 🔹 Use WhiteNoise for static files
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
-    # ✅ AWS S3 Configurations (For Media Files)
+# ✅ AWS S3 Configurations (For Media Files)
+if USE_S3:
     AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
     AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
     AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-west-2")
+    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
 
     # 🔒 Secure Media Files (Not Publicly Accessible)
-    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
     AWS_S3_OBJECT_PARAMETERS = {
         "CacheControl": "max-age=86400",
     }
 
-    # ✅ Media URL points to S3
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
-
-else:
-    # 🔹 Use Local Storage for media files
-    STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-            "OPTIONS": {"location": os.path.join(BASE_DIR, "media")},
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
-    }
-
-    # ✅ Local Media URL
-    MEDIA_URL = "/media/"
-
-# ✅ Static URL (Always WhiteNoise)
-STATIC_URL = "/static/"
+# ✅ Static & Media URLs
+STATIC_URL = "/static/"  # Served via WhiteNoise
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/" if USE_S3 else "/media/"
 
 # ✅ Static & Media Paths
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")  # Only used when USE_S3=False
+MEDIA_ROOT = (
+    os.path.join(BASE_DIR, "media") if not USE_S3 else None
+)  # Only for local dev
 
 # ✅ Enable WhiteNoise Compression & Caching
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
