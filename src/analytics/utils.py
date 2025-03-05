@@ -1,6 +1,8 @@
 import os
 from django.core.exceptions import ValidationError
 
+# import pandas as pd
+
 
 def validate_file_extension(value):
     """
@@ -19,3 +21,39 @@ def upload_to(instance, filename):
     """
     org_name = instance.organization.name.lower().replace(" ", "_")
     return f"uploads/{org_name}/data/{filename}"
+
+
+def upload_to_metric(instance, filename):
+    """
+    Sets the upload path for processed metric files.
+
+    Example: uploads/{org_name}/data/{dataupload_title}/metrics/{metric_name}/{filename}
+    """
+    org_name = instance.datasource.organization.name.lower().replace(" ", "_")
+    dataupload_title = instance.datasource.title.lower().replace(" ", "_")
+    metric_name = instance.name.lower().replace(" ", "_")
+
+    # Ensure filename is unique
+    base, ext = os.path.splitext(filename)
+    new_filename = f"{base}_{instance.id}{ext}" if instance.id else filename
+
+    return f"uploads/{org_name}/data/{dataupload_title}/metrics/{metric_name}/{new_filename}"
+
+
+# def process_and_store_table_metric(metric_id, csv_file_path):
+#     # Get the metric object by ID
+#     metric = Metric.objects.get(id=metric_id)
+
+#     # Read CSV file using pandas
+#     df = pd.read_csv(csv_file_path)
+
+#     # Convert the DataFrame to JSON
+#     table_data = {
+#         "columns": list(df.columns),  # Column names
+#         "data": df.to_dict(orient="records"),  # Convert rows to a list of dictionaries
+#     }
+
+#     # Store the table data in TableMetric
+#     TableMetric.objects.update_or_create(metric=metric, defaults=table_data)
+
+#     print(f"Table data for '{metric.name}' has been processed and stored.")

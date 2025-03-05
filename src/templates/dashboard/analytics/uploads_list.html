@@ -1,0 +1,56 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %} Processed Reports {% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Processed Data Uploads</h2>
+
+    <!-- Display Messages -->
+    {% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if data_uploads %}
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Organization</th>
+                            <th>Uploaded By</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for upload in data_uploads %}
+                        <tr>
+                            <td>{{ upload.title }}</td>
+                            <td>{{ upload.organization.name }}</td>
+                            <td>{{ upload.uploaded_by.email }}</td>
+                            <td>{{ upload.created_at|date:"Y-m-d" }}</td>
+                            <td>
+                                <a href="#" class="btn btn-primary btn-sm">
+                                    View Metrics
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-warning">
+            No processed reports available.
+        </div>
+    {% endif %}
+</div>
+{% endblock content %}

@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
+from accounts.models import OrganizationMembership
 from .models import DataUpload
 
 
@@ -47,3 +49,42 @@ def upload_data(request):
         return redirect("dashboard:dashboard_home")  # Redirect after successful upload
 
     return render(request, "dashboard/analytics/upload_data.html")
+
+
+@login_required
+def data_upload_list(request):
+    """
+    Displays a list of processed DataUploads that the authenticated user has access to.
+    The user must be either:
+    1. The owner of an organization.
+    2. A member of an organization.
+    """
+    user = request.user
+
+    # Determine the organization
+    organization = None
+
+    if hasattr(user, "owned_organization"):
+        # ✅ User is the **organization owner**
+        organization = user.owned_organization
+    else:
+        # ✅ User is a **member of an organization**
+        membership = OrganizationMembership.objects.filter(user=user).first()
+        if membership:
+            organization = membership.organization
+
+    if not organization:
+        # ❌ User does not belong to any organization → Deny access
+        raise PermissionDenied("You are not part of any organization.")
+
+    # ✅ Fetch only `processed=True` DataUploads for the user's organization
+    data_uploads = (
+        DataUpload.objects.filter(organization=organization, processed=True)
+        .select_related("organization", "uploaded_by")
+        .order_by("-created_at")
+    )
+
+    # Render template with the list
+    return render(
+        request, "dashboard/analytics/uploads_list.html", {"data_uploads": data_uploads}
+    )
