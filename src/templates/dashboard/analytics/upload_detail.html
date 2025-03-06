@@ -7,11 +7,12 @@
 <div class="container mt-4">
     <h2 class="mb-4">{{ data_upload.title }}</h2>
 
+    <!-- ✅ Upload Info Card -->
     <div class="card">
         <div class="card-body">
             <p><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
             <p><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
-            <p><strong>Created At:</strong> {{ data_upload.created_at|date:"Y-m-d" }}</p>
+            <p><strong>Created At:</strong> {{ data_upload.created_at|date:"Y-m-d H:i" }}</p>
             <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions }}</p>
 
             <!-- ✅ File Download Link -->
@@ -25,86 +26,72 @@
         </div>
     </div>
 
-    <!-- ✅ Fixed Card Container for Metrics -->
-    <div class="card mt-4">
-        <div class="card-body">
-            <h3 class="mb-3">Metrics</h3>
+    <!-- ✅ Metrics Section -->
+    <h3 class="mt-4">Metrics</h3>
 
-            {% if metrics %}
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Type</th>
-                                <th>Data</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for metric in metrics %}
-                            <tr>
-                                {% if metric.file %}
-                                <td><a href="{{ metric.file.url }}">{{ metric.name }}</a></td>
-                                {% else %}
-                                <td>{{ metric.name }}</td>
-                                {% endif %}
+    {% if metrics %}
+        <div class="row">
+            {% for metric in metrics %}
+                <div class="col-md-12 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            {% if metric.file %}
+                            <h5 class="mb-0"><a href="{{metric.file.url}}">{{metric.name }}</a></h5>
+                            {% else %}
+                            <h5 class="mb-0">{{ metric.name }}</h5>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <!-- ✅ Single Value -->
+                            {% if metric.type == "single_value" %}
+                                <h4 class="font-weight-bold">{{ metric.value }}</h4>
 
-                                <td>{{ metric.get_type_display }}</td>
-                                <td>
-                                    {% if metric.type == "single_value" %}
-                                        <strong>{{ metric.value }}</strong>
-                                    {% elif metric.type == "text" %}
-                                        <p>{{ metric.value }}</p>
-                                    {% elif metric.type == "plot" and metric.file %}
-                                        <img src="{{ metric.file.url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 300px;">
-                                    {% elif metric.type == "table" and metric.table_data %}
-                                        <!-- ✅ Card to properly contain the table -->
-                                        <div class="card mt-3">
-                                            <!-- <div class="card-header">
-                                                <h5 class="mb-0">{{ metric.name }}</h5>
-                                            </div> -->
-                                            <div class="card-body">
-                                                <div class="table-responsive" style="overflow-x: auto; max-width: 100%;">
-                                                    <table id="metric-table-{{ metric.id }}" class="table table-bordered table-sm table-metric nowrap" style="min-width: 1000px;">
-                                                        <thead>
-                                                            <tr>
-                                                                {% for col in metric.table_data.columns %}
-                                                                    <th>{{ col }}</th>
-                                                                {% endfor %}
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {% for row in metric.table_data.data %}
-                                                            <tr>
-                                                                {% for col in metric.table_data.columns %}
-                                                                    <td>{{ row|get_item:col }}</td>
-                                                                {% endfor %}
-                                                            </tr>
-                                                            {% endfor %}
-                                                        </tbody>
-                                                    </table>
-                                                </div> <!-- ✅ Scrollbar stays inside card -->
-                                            </div>
-                                        </div> 
-                                    {% else %}
-                                        <span class="text-muted">No data available</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                            <!-- ✅ Text Value (Ensuring Proper Wrapping) -->
+                            {% elif metric.type == "text" %}
+                                <p class="text-container">{{ metric.value }}</p>
+
+                            <!-- ✅ Image/Plot -->
+                            {% elif metric.type == "plot" and metric.file %}
+                                <img src="{{ metric.file.url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 100%;">
+
+                            <!-- ✅ Table Data -->
+                            {% elif metric.type == "table" and metric.table_data %}
+                                <div class="table-responsive table-container">
+                                    <table id="metric-table-{{ metric.id }}" class="table table-bordered table-sm table-metric nowrap" style="width:100%;">
+                                        <thead>
+                                            <tr>
+                                                {% for col in metric.table_data.columns %}
+                                                    <th>{{ col }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in metric.table_data.data %}
+                                            <tr>
+                                                {% for col in metric.table_data.columns %}
+                                                    <td>{{ row|get_item:col }}</td>
+                                                {% endfor %}
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                            {% else %}
+                                <span class="text-muted">No data available</span>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-            {% else %}
-                <div class="alert alert-warning mt-3">
-                    No metrics available for this report.
-                </div>
-            {% endif %}
+            {% endfor %}
         </div>
-    </div>
+    {% else %}
+        <div class="alert alert-warning mt-3">
+            No metrics available for this report.
+        </div>
+    {% endif %}
 </div>
 
 {% endblock %}
-
 
 

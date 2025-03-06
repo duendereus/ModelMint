@@ -98,24 +98,23 @@ class Metric(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Automatically reorders metrics if a duplicate position is found.
+        Ensures the metric position is unique within a datasource.
+        If the position is taken, it does NOT auto-increment but instead adds a warning.
         """
         if self.position is None:
             self.position = 0
 
-        conflicting_metrics = Metric.objects.filter(
-            datasource=self.datasource, position=self.position
-        ).exclude(id=self.id)
+        # Check for conflicting positions
+        conflicting_metric = (
+            Metric.objects.filter(datasource=self.datasource, position=self.position)
+            .exclude(id=self.id)
+            .first()
+        )
 
-        if conflicting_metrics.exists():
-            # Find the highest position and increment
-            max_position = (
-                Metric.objects.filter(datasource=self.datasource).aggregate(
-                    max_pos=models.Max("position")
-                )["max_pos"]
-                or 0
-            )
-            self.position = max_position + 1
+        if conflicting_metric:
+            # Store the error in a non-blocking way
+            self._warning_message = f"⚠️ Metric position {self.position} is already taken within this datasource. Please select a different position."
+            return  # Stop save execution but do not raise an error
 
         super().save(*args, **kwargs)
 

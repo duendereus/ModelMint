@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import DataUpload, Metric, TableMetric
 from django.utils.html import format_html
+from django.contrib import messages
 
 
 @admin.register(DataUpload)
@@ -76,7 +77,7 @@ class MetricAdmin(admin.ModelAdmin):
         "type",
         "position",
         "created_at",
-        "preview_data",  # ✅ Now included in list_display
+        "preview_data",
     )
     list_filter = ("type", "datasource__organization")
     search_fields = ("name", "datasource__title", "datasource__organization__name")
@@ -93,9 +94,7 @@ class MetricAdmin(admin.ModelAdmin):
     datasource_organization.short_description = "Organization"
 
     def get_queryset(self, request):
-        """
-        Optimizes query performance by using select_related to fetch related objects in a single query.
-        """
+        """Optimize query performance using select_related to fetch related objects in a single query."""
         return (
             super()
             .get_queryset(request)
@@ -103,15 +102,20 @@ class MetricAdmin(admin.ModelAdmin):
         )
 
     def preview_data(self, obj):
-        """
-        Displays a small preview of the table data in the admin list view.
-        Shows only the first 3 rows to keep the UI clean.
-        """
+        """Displays a small preview of the table data in the admin list view."""
         if obj.type == "table" and hasattr(obj, "table_data") and obj.table_data.data:
             return format_html(
                 "<pre style='max-width:400px; max-height:100px; overflow:auto; white-space:pre-wrap;'>{}</pre>",
-                str(obj.table_data.data[:3]),  # ✅ Prevents errors if data is empty
+                str(obj.table_data.data[:3]),
             )
         return "-"
 
     preview_data.short_description = "Table Preview"
+
+    def save_model(self, request, obj, form, change):
+        """
+        Override save_model to show a warning message instead of throwing an error
+        """
+        obj.save()
+        if hasattr(obj, "_warning_message"):
+            self.message_user(request, obj._warning_message, level=messages.WARNING)

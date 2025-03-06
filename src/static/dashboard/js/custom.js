@@ -35,18 +35,18 @@ document.addEventListener("DOMContentLoaded", function () {
 $(document).ready(function() {
     console.log("✅ Custom.js Loaded");
 
-    // ✅ Initialize DataTables for each table metric with horizontal scrolling
+    // ✅ Initialize DataTables for each table metric separately with horizontal scrolling
     $('.table-metric').each(function() {
-        let tableId = $(this).attr('id');  // Get unique ID
+        let tableId = $(this).attr('id');  
         $('#' + tableId).DataTable({
-            "paging": true,   // Enable pagination
-            "ordering": true, // Enable sorting
-            "searching": true, // Enable search bar
-            "info": false, // Hide info text
-            "pageLength": 5,  // Show 5 entries per page by default
-            "scrollX": true,   // ✅ Enable horizontal scrolling
-            "autoWidth": false, // ✅ Prevents shrinking
-            "fixedHeader": true // ✅ Keeps headers visible when scrolling
+            "paging": true,   
+            "ordering": true,
+            "searching": true,
+            "info": false,
+            "pageLength": 5,  
+            "scrollX": true,  // ✅ Keep horizontal scroll inside the card
+            "autoWidth": false, 
+            "fixedHeader": true
         });
     });
 });

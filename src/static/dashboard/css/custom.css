@@ -91,8 +91,41 @@
     overflow-x: auto !important;
 }
 
+/* ✅ Ensures the metric text wraps properly */
+.text-container {
+    max-width: 100%;
+    word-break: break-word;
+    white-space: normal;
+}
 
+/* ✅ Ensures tables have a scrollbar inside their card */
+.table-container {
+    max-width: 100%;
+    overflow-x: auto;
+}
 
+/* ✅ Prevents table columns from stretching outside */
+.table-metric {
+    width: 100%;
+    min-width: 1000px; /* Adjust based on data */
+    white-space: nowrap;
+}
 
+/* ✅ Ensures DataTable remains inside the card */
+.dataTables_wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+}
 
+/* ✅ Prevents text overflow */
+.table-metric td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
+/* ✅ Fixes card layout to avoid overflow issues */
+.card {
+    overflow: hidden;
+}
