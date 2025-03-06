@@ -81,10 +81,20 @@
         <script src="{% static 'dashboard/libs/feather-icons/feather.min.js' %}"></script>
         <script src="{% static 'dashboard/libs/simplebar/simplebar.min.js' %}"></script>
         <script src="{% static 'dashboard/libs/apexcharts/apexcharts.min.js' %}"></script>
-        <!-- Main Js -->
+        
+        <!-- ✅ Add jQuery (Required for DataTables) -->
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+        <!-- ✅ Add DataTables.js -->
+        <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+        <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+
+        <!-- ✅ Your existing scripts -->
         <script src="{% static 'dashboard/js/plugins.init.js' %}"></script>
         <script src="{% static 'dashboard/js/app.js' %}"></script>
         <script src="{% static 'dashboard/js/custom.js' %}"></script>
+
     </body>
 
 </html>

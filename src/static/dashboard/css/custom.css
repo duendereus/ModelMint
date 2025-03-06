@@ -68,3 +68,31 @@
     opacity: 1 !important;
     transform: translateY(0) !important;
 }
+
+/* ✅ Ensure the DataTable remains inside the card */
+.table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
+/* ✅ Prevents the table from overflowing the card */
+.table-metric {
+    width: 100%;
+    min-width: 1000px; /* Adjust based on data */
+    white-space: nowrap; /* Prevents text wrapping */
+}
+
+/* ✅ Forces DataTables wrapper to stay inside the card */
+.dataTables_wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+}
+
+
+
+
+
+

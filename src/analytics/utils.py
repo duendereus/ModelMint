@@ -38,22 +38,3 @@ def upload_to_metric(instance, filename):
     new_filename = f"{base}_{instance.id}{ext}" if instance.id else filename
 
     return f"uploads/{org_name}/data/{dataupload_title}/metrics/{metric_name}/{new_filename}"
-
-
-# def process_and_store_table_metric(metric_id, csv_file_path):
-#     # Get the metric object by ID
-#     metric = Metric.objects.get(id=metric_id)
-
-#     # Read CSV file using pandas
-#     df = pd.read_csv(csv_file_path)
-
-#     # Convert the DataFrame to JSON
-#     table_data = {
-#         "columns": list(df.columns),  # Column names
-#         "data": df.to_dict(orient="records"),  # Convert rows to a list of dictionaries
-#     }
-
-#     # Store the table data in TableMetric
-#     TableMetric.objects.update_or_create(metric=metric, defaults=table_data)
-
-#     print(f"Table data for '{metric.name}' has been processed and stored.")

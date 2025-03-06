@@ -51,8 +51,20 @@ class DataUploadAdmin(admin.ModelAdmin):
 
 class TableMetricInline(admin.TabularInline):
     model = TableMetric
-    readonly_fields = ("columns", "data")
+    readonly_fields = ("columns", "short_data")
     can_delete = False
+
+    def short_data(self, obj):
+        """
+        Returns a truncated version of the JSON data (limited to 100 characters).
+        """
+        data_str = str(obj.data)  # Convert JSON to string
+        return format_html(
+            "<pre style='max-width:400px; white-space:pre-wrap;'>{}</pre>",
+            data_str[:100] + "..." if len(data_str) > 100 else data_str,
+        )
+
+    short_data.short_description = "Data Preview"  # Admin column name
 
 
 @admin.register(Metric)

@@ -1,9 +1,9 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from accounts.models import OrganizationMembership
-from .models import DataUpload
+from .models import DataUpload, Metric
 
 
 @login_required
@@ -88,3 +88,40 @@ def data_upload_list(request):
     return render(
         request, "dashboard/analytics/uploads_list.html", {"data_uploads": data_uploads}
     )
+
+
+@login_required
+def data_upload_detail(request, upload_id):
+    """
+    Displays the details of a specific processed DataUpload, including its related Metrics.
+    """
+    user = request.user
+
+    # Get the DataUpload object (raises 404 if not found)
+    data_upload = get_object_or_404(DataUpload, id=upload_id, processed=True)
+
+    # Determine the user's organization
+    organization = None
+    if hasattr(user, "owned_organization"):
+        organization = user.owned_organization
+    else:
+        membership = user.organization_memberships.first()
+        if membership:
+            organization = membership.organization
+
+    # Check if user has access to this DataUpload
+    if not organization or data_upload.organization != organization:
+        raise PermissionDenied("You do not have access to this data upload.")
+
+    # Fetch related metrics and optimize queries
+    metrics = (
+        Metric.objects.filter(datasource=data_upload)
+        .select_related("table_data")  # Includes TableMetric if exists
+        .order_by("position")
+    )
+
+    context = {
+        "data_upload": data_upload,
+        "metrics": metrics,
+    }
+    return render(request, "dashboard/analytics/upload_detail.html", context)
