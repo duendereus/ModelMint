@@ -5,6 +5,7 @@ from django.contrib.auth.models import Group, Permission
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
+from accounts.models import Organization
 
 User = get_user_model()
 
@@ -211,10 +212,16 @@ class UserSubscriptionManager(models.Manager):
         return UserSubscriptionQuerySet(self.model, using=self._db)
 
 
-class UserSubscription(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+class OrganizationSubscription(models.Model):
+    """
+    Organization-based subscription, replacing user-level subscriptions.
+    """
+
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="subscription"
+    )
     subscription = models.ForeignKey(
-        Subscription, on_delete=models.SET_NULL, null=True, blank=True
+        "subscriptions.Subscription", on_delete=models.SET_NULL, null=True, blank=True
     )
     stripe_id = models.CharField(max_length=120, null=True, blank=True)
     active = models.BooleanField(default=True)
@@ -235,13 +242,17 @@ class UserSubscription(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
-    objects = UserSubscriptionManager()
-
     def get_absolute_url(self):
-        return reverse("subscriptions:user_subscription")
+        return reverse(
+            "subscriptions:organization_subscription",
+            kwargs={"org_id": self.organization.id},
+        )
 
     def get_cancel_url(self):
-        return reverse("subscriptions:user_subscription_cancel")
+        return reverse(
+            "subscriptions:organization_subscription_cancel",
+            kwargs={"org_id": self.organization.id},
+        )
 
     @property
     def is_active_status(self):
@@ -264,9 +275,7 @@ class UserSubscription(models.Model):
     @property
     def billing_cycle_anchor(self):
         """
-        https://docs.stripe.com/payments/checkout/billing-cycle
-        Optional delay to start new subscription in
-        Stripe checkout
+        Stripe checkout - delay for new subscriptions
         """
         if not self.current_period_end:
             return None
@@ -278,4 +287,4 @@ class UserSubscription(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.user} - {self.subscription}"
+        return f"{self.organization.name} - {self.subscription}"

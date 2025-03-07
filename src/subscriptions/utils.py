@@ -1,10 +1,10 @@
 import helpers.billing
-from customers.models import Customer
-from subscriptions.models import Subscription, UserSubscription
+from customers.models import OrganizationCustomer
+from subscriptions.models import Subscription, OrganizationSubscription
 
 
 def refresh_active_users_subscriptions(
-    user_ids=None,
+    org_ids=None,
     active_only=True,
     days_left=-1,
     days_ago=-1,
@@ -12,22 +12,28 @@ def refresh_active_users_subscriptions(
     day_end=-1,
     verbose=False,
 ):
-    qs = UserSubscription.objects.all()
+    qs = OrganizationSubscription.objects.all()
     if active_only:
         qs = qs.by_active_trialing()
-    if user_ids is not None:
-        qs = qs.by_user_ids(user_ids=user_ids)
+    if org_ids is not None:
+        qs = qs.filter(organization_id__in=org_ids)
     if days_ago > -1:
         qs = qs.by_days_ago(days_ago=days_ago)
     if days_left > -1:
         qs = qs.by_days_left(days_left=days_left)
     if day_start > -1 and day_end > -1:
         qs = qs.by_range(days_start=day_start, days_end=day_end, verbose=verbose)
+
     complete_count = 0
     qs_count = qs.count()
     for obj in qs:
         if verbose:
-            print("Updating user", obj.user, obj.subscription, obj.current_period_end)
+            print(
+                "Updating organization",
+                obj.organization.name,
+                obj.subscription,
+                obj.current_period_end,
+            )
         if obj.stripe_id:
             sub_data = helpers.billing.get_subscription(obj.stripe_id, raw=False)
             for k, v in sub_data.items():
@@ -38,24 +44,26 @@ def refresh_active_users_subscriptions(
 
 
 def clear_dangling_subs():
-    qs = Customer.objects.filter(stripe_id__isnull=False)
-    for customer_obj in qs:
-        user = customer_obj.user
-        customer_stripe_id = customer_obj.stripe_id
-        print(f"Sync {user} - {customer_stripe_id} subs and remove old ones")
+    qs = OrganizationCustomer.objects.filter(stripe_id__isnull=False)
+    for org_customer in qs:
+        organization = org_customer.organization
+        customer_stripe_id = org_customer.stripe_id
+        print(
+            f"Sync {organization.name} - {customer_stripe_id} subs and remove old ones"
+        )
         subs = helpers.billing.get_customer_active_subscriptions(customer_stripe_id)
+
         for sub in subs:
-            existing_user_subs_qs = UserSubscription.objects.filter(
+            existing_org_subs_qs = OrganizationSubscription.objects.filter(
                 stripe_id__iexact=f"{sub.id}".strip()
             )
-            if existing_user_subs_qs.exists():
+            if existing_org_subs_qs.exists():
                 continue
             helpers.billing.cancel_subscription(
                 sub.id,
                 reason="Dangling active subscription",
                 cancel_at_period_end=False,
             )
-            # print(sub.id, existing_user_subs_qs.exists())
 
 
 def sync_subs_group_permissions():

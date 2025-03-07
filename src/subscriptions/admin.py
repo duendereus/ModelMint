@@ -1,7 +1,7 @@
 from django.contrib import admin
 from subscriptions.models import (
     Subscription,
-    UserSubscription,
+    OrganizationSubscription,
     SubscriptionPrice,
     SubscriptionFeature,
 )
@@ -31,8 +31,8 @@ class SubscriptionAdmin(admin.ModelAdmin):
     list_filter = ("groups",)
 
 
-@admin.register(UserSubscription)
-class UserSubscriptionAdmin(admin.ModelAdmin):
-    list_display = ("user", "subscription", "active")
-    search_fields = ("user", "subscription")
+@admin.register(OrganizationSubscription)
+class OrganizationSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("organization", "subscription", "active")
+    search_fields = ("organization", "subscription")
     list_filter = ("subscription", "active")

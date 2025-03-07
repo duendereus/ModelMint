@@ -122,12 +122,12 @@ class UserAdmin(BaseUserAdmin):
         """
         Returns the organization the user is associated with.
         If they own an organization, it returns that.
-        Otherwise, it returns the first organization they belong to.
+        Otherwise, it returns the first organization they belong to as a member.
         """
-        if hasattr(obj, "owned_organization"):  # User is an owner
+        if hasattr(obj, "owned_organization") and obj.owned_organization:
             return f"Owner of {obj.owned_organization.name}"
-        elif obj.organization.exists():  # User is a member
-            return f"Member of {obj.organization.first().name}"
+        elif obj.organization_memberships.exists():  # Check memberships properly
+            return f"Member of {obj.organization_memberships.first().organization.name}"
         return "No organization"
 
     get_organization.short_description = "Organization"

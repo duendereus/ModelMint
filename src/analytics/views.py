@@ -43,7 +43,6 @@ def upload_data(request):
             uploaded_by=user,
             organization=organization,
         )
-        print(upload)
 
         messages.success(request, "File uploaded successfully!")
         return redirect("dashboard:dashboard_home")  # Redirect after successful upload

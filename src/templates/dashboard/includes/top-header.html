@@ -37,7 +37,11 @@
                                 </small>                                                                
                             </div>                            
                         </a>
-                        <a class="dropdown-item text-dark" href="{% url 'subscriptions:user_subscription' %}"><span class="mb-0 d-inline-block me-1"><i class="ti ti-id-badge"></i></span> My Subscription</a>
+                        {% if request.user.owned_organization %}
+                            <a class="dropdown-item text-dark" href="{% url 'subscriptions:organization_subscription' org_id=request.user.owned_organization.id %}">
+                                <span class="mb-0 d-inline-block me-1"><i class="ti ti-id-badge"></i></span> My Subscription
+                            </a>
+                        {% endif %}
                         <a class="dropdown-item text-dark" href="{% url 'accounts:logout' %}"><span class="mb-0 d-inline-block me-1"><i class="ti ti-logout"></i></span> Logout</a>
                     </div>
                 </div>
