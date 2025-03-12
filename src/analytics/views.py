@@ -4,11 +4,14 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
+from .tasks import test_task
 
 
 @login_required
 def upload_data(request):
     """Handles file uploads ensuring organization and user are auto-filled."""
+    print("testing tasks")
+    test_task.delay()
 
     if request.method == "POST":
         title = request.POST.get("title", "")

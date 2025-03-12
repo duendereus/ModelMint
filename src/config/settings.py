@@ -77,7 +77,9 @@ DJANGO_APPS = [
 ]
 
 
-THIRD_PARTY_APPS = []
+THIRD_PARTY_APPS = [
+    "django_celery_beat",
+]
 
 LOCAL_APPS = [
     "accounts.apps.AccountsConfig",
@@ -257,3 +259,13 @@ MESSAGE_TAGS = {
 
 
 CSRF_TRUSTED_ORIGINS = ["https://modelmint.co", "https://www.modelmint.co"]
+
+# Redis broker URL
+REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/1")
+
+
+# Celery configurations
+CELERY_BROKER_URL = REDIS_URL
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_BACKEND = REDIS_URL

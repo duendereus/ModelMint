@@ -184,7 +184,7 @@ p {
   background-color: rgb(245.025, 246.45, 247.875);
 }
 .page-wrapper .sidebar-wrapper .sidebar-menu .sidebar-dropdown > a:after {
-  content: "\f0142" !important;
+  content: "\F054" !important; /* Right Arrow */
   color: #212529;
   font-family: "Material Design Icons";
   font-size: 14px;
@@ -194,11 +194,14 @@ p {
   -webkit-transition: all 0.3s ease;
   transition: all 0.3s ease;
 }
+
 .page-wrapper .sidebar-wrapper .sidebar-menu .sidebar-dropdown.active > a:after {
-  -webkit-transform: rotate(90deg);
-          transform: rotate(90deg);
+  content: "\F140" !important; /* Down Arrow */
+  -webkit-transform: rotate(0deg);
+          transform: rotate(0deg);
   right: 17px;
 }
+
 .page-wrapper .sidebar-wrapper .sidebar-menu .sidebar-dropdown:hover > a:after, .page-wrapper .sidebar-wrapper .sidebar-menu .sidebar-dropdown.active > a:after {
   color: #6aba8a;
 }
