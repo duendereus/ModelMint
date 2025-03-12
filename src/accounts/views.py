@@ -4,7 +4,8 @@ from django.contrib.auth import get_user_model
 from django.contrib import messages, auth
 from django.contrib.auth.decorators import login_required
 from .forms import UserRegistrationForm, CustomPasswordResetForm, CustomSetPasswordForm
-from .utils import send_verification_email, anonymous_required
+from .utils import anonymous_required
+from .tasks import send_verification_email_task
 from .signals import user_signed_up, email_confirmed
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
@@ -63,11 +64,13 @@ def register_view(request):
             # Dispatch the user_signed_up signal
             user_signed_up.send(sender=user.__class__, request=request, user=user)
 
-            send_verification_email(
-                request,
-                user,
-                "Activate Your Account",
-                "accounts/emails/activation_email.html",
+            # Send verification email asynchronously
+            send_verification_email_task.delay(
+                user_id=user.id,
+                mail_subject="Activate Your Account",
+                email_template="accounts/emails/activation_email.html",
+                domain=request.get_host(),
+                scheme=request.scheme,
             )
 
             messages.success(
@@ -113,12 +116,13 @@ def password_reset_request(request):
             user = User.objects.get(email=email)
             mail_subject = "Reset Your Password - ModelMint"
 
-            # Send email using the reusable function
-            send_verification_email(
-                request=request,
-                user=user,
+            # Send password reset email asynchronously
+            send_verification_email_task.delay(
+                user_id=user.id,
                 mail_subject=mail_subject,
                 email_template="accounts/emails/password_reset_email.html",
+                domain=request.get_host(),
+                scheme=request.scheme,
             )
 
             messages.success(
