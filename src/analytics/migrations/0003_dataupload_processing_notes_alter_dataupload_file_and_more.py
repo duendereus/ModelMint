@@ -8,35 +8,47 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '__first__'),
-        ('analytics', '0002_remove_dataupload_processing_notes_and_more'),
+        ("accounts", "__first__"),
+        ("analytics", "0002_remove_dataupload_processing_notes_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='dataupload',
-            name='processing_notes',
+            model_name="dataupload",
+            name="processing_notes",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='dataupload',
-            name='file',
-            field=models.FileField(upload_to=analytics.utils.upload_to, validators=[analytics.utils.validate_file_extension]),
+            model_name="dataupload",
+            name="file",
+            field=models.FileField(
+                upload_to=analytics.utils.upload_to_data_file,
+                validators=[analytics.utils.validate_file_extension],
+            ),
         ),
         migrations.AlterField(
-            model_name='dataupload',
-            name='job_instructions',
-            field=models.TextField(default='Fuck it', help_text='Detailed instructions on what needs to be done with the data.'),
+            model_name="dataupload",
+            name="job_instructions",
+            field=models.TextField(
+                default="Fuck it",
+                help_text="Detailed instructions on what needs to be done with the data.",
+            ),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='dataupload',
-            name='organization',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='data_uploads', to='accounts.organization'),
+            model_name="dataupload",
+            name="organization",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="data_uploads",
+                to="accounts.organization",
+            ),
         ),
         migrations.AlterField(
-            model_name='dataupload',
-            name='title',
-            field=models.CharField(help_text='A short title describing the data upload.', max_length=255),
+            model_name="dataupload",
+            name="title",
+            field=models.CharField(
+                help_text="A short title describing the data upload.", max_length=255
+            ),
         ),
     ]

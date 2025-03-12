@@ -14,7 +14,7 @@ def validate_file_extension(value):
         raise ValidationError("Only .csv and .xlsx files are allowed.")
 
 
-def upload_to(instance, filename):
+def upload_to_data_file(instance, filename):
     """
     Dynamically sets the upload path to include the organization's name.
     Example: uploads/{org_name}/data/file.csv

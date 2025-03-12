@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
-from .utils import validate_file_extension, upload_to, upload_to_metric
+from .utils import validate_file_extension, upload_to_data_file, upload_to_metric
 from accounts.models import Organization, OrganizationMembership
 
 User = get_user_model()
@@ -21,7 +21,9 @@ class DataUpload(models.Model):
     title = models.CharField(
         max_length=255, help_text="A short title describing the data upload."
     )
-    file = models.FileField(upload_to=upload_to, validators=[validate_file_extension])
+    file = models.FileField(
+        upload_to=upload_to_data_file, validators=[validate_file_extension]
+    )
     job_instructions = models.TextField(
         blank=False,
         help_text="Detailed instructions on what needs to be done with the data.",

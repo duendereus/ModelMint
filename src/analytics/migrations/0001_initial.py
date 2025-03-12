@@ -11,24 +11,63 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('accounts', '__first__'),
+        ("accounts", "__first__"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='DataUpload',
+            name="DataUpload",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(help_text='A short title describing the data upload.', max_length=255)),
-                ('file', models.FileField(upload_to=analytics.utils.upload_to, validators=[analytics.utils.validate_file_extension])),
-                ('job_instructions', models.TextField(help_text='Detailed instructions on what needs to be done with the data.')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('processed', models.BooleanField(default=False)),
-                ('processing_notes', models.TextField(blank=True, null=True)),
-                ('organization', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='data_uploads', to='accounts.organization')),
-                ('uploaded_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='uploads', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(
+                        help_text="A short title describing the data upload.",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "file",
+                    models.FileField(
+                        upload_to=analytics.utils.upload_to_data_file,
+                        validators=[analytics.utils.validate_file_extension],
+                    ),
+                ),
+                (
+                    "job_instructions",
+                    models.TextField(
+                        help_text="Detailed instructions on what needs to be done with the data."
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("processed", models.BooleanField(default=False)),
+                ("processing_notes", models.TextField(blank=True, null=True)),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="data_uploads",
+                        to="accounts.organization",
+                    ),
+                ),
+                (
+                    "uploaded_by",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="uploads",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
     ]
