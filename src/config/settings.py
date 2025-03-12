@@ -139,7 +139,7 @@ DATABASES = {
     }
 }
 
-CONN_MAX_AGE = config("CONN_MAX_AGE", cast=int, default=30)
+CONN_MAX_AGE = config("CONN_MAX_AGE", cast=int, default=600)
 DATABASE_URL = config("DB_URL", default=None)
 
 if DATABASE_URL is not None:
