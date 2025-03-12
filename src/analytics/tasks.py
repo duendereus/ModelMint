@@ -1,6 +1,5 @@
 from celery import shared_task
 from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 from .models import DataUpload
 from django.contrib.auth import get_user_model
 
@@ -33,18 +32,18 @@ def save_uploaded_file(title, file_data, file_name, job_instructions, user_id):
         if not organization:
             return f"Error: User {user.email} does not belong to an organization."
 
-        # ✅ Save the file in storage asynchronously
-        file_path = f"uploads/{organization.id}/{file_name}"
-        default_storage.save(file_path, ContentFile(file_data))
-
-        # ✅ Create the DataUpload object
-        upload = DataUpload.objects.create(
+        # ✅ Create a new DataUpload instance (this will use upload_to)
+        upload = DataUpload(
             title=title,
-            file=file_path,
             job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
         )
+
+        # ✅ Assign the file (this triggers upload_to!)
+        upload.file.save(file_name, ContentFile(file_data))
+
+        upload.save()  # ✅ Save the model after file is stored
 
         return f"File '{file_name}' uploaded successfully for user {user.email}."
 
