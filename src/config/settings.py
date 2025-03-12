@@ -55,10 +55,13 @@ DEBUG = config("DEBUG", cast=bool)
 
 BASE_URL = config("BASE_URL", default=None)
 
+SITE_DOMAIN = config("RAILWAY_PUBLIC_DOMAIN", default="")
+
 ALLOWED_HOSTS = [
     ".railway.app",
     "modelmint-production.up.railway.app",
     "modelmint.co",
+    SITE_DOMAIN,
 ]
 
 if DEBUG:
@@ -258,7 +261,11 @@ MESSAGE_TAGS = {
 }
 
 
-CSRF_TRUSTED_ORIGINS = ["https://modelmint.co", "https://www.modelmint.co"]
+CSRF_TRUSTED_ORIGINS = [
+    "https://modelmint.co",
+    "https://www.modelmint.co",
+    f"https://{SITE_DOMAIN}",
+]
 
 # Redis broker URL
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/1")
