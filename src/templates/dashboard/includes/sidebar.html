@@ -34,7 +34,20 @@
                 </div>
             </li>
         </ul>
-        <!-- sidebar-menu  -->
+
+
+        <ul class="sidebar-menu">
+            <li class="sidebar-dropdown">
+                <a href="javascript:void(0)"><i class="ti ti-users"></i> Org. Members</a>
+                <div class="sidebar-submenu">
+                    <ul>
+                        {% if request.user.owned_organization %}
+                            <li><a href="{% url 'dashboard:invite_member' %}">Invite Members</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </li>
+        </ul>        
     </div>
 </nav>
 <!-- sidebar-wrapper  -->

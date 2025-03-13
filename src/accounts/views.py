@@ -3,7 +3,11 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
 from django.contrib import messages, auth
 from django.contrib.auth.decorators import login_required
-from .forms import UserRegistrationForm, CustomPasswordResetForm, CustomSetPasswordForm
+from .forms import (
+    UserRegistrationForm,
+    CustomPasswordResetForm,
+    CustomSetPasswordForm,
+)
 from .utils import anonymous_required
 from .tasks import send_verification_email_task
 from .signals import user_signed_up, email_confirmed
@@ -151,7 +155,15 @@ def password_reset_confirm(request, uidb64, token):
             form = CustomSetPasswordForm(user, request.POST)
             if form.is_valid():
                 form.save()
-                messages.success(request, "Your password has been reset successfully!")
+
+                # Check if user was invited (i.e., previously inactive)
+                if not user.is_active:
+                    user.is_active = True
+                    user.save()
+
+                messages.success(
+                    request, "Your password has been set! You can now log in."
+                )
                 return redirect("accounts:login")
         else:
             form = CustomSetPasswordForm(user)
