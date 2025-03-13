@@ -1,0 +1,43 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Organization Users{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Users in {{ organization.name }}</h2>
+
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Name / Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Joined At</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Display Organization Owner -->
+            <tr>
+                <td>{{ owner.username }}</td>
+                <td>{{ owner.email }}</td>
+                <td><strong>Owner</strong></td>
+                <td><!-- Optionally display owner's join date if available, e.g. owner.created --></td>
+            </tr>
+
+            <!-- Display Organization Members (from memberships) -->
+            {% for membership in memberships %}
+                <tr>
+                    <td>{{ membership.user.username }}</td>
+                    <td>{{ membership.user.email }}</td>
+                    <td>{{ membership.get_role_display }}</td>
+                    <td>{{ membership.joined_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">No members found.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

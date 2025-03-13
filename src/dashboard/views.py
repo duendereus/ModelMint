@@ -6,7 +6,9 @@ from django.utils.encoding import force_bytes
 from accounts.models import OrganizationMembership, Organization
 from accounts.utils import generate_random_password
 from accounts.tasks import send_verification_email_task
+from analytics.models import Metric
 from .forms import InviteMemberForm
+from .models import DashboardSelection
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 
@@ -16,13 +18,50 @@ User = get_user_model()
 @login_required
 def dashboard_home(request):
     """
-    View for the dashboard home page.
-    Ensures only authenticated users can access it.
+    View for the main dashboard, displaying only selected metrics.
+    - Owners can manage metric selection.
+    - Members can only view the selected metrics.
     """
+    organization = None
+    dashboard_selection = None
+    selected_metrics = []
+    is_owner = False
+    is_member = False
 
-    context = {}
+    # Check if the user is the owner of an organization
+    if hasattr(request.user, "owned_organization"):
+        organization = request.user.owned_organization
+        is_owner = True
 
-    return render(request, "dashboard/home.html", context)
+    # If the user is not an owner, check if they are a member of any organization
+    elif OrganizationMembership.objects.filter(user=request.user).exists():
+        organization = OrganizationMembership.objects.get(
+            user=request.user
+        ).organization
+        is_member = True
+
+    # If the user is part of an organization, fetch the dashboard selection
+    if organization:
+        dashboard_selection = DashboardSelection.objects.filter(
+            organization=organization
+        ).first()
+
+        if dashboard_selection:
+            # ✅ Prefetch table data to avoid missing relations
+            selected_metrics = dashboard_selection.metrics.all().select_related(
+                "table_data"
+            )  # Prefetch OneToOneField for table data
+
+    return render(
+        request,
+        "dashboard/home.html",
+        {
+            "selected_metrics": selected_metrics,
+            "is_owner": is_owner,
+            "is_member": is_member,
+            "organization": organization,
+        },
+    )
 
 
 @login_required
@@ -72,3 +111,76 @@ def invite_member(request):
         form = InviteMemberForm()
 
     return render(request, "dashboard/accounts/invite_member.html", {"form": form})
+
+
+@login_required
+def organization_users(request):
+    """
+    Lists all users (owner and members/admins) of an organization.
+    The organization is determined by either:
+      - request.user.owned_organization (if the user is the owner)
+      - Otherwise, the organization from one of the user's memberships.
+    """
+    organization = None
+
+    # Determine the organization associated with the user
+    if hasattr(request.user, "owned_organization"):
+        organization = request.user.owned_organization
+    else:
+        membership = OrganizationMembership.objects.filter(user=request.user).first()
+        if membership:
+            organization = membership.organization
+
+    if not organization:
+        messages.error(request, "You are not associated with any organization.")
+        return redirect("dashboard:dashboard_home")
+
+    # Get the organization owner (a User instance)
+    owner = organization.owner
+
+    # Get all memberships for this organization.
+    # These are OrganizationMembership objects containing user and role information.
+    memberships = organization.members.all()
+
+    context = {
+        "organization": organization,
+        "owner": owner,
+        "memberships": memberships,
+    }
+    return render(request, "dashboard/accounts/organization_users.html", context)
+
+
+@login_required
+def dashboard_customize(request):
+    """
+    Allows organization owners to select which metrics appear on the main dashboard.
+    """
+    organization = get_object_or_404(Organization, owner=request.user)
+
+    # Get or create the selection model for this organization
+    dashboard_selection, created = DashboardSelection.objects.get_or_create(
+        organization=organization
+    )
+
+    # Get all available metrics from the organization's DataUpload reports
+    available_metrics = Metric.objects.filter(datasource__organization=organization)
+
+    if request.method == "POST":
+        selected_metric_ids = request.POST.getlist(
+            "metrics"
+        )  # List of selected metric IDs
+
+        # Update selection
+        dashboard_selection.metrics.set(selected_metric_ids)
+
+        messages.success(request, "Dashboard selection updated successfully!")
+        return redirect("dashboard:dashboard_home")
+
+    return render(
+        request,
+        "dashboard/customize_dashboard.html",
+        {
+            "available_metrics": available_metrics,
+            "dashboard_selection": dashboard_selection,
+        },
+    )

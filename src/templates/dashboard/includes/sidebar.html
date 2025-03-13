@@ -18,6 +18,13 @@
                 <div class="sidebar-submenu">
                     <ul>
                         <li><a href="{% url 'dashboard:dashboard_home' %}">Main Dashboard</a></li>
+                        {% if request.user.owned_organization %}
+                        <li>
+                            <a href="{% url 'dashboard:customize_dashboard' %}">
+                                Select Main Dashboard Metrics
+                            </a>
+                        </li>
+                        {% endif %}
                     </ul>
                 </div>
             </li>
@@ -44,6 +51,11 @@
                         {% if request.user.owned_organization %}
                             <li><a href="{% url 'dashboard:invite_member' %}">Invite Members</a></li>
                         {% endif %}
+                        <li>
+                            <a href="{% url 'dashboard:organization_users' %}">
+                                Organization Members
+                            </a>
+                        </li>                        
                     </ul>
                 </div>
             </li>

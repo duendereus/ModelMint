@@ -1,11 +1,84 @@
-{% extends 'dashboard/base.html' %}
+{% extends "dashboard/base.html" %}
+{% load custom_filters %}
 
-{% block title %}Home{% endblock title %}
+{% block title %}Dashboard{% endblock title %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between">
-    <div>
-        <h6 class="text-muted mb-1">Welcome back, {{request.user.username}}!</h6>
+<div class="container mt-4">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h6 class="text-muted mb-1">Welcome back, {{ request.user.username }}!</h6>
+            {% if organization %}
+                <h5 class="mb-3">Organization: {{ organization.name }}</h5>
+            {% endif %}
+        </div>
+
+        {% if is_owner %}
+            <div>
+                <a href="{% url 'dashboard:customize_dashboard' %}" class="btn btn-success">
+                    Customize Dashboard
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- If no metrics are selected, display a message -->
+    {% if not selected_metrics %}
+        <div class="alert alert-warning mt-3">
+            No metrics have been selected for the dashboard.
+            {% if is_owner %}
+                <a href="{% url 'dashboard:customize_dashboard' %}">Click here</a> to select metrics.
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <!-- Display selected metrics -->
+    <div class="row">
+        {% for metric in selected_metrics %}
+            <div class="{% if metric.type == 'table' %}col-md-12{% else %}col-md-6{% endif %} mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ metric.name }} ({{ metric.get_type_display }})</h5>
+
+                        {% if metric.type == "table" and metric.table_data %}
+                            <div class="table-responsive">
+                                <table id="metric-table-{{ metric.id }}" class="table table-bordered table-sm table-metric nowrap" style="width:100%;">
+                                    <thead>
+                                        <tr>
+                                            {% for col in metric.table_data.columns %}
+                                                <th>{{ col }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in metric.table_data.data %}
+                                            <tr>
+                                                {% for col in metric.table_data.columns %}
+                                                    <td>{{ row|get_item:col }}</td>
+                                                {% endfor %}
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                        {% elif metric.type == "plot" and metric.file %}
+                            <img src="{{ metric.file.url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 100%;">
+
+                        {% elif metric.type == "single_value" %}
+                            <p class="display-4">{{ metric.value }}</p>
+
+                        {% elif metric.type == "text" %}
+                            <p>{{ metric.value }}</p>
+
+                        {% else %}
+                            <span class="text-muted">No data available</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock content %}
+

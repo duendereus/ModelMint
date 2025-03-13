@@ -32,24 +32,32 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 
+// ✅ Fix DataTables Initialization Issue
 $(document).ready(function() {
     console.log("✅ Custom.js Loaded");
 
-    // ✅ Initialize DataTables for each table metric separately with horizontal scrolling
     $('.table-metric').each(function() {
-        let tableId = $(this).attr('id');  
+        let tableId = $(this).attr('id');
+
+        // ✅ Check if DataTable is already initialized
+        if ($.fn.DataTable.isDataTable('#' + tableId)) {
+            $('#' + tableId).DataTable().destroy();  // ✅ Destroy existing instance
+        }
+
+        // ✅ Reinitialize DataTable with proper configuration
         $('#' + tableId).DataTable({
             "paging": true,   
             "ordering": true,
             "searching": true,
             "info": false,
             "pageLength": 5,  
-            "scrollX": true,  // ✅ Keep horizontal scroll inside the card
+            "scrollX": true,  
             "autoWidth": false, 
             "fixedHeader": true
         });
     });
 });
+
 
 
 

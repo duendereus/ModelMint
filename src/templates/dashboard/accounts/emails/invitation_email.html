@@ -96,7 +96,10 @@
             <p>Click the button below to set your password and activate your account:</p>
                 <p style="text-align: center;">
                     <a href="{{ scheme }}://{{ domain }}{% url 'accounts:password_reset_confirm' uidb64=uid token=token %}" 
-                    class="btn">Set Your Password</a>
+                        class="btn" 
+                        style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                        Set Your Password
+                    </a>
                 </p>
             <p>If you did not expect this invitation, please ignore this email.</p>
             <p>Thanks,<br>ModelMint Team</p>
