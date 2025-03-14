@@ -7,15 +7,18 @@ from .models import DataUpload, Metric
 from .tasks import save_uploaded_file
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 @login_required
 def upload_data(request):
     """Handles file uploads ensuring organization and user are auto-filled asynchronously."""
 
     if request.method == "POST":
         title = request.POST.get("title", "")
-        file = request.FILES.get(
-            "file"
-        )  # ✅ Don't read() the file, just pass it to Celery
+        file = request.FILES.get("file")
         job_instructions = request.POST.get("job_instructions", "")
         user = request.user
 
@@ -23,10 +26,13 @@ def upload_data(request):
             messages.error(request, "Please upload a valid file.")
             return redirect("dashboard:analytics:upload_data")
 
-        # ✅ Send task to Celery without blocking the response
-        save_uploaded_file.delay(
-            title, file.name, file.content_type, job_instructions, user.id, file.read()
-        )
+        # ✅ Ensure Celery task is triggered
+        try:
+            logger.info("Attempting to send task to Celery")
+            save_uploaded_file.delay(title, None, file.name, job_instructions, user.id)
+            logger.info("Task sent successfully to Celery")
+        except Exception as e:
+            logger.error(f"Error sending task to Celery: {str(e)}")
 
         messages.success(request, "Your file is being uploaded in the background!")
         return redirect("dashboard:dashboard_home")
