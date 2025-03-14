@@ -1,10 +1,11 @@
 from celery import shared_task
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from .models import DataUpload
 from django.contrib.auth import get_user_model
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 User = get_user_model()
 
@@ -26,10 +27,10 @@ def save_uploaded_file(data_upload_id):
         if not upload.file:
             return f"Error: No file found for upload ID {data_upload_id}."
 
-        # ✅ File Path (For Debugging)
-        logger.info(f"Processing file: {upload.file.name}")
+        # ✅ Log File Path (For Debugging)
+        logger.info(f"Processing file: {upload.file.url}")
 
-        # ✅ OPTIONAL: If you need to process the file in Celery
+        # ✅ OPTIONAL: If you need to process the file later
         # with upload.file.open() as f:
         #     file_content = f.read()
         #     process_file_data(file_content)
