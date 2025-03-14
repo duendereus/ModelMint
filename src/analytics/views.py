@@ -15,10 +15,9 @@ logger = logging.getLogger(__name__)
 @login_required
 def upload_data(request):
     """Handles file uploads ensuring organization and user are auto-filled asynchronously."""
-
     if request.method == "POST":
         title = request.POST.get("title", "")
-        file = request.FILES.get("file")
+        file = request.FILES.get("file")  # ✅ Do NOT read() the file
         job_instructions = request.POST.get("job_instructions", "")
         user = request.user
 
@@ -26,15 +25,41 @@ def upload_data(request):
             messages.error(request, "Please upload a valid file.")
             return redirect("dashboard:analytics:upload_data")
 
-        # ✅ Ensure Celery task is triggered
+        # ✅ Identify organization
+        organization = None
+        if hasattr(user, "owned_organization") and user.owned_organization:
+            organization = user.owned_organization
+        else:
+            membership = user.organization_memberships.first()
+            if membership:
+                organization = membership.organization
+
+        if not organization:
+            messages.error(
+                request, "You must belong to an organization to upload files."
+            )
+            return redirect("dashboard:analytics:upload_data")
+
+        # ✅ Save DataUpload instance immediately (this saves the file in S3)
+        data_upload = DataUpload.objects.create(
+            title=title,
+            job_instructions=job_instructions,
+            uploaded_by=user,
+            organization=organization,
+            file=file,  # ✅ File is saved directly
+        )
+
+        # ✅ Pass only file path to Celery
+        logger.info(f"Attempting to send task to Celery: {data_upload.file.name}")
         try:
-            logger.info("Attempting to send task to Celery")
-            save_uploaded_file.delay(title, None, file.name, job_instructions, user.id)
-            logger.info("Task sent successfully to Celery")
+            save_uploaded_file.delay(data_upload.id)  # ✅ Only pass the ID
+            logger.info(
+                f"Task sent successfully to Celery for file {data_upload.file.name}"
+            )
         except Exception as e:
             logger.error(f"Error sending task to Celery: {str(e)}")
 
-        messages.success(request, "Your file is being uploaded in the background!")
+        messages.success(request, "Your file has been uploaded successfully!")
         return redirect("dashboard:dashboard_home")
 
     return render(request, "dashboard/analytics/upload_data.html")

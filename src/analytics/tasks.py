@@ -1,7 +1,10 @@
 from celery import shared_task
-from django.core.files.base import ContentFile
 from .models import DataUpload
 from django.contrib.auth import get_user_model
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 User = get_user_model()
 
@@ -12,44 +15,28 @@ def test_task():
 
 
 @shared_task
-def save_uploaded_file(
-    title, file_name, content_type, job_instructions, user_id, file_data
-):
+def save_uploaded_file(data_upload_id):
     """
-    Celery task to create a DataUpload record in the background.
+    Celery task to handle background file processing after upload.
     """
-
     try:
-        user = User.objects.get(id=user_id)
+        upload = DataUpload.objects.get(id=data_upload_id)
 
-        # ✅ Determine the organization for the user
-        organization = None
-        if hasattr(user, "owned_organization") and user.owned_organization:
-            organization = user.owned_organization
-        else:
-            membership = user.organization_memberships.first()
-            if membership:
-                organization = membership.organization
+        # ✅ Confirm File Exists
+        if not upload.file:
+            return f"Error: No file found for upload ID {data_upload_id}."
 
-        if not organization:
-            return f"Error: User {user.email} does not belong to an organization."
+        # ✅ File Path (For Debugging)
+        logger.info(f"Processing file: {upload.file.name}")
 
-        # ✅ Create a new DataUpload instance (this will use upload_to)
-        upload = DataUpload(
-            title=title,
-            job_instructions=job_instructions,
-            uploaded_by=user,
-            organization=organization,
-        )
+        # ✅ OPTIONAL: If you need to process the file in Celery
+        # with upload.file.open() as f:
+        #     file_content = f.read()
+        #     process_file_data(file_content)
 
-        # ✅ Assign the file and save it (this triggers upload_to!)
-        upload.file.save(file_name, ContentFile(file_data, name=file_name))
+        return f"File '{upload.file.name}' processed successfully."
 
-        upload.save()  # ✅ Save the model after file is stored
-
-        return f"File '{file_name}' uploaded successfully for user {user.email}."
-
-    except User.DoesNotExist:
-        return f"Error: User with ID {user_id} not found."
+    except DataUpload.DoesNotExist:
+        return f"Error: DataUpload with ID {data_upload_id} not found."
     except Exception as e:
         return f"Error processing upload: {str(e)}"
