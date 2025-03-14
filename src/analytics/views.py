@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
+from .tasks import save_uploaded_file
 
 
 @login_required
@@ -14,7 +15,7 @@ def upload_data(request):
         title = request.POST.get("title", "")
         file = request.FILES.get(
             "file"
-        )  # ✅ Don't read() the file, just pass it to the model
+        )  # ✅ Don't read() the file, just pass it to Celery
         job_instructions = request.POST.get("job_instructions", "")
         user = request.user
 
@@ -22,31 +23,12 @@ def upload_data(request):
             messages.error(request, "Please upload a valid file.")
             return redirect("dashboard:analytics:upload_data")
 
-        # ✅ Identify organization
-        organization = None
-        if hasattr(user, "owned_organization") and user.owned_organization:
-            organization = user.owned_organization
-        else:
-            membership = user.organization_memberships.first()
-            if membership:
-                organization = membership.organization
-
-        if not organization:
-            messages.error(
-                request, "You must belong to an organization to upload files."
-            )
-            return redirect("dashboard:analytics:upload_data")
-
-        # ✅ Save DataUpload instance immediately (this saves the file)
-        data_upload = DataUpload.objects.create(
-            title=title,
-            job_instructions=job_instructions,
-            uploaded_by=user,
-            organization=organization,
-            file=file,  # ✅ Pass the file directly to the model
+        # ✅ Send task to Celery without blocking the response
+        save_uploaded_file.delay(
+            title, file.name, file.content_type, job_instructions, user.id, file.read()
         )
 
-        messages.success(request, "Your file has been uploaded successfully!")
+        messages.success(request, "Your file is being uploaded in the background!")
         return redirect("dashboard:dashboard_home")
 
     return render(request, "dashboard/analytics/upload_data.html")
