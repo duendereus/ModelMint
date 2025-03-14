@@ -257,6 +257,7 @@ class PublicMediaStorage(S3Boto3Storage):
 
     location = "profile_pictures"
     default_acl = "public-read"
+    file_overwrite = False
 
 
 class PrivateMediaStorage(S3Boto3Storage):
@@ -264,7 +265,9 @@ class PrivateMediaStorage(S3Boto3Storage):
 
     location = "uploads"
     default_acl = "private"
-    custom_domain = False  # Ensures signed URLs for security
+    custom_domain = False  # Ensures signed URLs
+    querystring_auth = True  # Enables presigned URLs
+    querystring_expire = 3600  # Signed URL expires in 1 hour
 
 
 # ✅ Allowlist Trusted Domains (Including Railway & ModelMint)
