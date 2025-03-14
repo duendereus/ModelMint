@@ -20,10 +20,22 @@
 
             <li class="list-inline-item mb-0 ms-1">
                 <div class="dropdown dropdown-primary">
-                    <button type="button" class="btn btn-soft-light dropdown-toggle p-0" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><img src="{% static 'img/logo-green.svg' %}" class="avatar avatar-ex-small rounded" alt=""></button>
+                    
+                    <button type="button" class="btn btn-soft-light dropdown-toggle p-0" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        {% if request.user.profile.profile_picture %}
+                            <img src="{{ request.user.profile.profile_picture.url }}" class="avatar avatar-ex-small rounded" alt="Profile Picture">
+                        {% else %}
+                            <img src="{% static 'dashboard/img/default_avatar.png' %}" class="avatar avatar-ex-small rounded" alt="Default Profile Picture">
+                        {% endif %}
+                    </button>                    
+
                     <div class="dropdown-menu dd-menu dropdown-menu-end shadow border-0 mt-3 py-3" style="min-width: 200px;">
-                        <a class="dropdown-item d-flex align-items-center text-dark pb-3" href="#">
-                            <img src="{% static 'img/logo-green.svg' %}" class="avatar avatar-md-sm rounded-circle border shadow" alt="">
+                        <a class="dropdown-item d-flex align-items-center text-dark pb-3" href="{% url 'dashboard:profile' %}">
+                            {% if request.user.profile.profile_picture %}
+                                <img src="{{ request.user.profile.profile_picture.url }}" class="avatar avatar-md-sm rounded-circle border shadow" alt="">
+                            {% else %}
+                                <img src="{% static 'dashboard/img/default_avatar.png' %}" class="avatar avatar-md-sm rounded-circle border shadow" alt="">
+                            {% endif %}
                             <div class="flex-1 ms-2">
                                 <span class="d-block">{{ request.user.username }}</span>
                                 <small class="text-muted">
@@ -37,6 +49,7 @@
                                 </small>                                                                
                             </div>                            
                         </a>
+                        <a class="dropdown-item text-dark" href="{% url 'dashboard:profile' %}"><span class="mb-0 d-inline-block me-1"><i class="ti ti-user"></i></span> My Profile</a>                   
                         {% if request.user.owned_organization %}
                             <a class="dropdown-item text-dark" href="{% url 'subscriptions:organization_subscription' org_id=request.user.owned_organization.id %}">
                                 <span class="mb-0 d-inline-block me-1"><i class="ti ti-id-badge"></i></span> My Subscription

@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
-from .models import Organization
+from .models import Organization, UserProfile
 from .utils import custom_password_validator
 
 User = get_user_model()
@@ -107,3 +107,38 @@ class CustomSetPasswordForm(SetPasswordForm):
         widget=forms.PasswordInput(attrs={"placeholder": "Confirm New Password"}),
         label="Confirm New Password",
     )
+
+
+class UserForm(forms.ModelForm):
+    """
+    Form to update User basic information.
+    """
+
+    class Meta:
+        model = User
+        fields = ["username", "email", "phone_number"]
+        widgets = {
+            "username": forms.TextInput(
+                attrs={"class": "form-control", "readonly": "readonly"}
+            ),
+            "email": forms.EmailInput(
+                attrs={"class": "form-control", "readonly": "readonly"}
+            ),
+            "phone_number": forms.TextInput(attrs={"class": "form-control"}),
+        }
+
+
+class UserProfileForm(forms.ModelForm):
+    """
+    Form to update User Profile information.
+    """
+
+    class Meta:
+        model = UserProfile
+        fields = ["name", "profile_picture", "job_title", "bio", "linkedin"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "job_title": forms.TextInput(attrs={"class": "form-control"}),
+            "bio": forms.Textarea(attrs={"class": "form-control", "rows": 4}),
+            "linkedin": forms.URLInput(attrs={"class": "form-control"}),
+        }

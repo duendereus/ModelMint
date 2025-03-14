@@ -129,3 +129,11 @@
 .card {
     overflow: hidden;
 }
+
+input[readonly] {
+    background-color: #ddf0c6 !important; /* Light gray background */
+    color: black !important; /* Darker gray text */
+    opacity: 0.7; /* Reduce opacity */
+    cursor: not-allowed; /* Show disabled cursor */
+    border: 1px solid #addbac; /* Keep border styling */
+}

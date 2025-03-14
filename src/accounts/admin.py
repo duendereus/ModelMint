@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from accounts.models import User, Organization, OrganizationMembership
+from accounts.models import User, UserProfile, Organization, OrganizationMembership
 from django import forms
 
 
@@ -61,10 +61,32 @@ class OrganizationAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
+class UserProfileInline(admin.StackedInline):
+    """
+    Inline admin for UserProfile, allowing modification within UserAdmin.
+    """
+
+    model = UserProfile
+    can_delete = False
+    extra = 0  # Do not show extra empty form fields
+    readonly_fields = ("profile_picture_preview",)
+
+    def profile_picture_preview(self, obj):
+        """
+        Displays a preview of the profile picture in the admin panel.
+        """
+        if obj.profile_picture:
+            return f'<img src="{obj.profile_picture.url}" width="50" height="50" style="border-radius: 50%;">'
+        return "No profile picture"
+
+    profile_picture_preview.allow_tags = True
+    profile_picture_preview.short_description = "Profile Picture Preview"
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     """
-    Custom admin for User model with additional fields showing organization info.
+    Custom admin for User model with additional fields showing organization and profile info.
     """
 
     list_display = (
@@ -73,6 +95,7 @@ class UserAdmin(BaseUserAdmin):
         "phone_number",
         "is_staff",
         "is_active",
+        "get_organization",
     )
     list_filter = ("is_staff", "is_active", "groups")
     search_fields = (
@@ -80,24 +103,17 @@ class UserAdmin(BaseUserAdmin):
         "username",
         "phone_number",
         "owned_organization__name",
-        "organization__name",
+        "organization_memberships__organization__name",
     )
     ordering = ("-created",)
-    readonly_fields = (
-        "created",
-        "updated",
-        "get_organization",
-    )  # Make organization info read-only
+    readonly_fields = ("created", "updated", "get_organization")
 
     fieldsets = (
         (None, {"fields": ("email", "username", "password")}),
         ("Personal Info", {"fields": ("phone_number",)}),
         ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser")}),
         ("Groups and Permissions", {"fields": ("groups", "user_permissions")}),
-        (
-            "Organization",
-            {"fields": ("get_organization",)},
-        ),  # New section for organization info
+        ("Organization", {"fields": ("get_organization",)}),
         ("Important Dates", {"fields": ("created", "updated")}),
     )
 
@@ -118,6 +134,8 @@ class UserAdmin(BaseUserAdmin):
         ),
     )
 
+    inlines = [UserProfileInline]  # ✅ Add UserProfile inline
+
     def get_organization(self, obj):
         """
         Returns the organization the user is associated with.
@@ -126,7 +144,7 @@ class UserAdmin(BaseUserAdmin):
         """
         if hasattr(obj, "owned_organization") and obj.owned_organization:
             return f"Owner of {obj.owned_organization.name}"
-        elif obj.organization_memberships.exists():  # Check memberships properly
+        elif obj.organization_memberships.exists():
             return f"Member of {obj.organization_memberships.first().organization.name}"
         return "No organization"
 

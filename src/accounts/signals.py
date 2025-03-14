@@ -1,6 +1,8 @@
 from django.dispatch import Signal
 from django.dispatch import receiver
+from django.db.models.signals import post_save
 from django.contrib.auth import get_user_model
+from accounts.models import User, UserProfile
 from customers.models import OrganizationCustomer
 
 User = get_user_model()
@@ -41,3 +43,22 @@ def handle_email_confirmed(sender, request, user, **kwargs):
         print(f"Email confirmed for {organization.name} ({user.email})")
     except OrganizationCustomer.DoesNotExist:
         print(f"No organization customer record found for {user.email}")
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    """
+    Creates a UserProfile instance automatically when a new user is created.
+    """
+    if created:
+        UserProfile.objects.create(
+            user=instance, name=instance.username
+        )  # Set a default name
+
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    """
+    Saves the UserProfile whenever the User instance is saved.
+    """
+    instance.profile.save()

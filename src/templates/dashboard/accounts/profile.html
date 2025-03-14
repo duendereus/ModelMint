@@ -1,0 +1,76 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}My Profile{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">My Profile</h2>
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="row">
+                    <!-- Profile Picture -->
+                    <div class="col-md-3 text-center">
+                        {% if request.user.profile.profile_picture %}
+                            <img src="{{ request.user.profile.profile_picture.url }}" 
+                                 alt="Profile Picture" class="img-fluid rounded-circle mb-3" 
+                                 style="width: 150px; height: 150px; object-fit: cover;">
+                        {% else %}
+                            <img src="{% static 'dashboard/img/default_avatar.png' %}" 
+                                 alt="Default Profile" class="img-fluid rounded-circle mb-3"
+                                 style="width: 150px; height: 150px; object-fit: cover;">
+                        {% endif %}
+                        <input type="file" name="profile_picture" class="form-control mt-2">
+                    </div>
+
+                    <!-- User Information -->
+                    <div class="col-md-9">
+                        <div class="mb-3">
+                            <label for="id_username" class="form-label">Username</label>
+                            <input type="text" name="username" id="id_username" value="{{ user.username }}" class="form-control" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_email" class="form-label">Email</label>
+                            <input type="email" name="email" id="id_email" value="{{ user.email }}" class="form-control" readonly>
+                        </div>
+                        
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="id_name" class="form-label">Name</label>
+                                {{ profile_form.name }}
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="id_phone_number" class="form-label">Phone Number</label>
+                                {{ user_form.phone_number }}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="id_job_title" class="form-label">Job Title</label>
+                                {{ profile_form.job_title }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_bio" class="form-label">Bio</label>
+                            {{ profile_form.bio }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_linkedin" class="form-label">LinkedIn</label>
+                            {{ profile_form.linkedin }}
+                        </div>
+
+                        <button type="submit" class="btn btn-success">Update Profile</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

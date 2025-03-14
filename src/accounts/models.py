@@ -95,6 +95,24 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.email
 
 
+class UserProfile(models.Model):
+    """
+    User Profile Model that extends the User model.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    name = models.CharField(max_length=100)
+    profile_picture = models.ImageField(
+        upload_to="profile_pictures/", default="profile_pictures/default.png"
+    )
+    bio = models.TextField(blank=True, null=True)
+    job_title = models.CharField(max_length=100, blank=True, null=True)
+    linkedin = models.URLField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.user.username}'s Profile"
+
+
 class Organization(models.Model):
     """
     Organization model representing a company or project.

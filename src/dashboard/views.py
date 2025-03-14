@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
-from accounts.models import OrganizationMembership, Organization
+from accounts.models import OrganizationMembership, Organization, UserProfile
 from accounts.utils import generate_random_password
 from accounts.tasks import send_verification_email_task
 from analytics.models import Metric
@@ -74,20 +74,32 @@ def invite_member(request):
         if form.is_valid():
             email = form.cleaned_data["email"]
             role = form.cleaned_data["role"]
+            name = form.cleaned_data["name"]  # Capture the name
 
             # Generate a random password
             random_password = generate_random_password()
 
             # Create the new user with a random password (inactive)
-            user = User.objects.create_user(
-                email=email, username=email, password=random_password
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={
+                    "username": email,
+                    "password": random_password,
+                    "is_active": False,
+                },
             )
-            user.is_active = False  # User will activate via password reset
-            user.save()
 
-            # Add the user to the organization
-            OrganizationMembership.objects.create(
-                user=user, organization=organization, role=role
+            if created:
+                user.set_password(random_password)
+                user.save()
+
+                # Set name after profile creation
+                user.profile.name = name
+                user.profile.save()
+
+            # Ensure the user is added to the organization
+            OrganizationMembership.objects.get_or_create(
+                user=user, organization=organization, defaults={"role": role}
             )
 
             # Generate password reset token and send the direct reset link
@@ -100,8 +112,8 @@ def invite_member(request):
                 email_template="dashboard/accounts/emails/invitation_email.html",
                 domain=request.get_host(),
                 scheme=request.scheme,
-                uidb64=uid,  # Pass UID for direct reset link
-                token=token,  # Pass generated token
+                uidb64=uid,
+                token=token,
             )
 
             messages.success(request, f"{email} has been invited successfully!")

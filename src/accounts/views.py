@@ -8,9 +8,11 @@ from .forms import (
     CustomPasswordResetForm,
     CustomSetPasswordForm,
 )
+from .models import UserProfile
 from .utils import anonymous_required
 from .tasks import send_verification_email_task
 from .signals import user_signed_up, email_confirmed
+from .forms import UserForm, UserProfileForm
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
@@ -173,3 +175,34 @@ def password_reset_confirm(request, uidb64, token):
     else:
         messages.error(request, "The reset link is invalid or expired.")
         return redirect("accounts:password_reset_request")
+
+
+@login_required
+def profile_view(request):
+    """
+    Displays and allows editing of the user's profile.
+    """
+    user = request.user
+    profile, created = UserProfile.objects.get_or_create(
+        user=user
+    )  # Ensure profile exists
+
+    if request.method == "POST":
+        user_form = UserForm(request.POST, instance=user)
+        profile_form = UserProfileForm(request.POST, request.FILES, instance=profile)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            messages.success(request, "Your profile has been updated successfully!")
+            return redirect("dashboard:profile")
+
+    else:
+        user_form = UserForm(instance=user)
+        profile_form = UserProfileForm(instance=profile)
+
+    context = {
+        "user_form": user_form,
+        "profile_form": profile_form,
+    }
+    return render(request, "dashboard/accounts/profile.html", context)
