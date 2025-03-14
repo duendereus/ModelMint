@@ -260,14 +260,14 @@ class PublicMediaStorage(S3Boto3Storage):
     file_overwrite = False
 
 
-# class PrivateMediaStorage(S3Boto3Storage):
-#     """Storage class for private uploads (restricted access)."""
+class PrivateMediaStorage(S3Boto3Storage):
+    """Storage class for private uploads (restricted access)."""
 
-#     location = "uploads"
-#     default_acl = "private"
-#     custom_domain = False  # Ensures signed URLs
-#     querystring_auth = True  # Enables presigned URLs
-#     querystring_expire = 3600  # Signed URL expires in 1 hour
+    location = "uploads"
+    default_acl = "private"
+    custom_domain = False  # Ensures signed URLs
+    querystring_auth = True  # Enables presigned URLs
+    querystring_expire = 3600  # Signed URL expires in 1 hour
 
 
 # ✅ Allowlist Trusted Domains (Including Railway & ModelMint)
