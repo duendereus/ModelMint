@@ -1,6 +1,4 @@
 from celery import shared_task
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 from .models import DataUpload
 from django.contrib.auth import get_user_model
 import logging
