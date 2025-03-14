@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from decouple import config
 from django.contrib.messages import constants as messages
+from storages.backends.s3boto3 import S3Boto3Storage
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -230,7 +231,7 @@ if USE_S3:
     AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-west-2")
     AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
 
-    # 🔒 Secure Media Files (Not Publicly Accessible)
+    # 🔒 Secure Media Files (Not Publicly Accessible by Default)
     AWS_S3_OBJECT_PARAMETERS = {
         "CacheControl": "max-age=86400",
     }
@@ -249,30 +250,47 @@ MEDIA_ROOT = (
 # ✅ Enable WhiteNoise Compression & Caching
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# ✅ Custom Storage for Public Profile Pictures & Private Uploads
+class PublicMediaStorage(S3Boto3Storage):
+    """Storage class for publicly accessible profile pictures."""
 
-AUTH_USER_MODEL = "accounts.User"
-
-MESSAGE_TAGS = {
-    messages.ERROR: "danger",
-}
+    location = "profile_pictures"
+    default_acl = "public-read"
 
 
+class PrivateMediaStorage(S3Boto3Storage):
+    """Storage class for private uploads (restricted access)."""
+
+    location = "uploads"
+    default_acl = "private"
+    custom_domain = False  # Ensures signed URLs for security
+
+
+# ✅ Allowlist Trusted Domains (Including Railway & ModelMint)
 CSRF_TRUSTED_ORIGINS = [
     "https://modelmint.co",
     "https://www.modelmint.co",
-    f"https://{SITE_DOMAIN}",
+    "https://modelmint-production.up.railway.app",  # ✅ Railway App Domain
+    f"https://{config('SITE_DOMAIN', default='modelmint.co')}",
 ]
 
-# Redis broker URL
+# ✅ Redis Broker URL (Railway or Local)
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/1")
 
-
-# Celery configurations
+# ✅ Celery configurations
 CELERY_BROKER_URL = REDIS_URL
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_BACKEND = REDIS_URL
+
+# Default primary key field type
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ✅ Custom User Model
+AUTH_USER_MODEL = "accounts.User"
+
+# ✅ Custom Message Tags for Bootstrap Alerts
+MESSAGE_TAGS = {
+    messages.ERROR: "danger",
+}
