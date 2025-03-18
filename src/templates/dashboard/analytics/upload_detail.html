@@ -16,13 +16,14 @@
             <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions }}</p>
 
             <!-- ✅ File Download Link -->
-            <!-- {% if data_upload.file %}
-                <p><strong>Download File:</strong> 
-                    <a href="{{ data_upload.file.url }}" class="btn btn-success btn-sm" download>
-                        Download File
-                    </a>
-                </p>
+            <!-- {% if data_upload_presigned_url %}
+            <p><strong>Download File:</strong> 
+                <a href="{{ data_upload_presigned_url }}" class="btn btn-success btn-sm" download>
+                    Download File
+                </a>
+            </p>
             {% endif %} -->
+
         </div>
     </div>
 
@@ -35,10 +36,12 @@
                 <div class="col-md-12 mb-4">
                     <div class="card">
                         <div class="card-header">
-                            {% if metric.file %}
-                            <h5 class="mb-0"><a href="{{metric.file.url}}">{{metric.name }}</a></h5>
+                            {% if metric.presigned_url %}
+                                <h5 class="mb-0">
+                                    <a href="{{ metric.presigned_url }}" target="_blank">{{ metric.name }}</a>
+                                </h5>
                             {% else %}
-                            <h5 class="mb-0">{{ metric.name }}</h5>
+                                <h5 class="mb-0">{{ metric.name }}</h5>
                             {% endif %}
                         </div>
                         <div class="card-body">

@@ -123,8 +123,14 @@ def data_upload_detail(request, upload_id):
         .order_by("position")
     )
 
+    # ✅ Generate pre-signed URLs for all files
+    data_upload_presigned_url = data_upload.get_presigned_url()
+    for metric in metrics:
+        metric.presigned_url = metric.get_presigned_url()  # Add presigned_url to metric
+
     context = {
         "data_upload": data_upload,
+        "data_upload_presigned_url": data_upload_presigned_url,  # ✅ Pass the pre-signed URL
         "metrics": metrics,
     }
     return render(request, "dashboard/analytics/upload_detail.html", context)
