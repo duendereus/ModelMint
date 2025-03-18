@@ -48,9 +48,11 @@ def dashboard_home(request):
 
         if dashboard_selection:
             # ✅ Prefetch table data to avoid missing relations
-            selected_metrics = dashboard_selection.metrics.all().select_related(
-                "table_data"
-            )  # Prefetch OneToOneField for table data
+            selected_metrics = dashboard_selection.metrics.all().select_related("table_data")
+
+            # ✅ Generate pre-signed URLs using the existing model method
+            for metric in selected_metrics:
+                metric.presigned_url = metric.get_presigned_url() if metric.file else None
 
     return render(
         request,
@@ -62,7 +64,6 @@ def dashboard_home(request):
             "organization": organization,
         },
     )
-
 
 @login_required
 def invite_member(request):

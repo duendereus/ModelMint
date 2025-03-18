@@ -62,14 +62,17 @@
                                 </table>
                             </div>
 
-                        {% elif metric.type == "plot" and metric.file %}
-                            <img src="{{ metric.file.url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 100%;">
+                        {% elif metric.type == "plot" and metric.presigned_url %}
+                            <img src="{{ metric.presigned_url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 100%;">
 
                         {% elif metric.type == "single_value" %}
                             <p class="display-4">{{ metric.value }}</p>
 
                         {% elif metric.type == "text" %}
                             <p>{{ metric.value }}</p>
+
+                        {% elif metric.presigned_url %}
+                            <p><a href="{{ metric.presigned_url }}" target="_blank" class="btn btn-primary">Download File</a></p>
 
                         {% else %}
                             <span class="text-muted">No data available</span>
