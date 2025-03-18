@@ -1,8 +1,10 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from .utils import validate_file_extension, upload_to_data_file, upload_to_metric
 from accounts.models import Organization, OrganizationMembership
+import boto3
 
 User = get_user_model()
 
@@ -38,25 +40,26 @@ class DataUpload(models.Model):
     
     def get_presigned_url(self, expires_in=3600):
         """Generate a pre-signed URL for private file access (valid for 1 hour)."""
-        if not self.file:
-            return None  # No file uploaded
-        
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_S3_REGION_NAME,
-        )
-        
-        try:
-            url = s3_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": self.file.name},
-                ExpiresIn=expires_in,  # URL valid for 1 hour
+        if settings.USE_S3:
+            if not self.file:
+                return None  # No file uploaded
+            
+            s3_client = boto3.client(
+                "s3",
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                region_name=settings.AWS_S3_REGION_NAME,
             )
-            return url
-        except Exception as e:
-            return None  # Return None if URL generation fails
+            
+            try:
+                url = s3_client.generate_presigned_url(
+                    "get_object",
+                    Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": self.file.name},
+                    ExpiresIn=expires_in,  # URL valid for 1 hour
+                )
+                return url
+            except Exception as e:
+                return None  # Return None if URL generation fails
 
     def clean(self):
         """
@@ -122,25 +125,26 @@ class Metric(models.Model):
 
     def get_presigned_url(self, expires_in=3600):
         """Generate a pre-signed URL for private metric files."""
-        if not self.file:
-            return None  # No file uploaded
-        
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_S3_REGION_NAME,
-        )
-        
-        try:
-            url = s3_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": self.file.name},
-                ExpiresIn=expires_in,  # URL valid for 1 hour
+        if settings.USE_S3:
+            if not self.file:
+                return None  # No file uploaded
+            
+            s3_client = boto3.client(
+                "s3",
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                region_name=settings.AWS_S3_REGION_NAME,
             )
-            return url
-        except Exception as e:
-            return None
+            
+            try:
+                url = s3_client.generate_presigned_url(
+                    "get_object",
+                    Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": self.file.name},
+                    ExpiresIn=expires_in,  # URL valid for 1 hour
+                )
+                return url
+            except Exception as e:
+                return None
 
     def save(self, *args, **kwargs):
         """
