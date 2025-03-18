@@ -55,7 +55,7 @@
 
                             <!-- ✅ Image/Plot -->
                             {% elif metric.type == "plot" and metric.file %}
-                                <img src="{{ metric.file.url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 100%;">
+                                <img src="{{ metric.presigned_url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 100%;">
 
                             <!-- ✅ Table Data -->
                             {% elif metric.type == "table" and metric.table_data %}
