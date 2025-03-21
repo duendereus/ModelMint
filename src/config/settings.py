@@ -314,3 +314,5 @@ AUTH_USER_MODEL = "accounts.User"
 MESSAGE_TAGS = {
     messages.ERROR: "danger",
 }
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600

@@ -4,54 +4,118 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
-from .tasks import save_uploaded_file
+import boto3
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+import uuid
+
+@login_required
+@require_POST
+def generate_presigned_post(request):
+
+    user = request.user
+    organization = (
+        user.owned_organization
+        if hasattr(user, "owned_organization") and user.owned_organization
+        else user.organization_memberships.first().organization
+    )
+
+    file_name = request.POST.get("file_name")
+    file_type = request.POST.get("file_type")
+
+    if not file_name or not file_type:
+        return JsonResponse({"error": "Missing file name or type."}, status=400)
+
+    # Dynamic S3 Key based on org
+    org_slug = organization.name.lower().replace(" ", "_")
+    unique_id = uuid.uuid4()
+    key = f"uploads/{org_slug}/data/{unique_id}_{file_name}"
+
+    s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_S3_REGION_NAME,
+    )
+
+    presigned_post = s3_client.generate_presigned_post(
+        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+        Key=key,
+        Fields={"acl": "private", "Content-Type": file_type},
+        Conditions=[
+            {"acl": "private"},
+            {"Content-Type": file_type},
+            ["content-length-range", 0, 1073741824],  # Max: 1 GB
+        ],
+        ExpiresIn=3600,
+    )
+
+    return JsonResponse({
+        "data": presigned_post,
+        "file_key": key,
+    })
+
+@csrf_exempt
+@require_POST
+@login_required
+def confirm_upload(request):
+    title = request.POST.get("title")
+    job_instructions = request.POST.get("job_instructions")
+    file_key = request.POST.get("file_key")
+
+    if not file_key or not title:
+        return JsonResponse({"error": "Missing file or title"}, status=400)
+
+    user = request.user
+    organization = (
+        user.owned_organization
+        if hasattr(user, "owned_organization") and user.owned_organization
+        else user.organization_memberships.first().organization
+    )
+
+    upload = DataUpload.objects.create(
+        title=title,
+        job_instructions=job_instructions,
+        uploaded_by=user,
+        organization=organization,
+        file=file_key  # The S3 key
+    )
+
+    return JsonResponse({"success": True, "upload_id": upload.id})
 
 
 @login_required
 def upload_data(request):
-    """Handles file uploads ensuring organization and user are auto-filled asynchronously."""
-
     if request.method == "POST":
-        title = request.POST.get("title", "")
-        file = request.FILES.get("file")  # ✅ Pass the file directly to Django storage
-        job_instructions = request.POST.get("job_instructions", "")
+        file = request.FILES.get("file")
+        title = request.POST.get("title")
+        instructions = request.POST.get("job_instructions")
+
+        if not file or not title:
+            messages.error(request, "Title and file are required.")
+            return redirect("dashboard:analytics:upload_data")
+
         user = request.user
-
-        if not file:
-            messages.error(request, "Please upload a valid file.")
-            return redirect("dashboard:analytics:upload_data")
-
-        # ✅ Identify organization
-        organization = None
-        if hasattr(user, "owned_organization") and user.owned_organization:
-            organization = user.owned_organization
-        else:
-            membership = user.organization_memberships.first()
-            if membership:
-                organization = membership.organization
-
-        if not organization:
-            messages.error(
-                request, "You must belong to an organization to upload files."
-            )
-            return redirect("dashboard:analytics:upload_data")
-
-        # ✅ Save DataUpload instance (THIS SAVES THE FILE IN S3 or LOCAL STORAGE)
-        data_upload = DataUpload.objects.create(
-            title=title,
-            job_instructions=job_instructions,
-            uploaded_by=user,
-            organization=organization,
-            file=file,  # ✅ Directly save to FileField, no reading required
+        org = (
+            user.owned_organization
+            if hasattr(user, "owned_organization") and user.owned_organization
+            else user.organization_memberships.first().organization
         )
 
-        # ✅ Send task with only the DataUpload ID
-        save_uploaded_file.delay(data_upload.id)
+        DataUpload.objects.create(
+            title=title,
+            job_instructions=instructions,
+            uploaded_by=user,
+            organization=org,
+            file=file
+        )
 
-        messages.success(request, "Your file is being uploaded in the background!")
+        messages.success(request, "File uploaded successfully!")
         return redirect("dashboard:dashboard_home")
 
-    return render(request, "dashboard/analytics/upload_data.html")
+    return render(request, "dashboard/analytics/upload_data.html", {"USE_S3": settings.USE_S3})
 
 
 @login_required
