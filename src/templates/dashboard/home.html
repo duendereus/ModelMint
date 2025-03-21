@@ -4,6 +4,7 @@
 {% block title %}Dashboard{% endblock title %}
 
 {% block content %}
+{% include "dashboard/includes/modal.html" %}
 <div class="container mt-4">
     <div class="d-flex align-items-center justify-content-between">
         <div>
@@ -62,8 +63,10 @@
                                 </table>
                             </div>
 
-                        {% elif metric.type == "plot" and metric.presigned_url %}
-                            <img src="{{ metric.presigned_url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 100%;">
+                            {% elif metric.type == "plot" and metric.presigned_url %}
+                            <img src="{{ metric.presigned_url }}" alt="{{ metric.name }}" class="img-fluid plot-thumbnail" 
+                                 style="max-width: 100%; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#plotModal" 
+                                 data-image="{{ metric.presigned_url }}">
 
                         {% elif metric.type == "single_value" %}
                             <p class="display-4">{{ metric.value }}</p>

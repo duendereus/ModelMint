@@ -1,19 +1,18 @@
 document.addEventListener("DOMContentLoaded", function () {
+
+    // 1. Notification Alert Logic
     let alerts = document.querySelectorAll(".alert");
 
     alerts.forEach((alert) => {
-        // Show animation
         setTimeout(() => {
             alert.classList.add("show-notification");
         }, 100);
 
-        // Auto-close after 5 seconds
         setTimeout(() => {
             closeAlert(alert);
         }, 4000);
     });
 
-    // Event delegation for close button
     document.addEventListener("click", function (event) {
         if (event.target.classList.contains("close")) {
             let alert = event.target.closest(".alert");
@@ -21,7 +20,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // Function to close alerts with animation
     function closeAlert(alert) {
         if (alert) {
             alert.style.opacity = "0";
@@ -30,34 +28,38 @@ document.addEventListener("DOMContentLoaded", function () {
             }, 500);
         }
     }
-});
 
-// ✅ Fix DataTables Initialization Issue
-$(document).ready(function() {
-    console.log("✅ Custom.js Loaded");
+    // 2. Initialize DataTables
+    document.querySelectorAll('.table-metric').forEach((table) => {
+        let tableId = table.id;
 
-    $('.table-metric').each(function() {
-        let tableId = $(this).attr('id');
-
-        // ✅ Check if DataTable is already initialized
         if ($.fn.DataTable.isDataTable('#' + tableId)) {
-            $('#' + tableId).DataTable().destroy();  // ✅ Destroy existing instance
+            $('#' + tableId).DataTable().destroy();
         }
 
-        // ✅ Reinitialize DataTable with proper configuration
         $('#' + tableId).DataTable({
-            "paging": true,   
-            "ordering": true,
-            "searching": true,
-            "info": false,
-            "pageLength": 5,  
-            "scrollX": true,  
-            "autoWidth": false, 
-            "fixedHeader": true
+            paging: true,
+            ordering: true,
+            searching: true,
+            info: false,
+            pageLength: 5,
+            scrollX: true,
+            autoWidth: false,
+            fixedHeader: true
+        });
+    });
+
+    // 3. Plot image click logic (for Bootstrap Modal)
+    document.querySelectorAll('.plot-thumbnail').forEach((img) => {
+        img.addEventListener('click', function () {
+            let imageUrl = this.getAttribute('data-image');
+            if (imageUrl) {
+                let modalImg = document.getElementById('modalPlotImage');
+                modalImg.src = imageUrl;
+            }
         });
     });
 });
-
 
 
 
