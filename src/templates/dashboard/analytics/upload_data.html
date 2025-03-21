@@ -76,100 +76,105 @@
     document.addEventListener("DOMContentLoaded", function () {
         const form = document.querySelector("form");
         const fileInput = document.getElementById("id_file");
+        const statusDiv = document.getElementById("upload-status");
+        const submitBtn = document.getElementById("submit-btn");
 
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
-        
+
             const file = fileInput.files[0];
             const title = document.getElementById("id_title").value;
             const instructions = document.getElementById("id_job_instructions").value;
-            const statusDiv = document.getElementById("upload-status");
-            const submitBtn = document.getElementById("submit-btn");
-        
+
             console.log("🧪 SUBMIT TRIGGERED");
-        
+
             if (!file) {
                 alert("Please select a file.");
                 return;
             }
-        
+
             // Show loading UI
             statusDiv.classList.remove("d-none");
             submitBtn.disabled = true;
-        
+
             if (!USE_S3) {
                 console.log("📦 Local mode: submitting via traditional form");
                 form.removeEventListener("submit", arguments.callee); // prevent infinite loop
                 form.submit();
                 return;
             }
-        
-            console.log("🌍 Production mode: using S3 presigned upload");
-        
+
+            console.log("🌍 Production mode: using S3 presigned PUT");
+
             try {
+                // 1. Request pre-signed PUT URL
                 const presignFormData = new FormData();
                 presignFormData.append("file_name", file.name);
-                presignFormData.append("file_type", file.type);
-        
+
                 const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
                     method: "POST",
                     headers: { "X-CSRFToken": "{{ csrf_token }}" },
                     body: presignFormData
                 });
-        
+
                 const presignData = await presignRes.json();
-                console.log("📡 Presigned response:", presignData);
-        
+                console.log("📡 Presigned PUT response:", presignData);
+
                 if (presignData.error) {
                     throw new Error(presignData.error);
                 }
-        
-                const { data, file_key } = presignData;
-        
-                const uploadFormData = new FormData();
-                Object.entries(data.fields).forEach(([key, value]) => {
-                    uploadFormData.append(key, value);
+
+                const { url, file_key } = presignData;
+
+                // 2. Upload the file via PUT
+                const uploadStart = performance.now();
+
+                const putRes = await fetch(url, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": file.type
+                    },
+                    body: file
                 });
-                uploadFormData.append("file", file);
-        
-                const uploadRes = await fetch(data.url, {
-                    method: "POST",
-                    body: uploadFormData
-                });
-        
-                console.log("📤 S3 upload response:", uploadRes);
-        
-                if (!uploadRes.ok) {
+
+                const uploadEnd = performance.now();
+                console.log(`⏱️ Upload duration: ${((uploadEnd - uploadStart) / 1000).toFixed(2)}s`);
+                console.log("📤 PUT upload response:", putRes);
+
+                if (!putRes.ok) {
                     throw new Error("Upload to S3 failed.");
                 }
-        
+
+                // 3. Notify backend
                 const confirmFormData = new FormData();
                 confirmFormData.append("title", title);
                 confirmFormData.append("job_instructions", instructions);
                 confirmFormData.append("file_key", file_key);
-        
+
                 const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
                     method: "POST",
                     headers: { "X-CSRFToken": "{{ csrf_token }}" },
                     body: confirmFormData
                 });
-        
+
                 const confirmData = await confirmRes.json();
                 console.log("✅ Upload confirmation response:", confirmData);
-        
+
                 if (confirmData.success) {
+                    alert("✅ Upload successful!");
                     window.location.href = "{% url 'dashboard:dashboard_home' %}";
                 } else {
                     throw new Error("Server failed to register the upload.");
                 }
-        
+
             } catch (err) {
                 console.error("💥 Upload error:", err);
                 alert("Upload failed: " + err.message);
                 statusDiv.classList.add("d-none");
                 submitBtn.disabled = false;
             }
-        });        
+        });
     });
 </script>
 {% endblock extra_scripts %}
+

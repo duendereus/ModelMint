@@ -10,11 +10,12 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import uuid
+import mimetypes
+
 
 @login_required
 @require_POST
-def generate_presigned_post(request):
-
+def generate_presigned_put_url(request):
     user = request.user
     organization = (
         user.owned_organization
@@ -23,12 +24,12 @@ def generate_presigned_post(request):
     )
 
     file_name = request.POST.get("file_name")
-    file_type = request.POST.get("file_type")
+    mime_type, _ = mimetypes.guess_type(file_name or "")
+    mime_type = mime_type or "application/octet-stream"
 
-    if not file_name or not file_type:
-        return JsonResponse({"error": "Missing file name or type."}, status=400)
+    if not file_name:
+        return JsonResponse({"error": "Missing file name."}, status=400)
 
-    # Dynamic S3 Key based on org
     org_slug = organization.name.lower().replace(" ", "_")
     unique_id = uuid.uuid4()
     key = f"uploads/{org_slug}/data/{unique_id}_{file_name}"
@@ -40,22 +41,21 @@ def generate_presigned_post(request):
         region_name=settings.AWS_S3_REGION_NAME,
     )
 
-    presigned_post = s3_client.generate_presigned_post(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=key,
-        Fields={"acl": "private", "Content-Type": file_type},
-        Conditions=[
-            {"acl": "private"},
-            {"Content-Type": file_type},
-            ["content-length-range", 0, 1073741824],  # Max: 1 GB
-        ],
-        ExpiresIn=3600,
-    )
+    try:
+        url = s3_client.generate_presigned_url(
+            "put_object",
+            Params={
+                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                "Key": key,
+                "ContentType": mime_type,
+                "ACL": "private",
+            },
+            ExpiresIn=3600,
+        )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
-    return JsonResponse({
-        "data": presigned_post,
-        "file_key": key,
-    })
+    return JsonResponse({"url": url, "file_key": key})
 
 @csrf_exempt
 @require_POST
