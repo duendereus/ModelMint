@@ -17,8 +17,9 @@ class DataUploadAdmin(admin.ModelAdmin):
         "file",
         "created_at",
         "processed",
+        "status",
     )
-    list_filter = ("processed", "created_at")
+    list_filter = ("processed", "created_at", "status")
     search_fields = ("title", "organization__name", "uploaded_by__email", "file")
     readonly_fields = ("created_at", "updated_at")
 
@@ -36,6 +37,7 @@ class DataUploadAdmin(admin.ModelAdmin):
             },
         ),
         ("Processing Status", {"fields": ("processed", "processing_notes")}),
+        ("Upload Status", {"fields": ("status",)}),
         ("Timestamps", {"fields": ("created_at", "updated_at")}),
     )
 

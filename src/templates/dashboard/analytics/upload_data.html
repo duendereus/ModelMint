@@ -78,6 +78,7 @@
         const fileInput = document.getElementById("id_file");
         const statusDiv = document.getElementById("upload-status");
         const submitBtn = document.getElementById("submit-btn");
+        const originalBtnText = submitBtn.innerText;
 
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
@@ -95,6 +96,7 @@
 
             // Show loading UI
             statusDiv.classList.remove("d-none");
+            submitBtn.innerText = "Uploading...";
             submitBtn.disabled = true;
 
             if (!USE_S3) {
@@ -171,10 +173,12 @@
                 console.error("💥 Upload error:", err);
                 alert("Upload failed: " + err.message);
                 statusDiv.classList.add("d-none");
+                submitBtn.innerText = originalBtnText;
                 submitBtn.disabled = false;
             }
         });
     });
 </script>
 {% endblock extra_scripts %}
+
 

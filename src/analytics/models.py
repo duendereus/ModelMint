@@ -13,6 +13,12 @@ class DataUpload(models.Model):
     """
     Model to handle file uploads for customer data processing.
     """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('uploading', 'Uploading'),
+        ('uploaded', 'Uploaded'),
+        ('failed', 'Failed'),
+    ]
 
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="data_uploads"
@@ -34,6 +40,12 @@ class DataUpload(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     processed = models.BooleanField(default=False)
     processing_notes = models.TextField(blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        help_text="Track the background upload status"
+    )
 
     def __str__(self):
         return f"{self.title} - {self.organization.name}"
