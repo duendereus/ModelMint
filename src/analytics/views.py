@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
-from .tasks import upload_to_s3_via_presigned_url
+# from .tasks import upload_to_s3_via_presigned_url
 import boto3
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
@@ -65,9 +65,8 @@ def confirm_upload(request):
     title = request.POST.get("title")
     job_instructions = request.POST.get("job_instructions")
     file_key = request.POST.get("file_key")
-    file_data = request.FILES.get("file")  # actual file content
 
-    if not file_key or not title or not file_data:
+    if not file_key or not title:
         return JsonResponse({"error": "Missing file or title"}, status=400)
 
     user = request.user
@@ -83,30 +82,8 @@ def confirm_upload(request):
         uploaded_by=user,
         organization=organization,
         file=file_key,
-        status="pending",
+        status="uploaded",  # File was uploaded via PUT before this
     )
-
-    # Get a presigned URL again (or reuse one if stored)
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_S3_REGION_NAME,
-    )
-
-    presigned_url = s3_client.generate_presigned_url(
-        "put_object",
-        Params={
-            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-            "Key": file_key,
-            "ACL": "private",
-            "ContentType": file_data.content_type,
-        },
-        ExpiresIn=3600,
-    )
-
-    # Trigger Celery with file content and URL
-    upload_to_s3_via_presigned_url.delay(upload.id, file_data.read(), presigned_url)
 
     return JsonResponse({"success": True, "upload_id": upload.id})
 
