@@ -56,8 +56,6 @@
 
 {% block extra_scripts %}
 <script>
-    const USE_S3 = {{ USE_S3|yesno:"true,false" }};
-    
     document.addEventListener("DOMContentLoaded", function () {
         const form = document.getElementById("upload-form");
         const fileInput = document.getElementById("id_file");
@@ -66,72 +64,46 @@
         const statusDiv = document.getElementById("upload-status");
         const submitBtn = document.getElementById("submit-btn");
         const originalBtnText = submitBtn.innerText;
-    
+
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
 
             const file = fileInput.files[0];
             const title = titleInput.value;
             const instructions = instructionsInput.value;
-    
+
             if (!file || !title) {
                 alert("Please select a file and enter a title.");
                 return;
             }
-    
+
             statusDiv.classList.remove("d-none");
             submitBtn.innerText = "Uploading...";
             submitBtn.disabled = true;
-    
+
             try {
-                // Step 1: Get pre-signed URL from Django
                 const formData = new FormData();
+                formData.append("title", title);
+                formData.append("job_instructions", instructions);
                 formData.append("file_name", file.name);
-    
-                const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
+
+                const metadataRes = await fetch("{% url 'dashboard:analytics:submit_upload_metadata' %}", {
                     method: "POST",
                     headers: {
                         "X-CSRFToken": "{{ csrf_token }}"
                     },
                     body: formData
                 });
-    
-                const { url, file_key, error } = await presignRes.json();
-                if (error) throw new Error(error);
-    
-                // Step 2: Upload file directly to S3
-                const putRes = await fetch(url, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": file.type || 'application/octet-stream'
-                    },
-                    body: file
-                });
-    
-                if (!putRes.ok) throw new Error("Upload to S3 failed.");
-    
-                // Step 3: Notify Django of the completed upload
-                const confirmForm = new FormData();
-                confirmForm.append("title", title);
-                confirmForm.append("job_instructions", instructions);
-                confirmForm.append("file_key", file_key);
-    
-                const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
-                    method: "POST",
-                    headers: {
-                        "X-CSRFToken": "{{ csrf_token }}"
-                    },
-                    body: confirmForm
-                });
-    
-                const confirmData = await confirmRes.json();
-    
-                if (confirmData.success) {
+
+                const result = await metadataRes.json();
+
+                if (result.success) {
+                    alert("✅ File is being uploaded in the background. You can safely leave the page.");
                     window.location.href = "{% url 'dashboard:dashboard_home' %}";
                 } else {
-                    throw new Error("Upload confirmed but backend error.");
+                    throw new Error(result.error || "Something went wrong");
                 }
-    
+
             } catch (err) {
                 alert("Upload failed: " + err.message);
                 console.error(err);
@@ -141,6 +113,7 @@
             }
         });
     });
-</script>    
+</script>
+  
 {% endblock extra_scripts %}
 

@@ -118,6 +118,42 @@ def upload_data(request):
 
     return render(request, "dashboard/analytics/upload_data.html", {"USE_S3": settings.USE_S3})
 
+@csrf_exempt
+@require_POST
+@login_required
+def submit_upload_metadata(request):
+    user = request.user
+    file_name = request.POST.get("file_name")
+    title = request.POST.get("title")
+    job_instructions = request.POST.get("job_instructions")
+
+    if not file_name or not title:
+        return JsonResponse({"error": "Missing required fields"}, status=400)
+
+    organization = (
+        user.owned_organization
+        if hasattr(user, "owned_organization") and user.owned_organization
+        else user.organization_memberships.first().organization
+    )
+
+    import uuid
+    org_slug = organization.name.lower().replace(" ", "_")
+    key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name}"
+
+    upload = DataUpload.objects.create(
+        title=title,
+        job_instructions=job_instructions,
+        uploaded_by=user,
+        organization=organization,
+        file=key,
+        status="pending"
+    )
+
+    from .tasks import upload_from_tmp_to_s3
+    upload_from_tmp_to_s3.delay(upload.id, file_name)
+
+    return JsonResponse({"success": True})
+
 
 @login_required
 def data_upload_list(request):
