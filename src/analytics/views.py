@@ -67,7 +67,8 @@ def confirm_upload(request):
     job_instructions = request.POST.get("job_instructions")
 
     if not file or not title:
-        return JsonResponse({"error": "Missing file or title"}, status=400)
+        messages.error(request, "Missing file or title.")
+        return redirect("dashboard:analytics:upload_data")
 
     user = request.user
     organization = (
@@ -79,17 +80,17 @@ def confirm_upload(request):
     unique_id = uuid.uuid4()
     key = f"uploads/{organization.name.lower().replace(' ', '_')}/data/{unique_id}_{file.name}"
 
-    # Save DB record immediately
+    # Save DB record
     upload = DataUpload.objects.create(
         title=title,
         job_instructions=job_instructions,
         uploaded_by=user,
         organization=organization,
-        file=key,  # Save key, not actual file
+        file=key,
         status="pending"
     )
 
-    # Generate presigned PUT URL
+    # Presigned URL for Celery upload
     s3_client = boto3.client("s3", ...)
     url = s3_client.generate_presigned_url(
         "put_object",
@@ -97,10 +98,10 @@ def confirm_upload(request):
         ExpiresIn=3600
     )
 
-    # Call Celery task to upload in background
     upload_to_s3_via_presigned_url.delay(upload.id, file.read(), url)
 
-    return JsonResponse({"success": True, "upload_id": upload.id})
+    messages.success(request, "✅ Your file is being uploaded. You’ll be notified once ready!")
+    return redirect("dashboard:dashboard_home")
 
 @login_required
 def upload_data(request):

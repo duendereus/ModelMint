@@ -27,7 +27,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form method="POST" enctype="multipart/form-data">
+            <form method="POST" action="{% url 'dashboard:analytics:confirm_upload' %}" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="mb-3">
                     <label for="id_title" class="form-label">Title</label>
@@ -57,67 +57,35 @@
 {% block extra_scripts %}
 <script>
     const USE_S3 = {{ USE_S3|yesno:"true,false" }};
-
+    
     document.addEventListener("DOMContentLoaded", function () {
-        const form = document.querySelector("form");
-        const fileInput = document.getElementById("id_file");
-        const statusDiv = document.getElementById("upload-status");
-        const submitBtn = document.getElementById("submit-btn");
-        const originalBtnText = submitBtn.innerText;
-
-        form.addEventListener("submit", async function (e) {
-            e.preventDefault();
-
-            const file = fileInput.files[0];
-            const title = document.getElementById("id_title").value;
-            const instructions = document.getElementById("id_job_instructions").value;
-
-            if (!file) {
-                alert("Please select a file.");
-                return;
-            }
-
-            statusDiv.classList.remove("d-none");
-            submitBtn.innerText = "Submitting...";
-            submitBtn.disabled = true;
-
-            if (!USE_S3) {
-                form.removeEventListener("submit", arguments.callee);
-                form.submit();
-                return;
-            }
-
-            try {
-                const confirmFormData = new FormData();
-                confirmFormData.append("title", title);
-                confirmFormData.append("job_instructions", instructions);
-                confirmFormData.append("file", file);
-
-                const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
-                    method: "POST",
-                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                    body: confirmFormData
-                });
-
-                const confirmData = await confirmRes.json();
-                console.log("✅ Upload confirmation response:", confirmData);
-
-                if (confirmData.success) {
-                    alert("✅ Your file is being uploaded in the background.");
-                    window.location.href = "{% url 'dashboard:dashboard_home' %}";
-                } else {
-                    throw new Error("Server failed to register the upload.");
-                }
-
-            } catch (err) {
-                console.error("💥 Upload error:", err);
-                alert("Upload failed: " + err.message);
-                statusDiv.classList.add("d-none");
-                submitBtn.innerText = originalBtnText;
-                submitBtn.disabled = false;
-            }
-        });
+      const form = document.querySelector("form");
+      const fileInput = document.getElementById("id_file");
+      const statusDiv = document.getElementById("upload-status");
+      const submitBtn = document.getElementById("submit-btn");
+      const originalBtnText = submitBtn.innerText;
+    
+      form.addEventListener("submit", function (e) {
+        if (!USE_S3) return;  // Local mode, submit normally
+    
+        const file = fileInput.files[0];
+        const title = document.getElementById("id_title").value;
+    
+        if (!file || !title) {
+          alert("Please fill all required fields.");
+          e.preventDefault();
+          return;
+        }
+    
+        // ✅ Show loader
+        statusDiv.classList.remove("d-none");
+        submitBtn.innerText = "Uploading...";
+        submitBtn.disabled = true;
+    
+        // ✅ Let form submit normally to Django
+        // Do NOT prevent default, this will go to confirm_upload view
+      });
     });
-</script>
+</script>    
 {% endblock extra_scripts %}
 
