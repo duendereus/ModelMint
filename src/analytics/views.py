@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
-# from .tasks import upload_to_s3_via_presigned_url
+from .tasks import upload_to_s3_via_presigned_url
 import boto3
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
@@ -62,11 +62,11 @@ def generate_presigned_put_url(request):
 @require_POST
 @login_required
 def confirm_upload(request):
+    file = request.FILES.get("file")
     title = request.POST.get("title")
     job_instructions = request.POST.get("job_instructions")
-    file_key = request.POST.get("file_key")
 
-    if not file_key or not title:
+    if not file or not title:
         return JsonResponse({"error": "Missing file or title"}, status=400)
 
     user = request.user
@@ -76,14 +76,29 @@ def confirm_upload(request):
         else user.organization_memberships.first().organization
     )
 
+    unique_id = uuid.uuid4()
+    key = f"uploads/{organization.name.lower().replace(' ', '_')}/data/{unique_id}_{file.name}"
+
+    # Save DB record immediately
     upload = DataUpload.objects.create(
         title=title,
         job_instructions=job_instructions,
         uploaded_by=user,
         organization=organization,
-        file=file_key,
-        status="uploaded",  # File was uploaded via PUT before this
+        file=key,  # Save key, not actual file
+        status="pending"
     )
+
+    # Generate presigned PUT URL
+    s3_client = boto3.client("s3", ...)
+    url = s3_client.generate_presigned_url(
+        "put_object",
+        Params={"Bucket": ..., "Key": key, "ContentType": file.content_type, "ACL": "private"},
+        ExpiresIn=3600
+    )
+
+    # Call Celery task to upload in background
+    upload_to_s3_via_presigned_url.delay(upload.id, file.read(), url)
 
     return JsonResponse({"success": True, "upload_id": upload.id})
 

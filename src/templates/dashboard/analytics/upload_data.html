@@ -6,7 +6,6 @@
 <div class="container mt-4">
     <h2 class="mb-4">Upload Your Data</h2>
 
-    <!-- Display Messages -->
     {% if messages %}
     {% for message in messages %}
         <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
@@ -16,7 +15,6 @@
     {% endfor %}
     {% endif %}
 
-    <!-- Display Form Errors -->
     {% if form.errors %}
     <div class="alert alert-danger">
         <ul>
@@ -27,46 +25,33 @@
     </div>
     {% endif %}
 
-
     <div class="card">
         <div class="card-body">
-            
             <form method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
-            
-                <!-- Title Field -->
                 <div class="mb-3">
                     <label for="id_title" class="form-label">Title</label>
                     <input type="text" name="title" id="id_title" class="form-control" required>
                 </div>
-            
-                <!-- File Upload Field -->
                 <div class="mb-3">
                     <label for="id_file" class="form-label">Upload File (.csv or .xlsx)</label>
                     <div class="input-group">
                         <input type="file" class="form-control" name="file" id="id_file" required>
                     </div>
                 </div>
-            
-                <!-- Job Instructions -->
                 <div class="mb-3">
                     <label for="id_job_instructions" class="form-label">Job Instructions</label>
                     <textarea name="job_instructions" id="id_job_instructions" class="form-control"></textarea>
                 </div>
-            
-                <!-- Submit Button -->
                 <button id="submit-btn" type="submit" class="btn btn-success">Submit</button>
-
                 <div id="upload-status" class="mt-3 d-none">
                     <div class="spinner-border text-success me-2" role="status"></div>
-                    <span>Uploading your file, please wait…</span>
+                    <span>Submitting your file, please wait…</span>
                 </div>
             </form>
-                                   
-            
         </div>
     </div>
-</div>    
+</div>
 {% endblock content %}
 
 {% block extra_scripts %}
@@ -87,71 +72,26 @@
             const title = document.getElementById("id_title").value;
             const instructions = document.getElementById("id_job_instructions").value;
 
-            console.log("🧪 SUBMIT TRIGGERED");
-
             if (!file) {
                 alert("Please select a file.");
                 return;
             }
 
-            // Show loading UI
             statusDiv.classList.remove("d-none");
-            submitBtn.innerText = "Uploading...";
+            submitBtn.innerText = "Submitting...";
             submitBtn.disabled = true;
 
             if (!USE_S3) {
-                console.log("📦 Local mode: submitting via traditional form");
-                form.removeEventListener("submit", arguments.callee); // prevent infinite loop
+                form.removeEventListener("submit", arguments.callee);
                 form.submit();
                 return;
             }
 
-            console.log("🌍 Production mode: using S3 presigned PUT");
-
             try {
-                // 1. Request pre-signed PUT URL
-                const presignFormData = new FormData();
-                presignFormData.append("file_name", file.name);
-
-                const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
-                    method: "POST",
-                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                    body: presignFormData
-                });
-
-                const presignData = await presignRes.json();
-                console.log("📡 Presigned PUT response:", presignData);
-
-                if (presignData.error) {
-                    throw new Error(presignData.error);
-                }
-
-                const { url, file_key } = presignData;
-
-                // 2. Upload the file via PUT
-                const uploadStart = performance.now();
-
-                const putRes = await fetch(url, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": file.type
-                    },
-                    body: file
-                });
-
-                const uploadEnd = performance.now();
-                console.log(`⏱️ Upload duration: ${((uploadEnd - uploadStart) / 1000).toFixed(2)}s`);
-                console.log("📤 PUT upload response:", putRes);
-
-                if (!putRes.ok) {
-                    throw new Error("Upload to S3 failed.");
-                }
-
-                // 3. Notify backend
                 const confirmFormData = new FormData();
                 confirmFormData.append("title", title);
                 confirmFormData.append("job_instructions", instructions);
-                confirmFormData.append("file_key", file_key);
+                confirmFormData.append("file", file);
 
                 const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
                     method: "POST",
@@ -163,7 +103,7 @@
                 console.log("✅ Upload confirmation response:", confirmData);
 
                 if (confirmData.success) {
-                    alert("✅ Upload successful!");
+                    alert("✅ Your file is being uploaded in the background.");
                     window.location.href = "{% url 'dashboard:dashboard_home' %}";
                 } else {
                     throw new Error("Server failed to register the upload.");
@@ -180,5 +120,4 @@
     });
 </script>
 {% endblock extra_scripts %}
-
 
