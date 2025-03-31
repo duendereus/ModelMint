@@ -2,7 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from .utils import validate_file_extension, upload_to_data_file, upload_to_metric
+from .utils import upload_to_metric # validate_file_extension, upload_to_data_file, 
 from accounts.models import Organization, OrganizationMembership
 import boto3
 

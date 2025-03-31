@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
-from .tasks import upload_to_s3_via_presigned_url
+# from .tasks import upload_to_s3_via_presigned_url
 import boto3
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
