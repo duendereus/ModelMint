@@ -12,7 +12,7 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import uuid
 import mimetypes
-
+import os
 
 @login_required
 @require_POST
@@ -153,6 +153,24 @@ def submit_upload_metadata(request):
     upload_from_tmp_to_s3.delay(upload.id, file_name)
 
     return JsonResponse({"success": True})
+
+@csrf_exempt
+@require_POST
+@login_required
+def upload_file_temp(request):
+    uploaded_file = request.FILES.get("file")
+    if not uploaded_file:
+        return JsonResponse({"error": "No file provided."}, status=400)
+
+    file_path = f"/tmp/uploads/{uploaded_file.name}"
+
+    os.makedirs("/tmp/uploads", exist_ok=True)  # Ensure folder exists
+
+    with open(file_path, "wb+") as destination:
+        for chunk in uploaded_file.chunks():
+            destination.write(chunk)
+
+    return JsonResponse({"success": True, "file_name": uploaded_file.name})
 
 
 @login_required

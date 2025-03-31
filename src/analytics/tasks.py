@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 import logging
 from django.conf import settings
 import boto3
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,11 @@ def upload_from_tmp_to_s3(upload_id, file_name):
 
         upload.status = "uploaded"
         upload.save()
+
+        # ✅ Clean up the local file
+        if os.path.exists(local_path):
+            os.remove(local_path)
+
 
     except Exception as e:
         if upload_id:

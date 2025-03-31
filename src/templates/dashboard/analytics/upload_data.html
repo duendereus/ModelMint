@@ -67,43 +67,61 @@
 
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
-
+        
             const file = fileInput.files[0];
             const title = titleInput.value;
             const instructions = instructionsInput.value;
-
+        
             if (!file || !title) {
                 alert("Please select a file and enter a title.");
                 return;
             }
-
+        
             statusDiv.classList.remove("d-none");
             submitBtn.innerText = "Uploading...";
             submitBtn.disabled = true;
-
+        
             try {
-                const formData = new FormData();
-                formData.append("title", title);
-                formData.append("job_instructions", instructions);
-                formData.append("file_name", file.name);
-
+                // Step 1: Upload file to /tmp/uploads
+                const fileUploadForm = new FormData();
+                fileUploadForm.append("file", file);
+        
+                const tempRes = await fetch("{% url 'dashboard:analytics:upload_file_temp' %}", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: fileUploadForm
+                });
+        
+                const tempData = await tempRes.json();
+                if (!tempData.success) throw new Error(tempData.error || "Temp upload failed");
+        
+                const uploadedFileName = tempData.file_name;
+        
+                // Step 2: Submit metadata to trigger background upload
+                const metadataForm = new FormData();
+                metadataForm.append("title", title);
+                metadataForm.append("job_instructions", instructions);
+                metadataForm.append("file_name", uploadedFileName);
+        
                 const metadataRes = await fetch("{% url 'dashboard:analytics:submit_upload_metadata' %}", {
                     method: "POST",
                     headers: {
                         "X-CSRFToken": "{{ csrf_token }}"
                     },
-                    body: formData
+                    body: metadataForm
                 });
-
+        
                 const result = await metadataRes.json();
-
+        
                 if (result.success) {
                     alert("✅ File is being uploaded in the background. You can safely leave the page.");
                     window.location.href = "{% url 'dashboard:dashboard_home' %}";
                 } else {
                     throw new Error(result.error || "Something went wrong");
                 }
-
+        
             } catch (err) {
                 alert("Upload failed: " + err.message);
                 console.error(err);
@@ -111,9 +129,8 @@
                 submitBtn.innerText = originalBtnText;
                 submitBtn.disabled = false;
             }
-        });
+        });        
     });
 </script>
-  
 {% endblock extra_scripts %}
 
