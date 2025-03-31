@@ -29,8 +29,12 @@ class DataUpload(models.Model):
     title = models.CharField(
         max_length=255, help_text="A short title describing the data upload."
     )
-    file = models.FileField(
-        upload_to=upload_to_data_file, validators=[validate_file_extension]
+    # file = models.FileField(
+    #     upload_to=upload_to_data_file, validators=[validate_file_extension]
+    # )
+    file = models.CharField(
+        max_length=1024,
+        help_text="S3 key for the uploaded file"
     )
     job_instructions = models.TextField(
         blank=False,

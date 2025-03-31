@@ -49,7 +49,6 @@ def generate_presigned_put_url(request):
                 "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
                 "Key": key,
                 "ContentType": mime_type,
-                "ACL": "private",
             },
             ExpiresIn=3600,
         )
@@ -64,7 +63,7 @@ def generate_presigned_put_url(request):
 def confirm_upload(request):
     title = request.POST.get("title")
     job_instructions = request.POST.get("job_instructions")
-    file_key = request.POST.get("file_key")  # ← NOT request.FILES
+    file_key = request.POST.get("file_key")
 
     if not file_key or not title:
         return JsonResponse({"error": "Missing file or title"}, status=400)
@@ -76,17 +75,17 @@ def confirm_upload(request):
         else user.organization_memberships.first().organization
     )
 
-    # Save record with file_key
-    upload = DataUpload.objects.create(
+    # Store metadata only
+    DataUpload.objects.create(
         title=title,
         job_instructions=job_instructions,
         uploaded_by=user,
         organization=organization,
-        file=file_key,  # ← Just store key
-        status="uploaded",  # We assume JS already uploaded to S3
+        file=file_key,
+        status="uploaded",
     )
 
-    return JsonResponse({"success": True, "upload_id": upload.id})
+    return JsonResponse({"success": True})
 
 @login_required
 def upload_data(request):

@@ -68,8 +68,8 @@
         const originalBtnText = submitBtn.innerText;
     
         form.addEventListener("submit", async function (e) {
-            e.preventDefault();  // Prevent full page POST
-    
+            e.preventDefault();
+
             const file = fileInput.files[0];
             const title = titleInput.value;
             const instructions = instructionsInput.value;
@@ -84,7 +84,7 @@
             submitBtn.disabled = true;
     
             try {
-                // Step 1: Request presigned PUT URL
+                // Step 1: Get pre-signed URL from Django
                 const formData = new FormData();
                 formData.append("file_name", file.name);
     
@@ -99,18 +99,18 @@
                 const { url, file_key, error } = await presignRes.json();
                 if (error) throw new Error(error);
     
-                // Step 2: Upload file to S3 via PUT
+                // Step 2: Upload file directly to S3
                 const putRes = await fetch(url, {
                     method: "PUT",
                     headers: {
-                        "Content-Type": file.type
+                        "Content-Type": file.type || 'application/octet-stream'
                     },
                     body: file
                 });
     
                 if (!putRes.ok) throw new Error("Upload to S3 failed.");
     
-                // Step 3: Notify backend via confirm_upload
+                // Step 3: Notify Django of the completed upload
                 const confirmForm = new FormData();
                 confirmForm.append("title", title);
                 confirmForm.append("job_instructions", instructions);
@@ -127,7 +127,6 @@
                 const confirmData = await confirmRes.json();
     
                 if (confirmData.success) {
-                    alert("✅ File submitted successfully!");
                     window.location.href = "{% url 'dashboard:dashboard_home' %}";
                 } else {
                     throw new Error("Upload confirmed but backend error.");
@@ -142,6 +141,6 @@
             }
         });
     });
-</script>        
+</script>    
 {% endblock extra_scripts %}
 
