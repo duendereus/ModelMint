@@ -27,7 +27,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form method="POST" action="{% url 'dashboard:analytics:confirm_upload' %}" enctype="multipart/form-data">
+            <form id="upload-form">
                 {% csrf_token %}
                 <div class="mb-3">
                     <label for="id_title" class="form-label">Title</label>
@@ -36,7 +36,7 @@
                 <div class="mb-3">
                     <label for="id_file" class="form-label">Upload File (.csv or .xlsx)</label>
                     <div class="input-group">
-                        <input type="file" class="form-control" name="file" id="id_file" required>
+                        <input type="file" class="form-control" id="id_file" required>
                     </div>
                 </div>
                 <div class="mb-3">
@@ -46,9 +46,9 @@
                 <button id="submit-btn" type="submit" class="btn btn-success">Submit</button>
                 <div id="upload-status" class="mt-3 d-none">
                     <div class="spinner-border text-success me-2" role="status"></div>
-                    <span>Submitting your file, please wait…</span>
+                    <span>Uploading your file, please wait…</span>
                 </div>
-            </form>
+            </form>            
         </div>
     </div>
 </div>
@@ -59,33 +59,89 @@
     const USE_S3 = {{ USE_S3|yesno:"true,false" }};
     
     document.addEventListener("DOMContentLoaded", function () {
-      const form = document.querySelector("form");
-      const fileInput = document.getElementById("id_file");
-      const statusDiv = document.getElementById("upload-status");
-      const submitBtn = document.getElementById("submit-btn");
-      const originalBtnText = submitBtn.innerText;
+        const form = document.getElementById("upload-form");
+        const fileInput = document.getElementById("id_file");
+        const titleInput = document.getElementById("id_title");
+        const instructionsInput = document.getElementById("id_job_instructions");
+        const statusDiv = document.getElementById("upload-status");
+        const submitBtn = document.getElementById("submit-btn");
+        const originalBtnText = submitBtn.innerText;
     
-      form.addEventListener("submit", function (e) {
-        if (!USE_S3) return;  // Local mode, submit normally
+        form.addEventListener("submit", async function (e) {
+            e.preventDefault();  // Prevent full page POST
     
-        const file = fileInput.files[0];
-        const title = document.getElementById("id_title").value;
+            const file = fileInput.files[0];
+            const title = titleInput.value;
+            const instructions = instructionsInput.value;
     
-        if (!file || !title) {
-          alert("Please fill all required fields.");
-          e.preventDefault();
-          return;
-        }
+            if (!file || !title) {
+                alert("Please select a file and enter a title.");
+                return;
+            }
     
-        // ✅ Show loader
-        statusDiv.classList.remove("d-none");
-        submitBtn.innerText = "Uploading...";
-        submitBtn.disabled = true;
+            statusDiv.classList.remove("d-none");
+            submitBtn.innerText = "Uploading...";
+            submitBtn.disabled = true;
     
-        // ✅ Let form submit normally to Django
-        // Do NOT prevent default, this will go to confirm_upload view
-      });
+            try {
+                // Step 1: Request presigned PUT URL
+                const formData = new FormData();
+                formData.append("file_name", file.name);
+    
+                const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: formData
+                });
+    
+                const { url, file_key, error } = await presignRes.json();
+                if (error) throw new Error(error);
+    
+                // Step 2: Upload file to S3 via PUT
+                const putRes = await fetch(url, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": file.type
+                    },
+                    body: file
+                });
+    
+                if (!putRes.ok) throw new Error("Upload to S3 failed.");
+    
+                // Step 3: Notify backend via confirm_upload
+                const confirmForm = new FormData();
+                confirmForm.append("title", title);
+                confirmForm.append("job_instructions", instructions);
+                confirmForm.append("file_key", file_key);
+    
+                const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: confirmForm
+                });
+    
+                const confirmData = await confirmRes.json();
+    
+                if (confirmData.success) {
+                    alert("✅ File submitted successfully!");
+                    window.location.href = "{% url 'dashboard:dashboard_home' %}";
+                } else {
+                    throw new Error("Upload confirmed but backend error.");
+                }
+    
+            } catch (err) {
+                alert("Upload failed: " + err.message);
+                console.error(err);
+                statusDiv.classList.add("d-none");
+                submitBtn.innerText = originalBtnText;
+                submitBtn.disabled = false;
+            }
+        });
     });
-</script>    
+</script>        
 {% endblock extra_scripts %}
 

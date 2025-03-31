@@ -62,13 +62,12 @@ def generate_presigned_put_url(request):
 @require_POST
 @login_required
 def confirm_upload(request):
-    file = request.FILES.get("file")
     title = request.POST.get("title")
     job_instructions = request.POST.get("job_instructions")
+    file_key = request.POST.get("file_key")  # ← NOT request.FILES
 
-    if not file or not title:
-        messages.error(request, "Missing file or title.")
-        return redirect("dashboard:analytics:upload_data")
+    if not file_key or not title:
+        return JsonResponse({"error": "Missing file or title"}, status=400)
 
     user = request.user
     organization = (
@@ -77,31 +76,17 @@ def confirm_upload(request):
         else user.organization_memberships.first().organization
     )
 
-    unique_id = uuid.uuid4()
-    key = f"uploads/{organization.name.lower().replace(' ', '_')}/data/{unique_id}_{file.name}"
-
-    # Save DB record
+    # Save record with file_key
     upload = DataUpload.objects.create(
         title=title,
         job_instructions=job_instructions,
         uploaded_by=user,
         organization=organization,
-        file=key,
-        status="pending"
+        file=file_key,  # ← Just store key
+        status="uploaded",  # We assume JS already uploaded to S3
     )
 
-    # Presigned URL for Celery upload
-    s3_client = boto3.client("s3", ...)
-    url = s3_client.generate_presigned_url(
-        "put_object",
-        Params={"Bucket": ..., "Key": key, "ContentType": file.content_type, "ACL": "private"},
-        ExpiresIn=3600
-    )
-
-    upload_to_s3_via_presigned_url.delay(upload.id, file.read(), url)
-
-    messages.success(request, "✅ Your file is being uploaded. You’ll be notified once ready!")
-    return redirect("dashboard:dashboard_home")
+    return JsonResponse({"success": True, "upload_id": upload.id})
 
 @login_required
 def upload_data(request):
