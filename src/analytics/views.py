@@ -59,8 +59,10 @@ def generate_presigned_post(request):
         presigned_post = s3_client.generate_presigned_post(
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
             Key=key,
-            Fields={"Content-Type": mime_type},
-            Conditions=[{"Content-Type": mime_type}],
+            Fields={},
+            Conditions=[
+                ["starts-with", "$key", f"uploads/{org_slug}/data/"]
+            ],
             ExpiresIn=3600
         )
         logger.info("✅ Presigned POST successfully generated")
