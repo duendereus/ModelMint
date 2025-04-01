@@ -22,8 +22,11 @@ def upload_data(request):
 
 @login_required
 @require_POST
-def generate_presigned_put_url(request):
-    logger.info("🔧 generate_presigned_put_url: Request received")
+def generate_presigned_post(request):
+    import mimetypes
+    import boto3
+    import uuid
+    from django.conf import settings
 
     user = request.user
     organization = (
@@ -33,20 +36,14 @@ def generate_presigned_put_url(request):
     )
 
     file_name = request.POST.get("file_name")
-    logger.info(f"🔧 Requested file_name: {file_name}")
+    if not file_name:
+        return JsonResponse({"error": "Missing file name"}, status=400)
 
-    mime_type, _ = mimetypes.guess_type(file_name or "")
+    mime_type, _ = mimetypes.guess_type(file_name)
     mime_type = mime_type or "application/octet-stream"
 
-    if not file_name:
-        logger.warning("⚠️ No file_name provided")
-        return JsonResponse({"error": "Missing file name."}, status=400)
-
     org_slug = organization.name.lower().replace(" ", "_")
-    unique_id = uuid.uuid4()
-    key = f"uploads/{org_slug}/data/{unique_id}_{file_name}"
-
-    logger.info(f"🔧 Generated S3 key: {key}")
+    key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name}"
 
     s3_client = boto3.client(
         "s3",
@@ -56,21 +53,16 @@ def generate_presigned_put_url(request):
     )
 
     try:
-        url = s3_client.generate_presigned_url(
-            "put_object",
-            Params={
-                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-                "Key": key,
-                "ContentType": mime_type,
-            },
-            ExpiresIn=3600,
+        presigned_post = s3_client.generate_presigned_post(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=key,
+            Fields={"Content-Type": mime_type},
+            Conditions=[{"Content-Type": mime_type}],
+            ExpiresIn=3600
         )
-        logger.info("✅ Presigned URL successfully generated")
+        return JsonResponse({"data": presigned_post, "file_key": key})
     except Exception as e:
-        logger.error(f"❌ Failed to generate presigned URL: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"url": url, "file_key": key})
 
 
 @csrf_exempt
