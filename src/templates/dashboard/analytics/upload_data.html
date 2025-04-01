@@ -91,7 +91,7 @@
             console.log("📤 Upload form submitted");
 
             try {
-                // Step 1: Request presigned POST URL
+                // Step 1: Request presigned POST URL from Django
                 console.log("📡 Requesting presigned POST URL...");
                 const cleanFileName = file.name.replace(/\s+/g, "_");
                 const presignForm = new FormData();
@@ -110,15 +110,34 @@
                 console.log("📄 file_key:", file_key);
                 console.log("🔍 Presigned fields:", data.fields);
 
-                // Step 2: Send metadata and file to backend for async upload
-                console.log("📨 Sending file to backend for background upload...");
+                // Step 2: Upload file directly to S3 via presigned POST
+                console.log("⏳ Uploading file to S3...");
+                const s3Form = new FormData();
+                Object.entries(data.fields).forEach(([k, v]) => {
+                    s3Form.append(k, v);
+                    console.log(`🧪 Form field: ${k} = ${v}`);
+                });
+                s3Form.append("file", file);
+
+                const s3Res = await fetch(data.url, {
+                    method: "POST",
+                    body: s3Form
+                });
+
+                if (!s3Res.ok) {
+                    const errorText = await s3Res.text();
+                    console.error("📦 S3 error:", errorText);
+                    throw new Error("S3 upload failed");
+                }
+
+                console.log("✅ File uploaded to S3 successfully");
+
+                // Step 3: Confirm upload metadata with Django (no file sent)
+                console.log("📨 Confirming upload metadata with backend...");
                 const confirmForm = new FormData();
                 confirmForm.append("title", title);
                 confirmForm.append("job_instructions", instructions);
-                confirmForm.append("file_key", file_key);
-                confirmForm.append("presigned_url", data.url);
-                confirmForm.append("presigned_fields", JSON.stringify(data.fields));
-                confirmForm.append("file", file); // Actual file sent to Django
+                confirmForm.append("file_key", file_key); // S3 file path only
 
                 const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
                     method: "POST",
@@ -133,7 +152,7 @@
 
                 if (!confirmData.success) throw new Error("Failed to confirm upload");
 
-                alert("✅ Upload started! Your file is being uploaded in the background.");
+                alert("✅ Upload complete!");
                 window.location.href = "{% url 'dashboard:dashboard_home' %}";
 
             } catch (err) {
