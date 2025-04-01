@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
-# from .tasks import upload_to_s3_via_presigned_url
+from .tasks import finalize_large_upload
 import boto3
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
@@ -97,16 +97,16 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        DataUpload.objects.create(
+        # 🔁 Trigger Celery task for delayed file registration
+        finalize_large_upload.delay(
             title=title,
             job_instructions=job_instructions,
-            uploaded_by=user,
-            organization=organization,
-            file=file_key,
-            status="uploaded"
+            file_key=file_key,
+            user_id=user.id,
+            org_id=organization.id,
         )
 
-        logger.info(f"✅ Upload confirmed and DataUpload record created for: {file_key}")
+        logger.info(f"📨 [ASYNC] Finalize upload task queued for {file_key}")
         return JsonResponse({"success": True})
 
     except Exception as e:
