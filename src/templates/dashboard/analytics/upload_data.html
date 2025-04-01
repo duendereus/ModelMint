@@ -64,64 +64,70 @@
         const statusDiv = document.getElementById("upload-status");
         const submitBtn = document.getElementById("submit-btn");
         const originalBtnText = submitBtn.innerText;
-
+    
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
-        
+    
             const file = fileInput.files[0];
             const title = titleInput.value;
             const instructions = instructionsInput.value;
-        
+    
             if (!file || !title) {
                 alert("Please select a file and enter a title.");
                 return;
             }
-        
+    
             statusDiv.classList.remove("d-none");
             submitBtn.innerText = "Uploading...";
             submitBtn.disabled = true;
-        
+    
             try {
-                // Step 1: Upload file to /tmp/uploads
-                const fileUploadForm = new FormData();
-                fileUploadForm.append("file", file);
-        
-                const tempRes = await fetch("{% url 'dashboard:analytics:upload_file_temp' %}", {
+                // Step 1: Request a presigned URL
+                const presignForm = new FormData();
+                presignForm.append("file_name", file.name);
+    
+                const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
                     method: "POST",
                     headers: {
                         "X-CSRFToken": "{{ csrf_token }}"
                     },
-                    body: fileUploadForm
+                    body: presignForm
                 });
-        
-                const tempData = await tempRes.json();
-                if (!tempData.success) throw new Error(tempData.error || "Temp upload failed");
-        
-                const uploadedFileName = tempData.file_name;
-        
-                // Step 2: Submit metadata to trigger background upload
-                const metadataForm = new FormData();
-                metadataForm.append("title", title);
-                metadataForm.append("job_instructions", instructions);
-                metadataForm.append("file_name", uploadedFileName);
-        
-                const metadataRes = await fetch("{% url 'dashboard:analytics:submit_upload_metadata' %}", {
+    
+                const { url, file_key, error } = await presignRes.json();
+                if (error) throw new Error(error);
+    
+                // Step 2: Upload file to S3 via PUT
+                const putRes = await fetch(url, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": file.type || "application/octet-stream"
+                    },
+                    body: file
+                });
+    
+                if (!putRes.ok) throw new Error("Upload to S3 failed.");
+    
+                // Step 3: Confirm the upload with Django
+                const confirmForm = new FormData();
+                confirmForm.append("title", title);
+                confirmForm.append("job_instructions", instructions);
+                confirmForm.append("file_key", file_key);
+    
+                const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
                     method: "POST",
                     headers: {
                         "X-CSRFToken": "{{ csrf_token }}"
                     },
-                    body: metadataForm
+                    body: confirmForm
                 });
-        
-                const result = await metadataRes.json();
-        
-                if (result.success) {
-                    alert("✅ File is being uploaded in the background. You can safely leave the page.");
-                    window.location.href = "{% url 'dashboard:dashboard_home' %}";
-                } else {
-                    throw new Error(result.error || "Something went wrong");
-                }
-        
+    
+                const confirmData = await confirmRes.json();
+                if (!confirmData.success) throw new Error("Failed to confirm upload with Django.");
+    
+                alert("✅ File uploaded and registered successfully.");
+                window.location.href = "{% url 'dashboard:dashboard_home' %}";
+    
             } catch (err) {
                 alert("Upload failed: " + err.message);
                 console.error(err);
@@ -129,8 +135,8 @@
                 submitBtn.innerText = originalBtnText;
                 submitBtn.disabled = false;
             }
-        });        
+        });
     });
-</script>
+</script>    
 {% endblock extra_scripts %}
 

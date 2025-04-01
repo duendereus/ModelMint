@@ -1,6 +1,5 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
@@ -12,7 +11,10 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import uuid
 import mimetypes
-import os
+
+@login_required
+def upload_data(request):
+    return render(request, "dashboard/analytics/upload_data.html", {"USE_S3": settings.USE_S3})
 
 @login_required
 @require_POST
@@ -57,6 +59,7 @@ def generate_presigned_put_url(request):
 
     return JsonResponse({"url": url, "file_key": key})
 
+
 @csrf_exempt
 @require_POST
 @login_required
@@ -75,102 +78,16 @@ def confirm_upload(request):
         else user.organization_memberships.first().organization
     )
 
-    # Store metadata only
     DataUpload.objects.create(
         title=title,
         job_instructions=job_instructions,
         uploaded_by=user,
         organization=organization,
         file=file_key,
-        status="uploaded",
+        status="uploaded"
     )
 
     return JsonResponse({"success": True})
-
-@login_required
-def upload_data(request):
-    if request.method == "POST":
-        file = request.FILES.get("file")
-        title = request.POST.get("title")
-        instructions = request.POST.get("job_instructions")
-
-        if not file or not title:
-            messages.error(request, "Title and file are required.")
-            return redirect("dashboard:analytics:upload_data")
-
-        user = request.user
-        org = (
-            user.owned_organization
-            if hasattr(user, "owned_organization") and user.owned_organization
-            else user.organization_memberships.first().organization
-        )
-
-        DataUpload.objects.create(
-            title=title,
-            job_instructions=instructions,
-            uploaded_by=user,
-            organization=org,
-            file=file
-        )
-
-        messages.success(request, "File uploaded successfully!")
-        return redirect("dashboard:dashboard_home")
-
-    return render(request, "dashboard/analytics/upload_data.html", {"USE_S3": settings.USE_S3})
-
-@csrf_exempt
-@require_POST
-@login_required
-def submit_upload_metadata(request):
-    user = request.user
-    file_name = request.POST.get("file_name")
-    title = request.POST.get("title")
-    job_instructions = request.POST.get("job_instructions")
-
-    if not file_name or not title:
-        return JsonResponse({"error": "Missing required fields"}, status=400)
-
-    organization = (
-        user.owned_organization
-        if hasattr(user, "owned_organization") and user.owned_organization
-        else user.organization_memberships.first().organization
-    )
-
-    import uuid
-    org_slug = organization.name.lower().replace(" ", "_")
-    key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name}"
-
-    upload = DataUpload.objects.create(
-        title=title,
-        job_instructions=job_instructions,
-        uploaded_by=user,
-        organization=organization,
-        file=key,
-        status="pending"
-    )
-
-    from .tasks import upload_from_tmp_to_s3
-    upload_from_tmp_to_s3.delay(upload.id, file_name)
-
-    return JsonResponse({"success": True})
-
-@csrf_exempt
-@require_POST
-@login_required
-def upload_file_temp(request):
-    uploaded_file = request.FILES.get("file")
-    if not uploaded_file:
-        return JsonResponse({"error": "No file provided."}, status=400)
-
-    file_path = f"/tmp/uploads/{uploaded_file.name}"
-
-    os.makedirs("/tmp/uploads", exist_ok=True)  # Ensure folder exists
-
-    with open(file_path, "wb+") as destination:
-        for chunk in uploaded_file.chunks():
-            destination.write(chunk)
-
-    return JsonResponse({"success": True, "file_name": uploaded_file.name})
 
 
 @login_required
