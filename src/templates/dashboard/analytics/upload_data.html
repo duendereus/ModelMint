@@ -86,8 +86,10 @@
             try {
                 // Step 1: Request presigned POST
                 console.log("📡 Requesting presigned POST URL...");
+                const cleanFileName = file.name.replace(/\s+/g, "_");
                 const presignForm = new FormData();
-                presignForm.append("file_name", file.name);
+                presignForm.append("file_name", cleanFileName);
+
 
                 const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
                     method: "POST",

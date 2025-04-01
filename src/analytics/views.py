@@ -45,7 +45,7 @@ def generate_presigned_post(request):
         else user.organization_memberships.first().organization
     )
     org_slug = organization.name.lower().replace(" ", "_")
-    key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name}"
+    key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name.replace(' ', '_')}"
     logger.info(f"🗝️ Generated S3 key: {key}")
 
     s3_client = boto3.client(
