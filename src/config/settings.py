@@ -15,6 +15,7 @@ import os
 from decouple import config
 from django.contrib.messages import constants as messages
 from storages.backends.s3boto3 import S3Boto3Storage
+import boto3
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -261,30 +262,28 @@ class PublicMediaStorage(S3Boto3Storage):
 
 
 class PrivateMediaStorage(S3Boto3Storage):
-    """Storage class for private uploads (restricted access with pre-signed URLs)."""
-
     location = "uploads"
     default_acl = "private"
-    custom_domain = False  # Ensures signed URLs
-    querystring_auth = True  # Enables pre-signed URLs
-    querystring_expire = 3600  # Signed URL expires in 1 hour
+    custom_domain = False
+    querystring_auth = True
+    querystring_expire = 3600
 
     def get_presigned_url(self, file_path, expires_in=3600):
-        """
-        Generates a pre-signed URL for private media files.
-        """
+        if not USE_S3:
+            return f"/media/{file_path}"  # fallback for local dev
+        import boto3  # ← safely imported here, avoids global dependency
+
         s3_client = boto3.client(
             "s3",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_S3_REGION_NAME,
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+            region_name=AWS_S3_REGION_NAME,
         )
-        url = s3_client.generate_presigned_url(
+        return s3_client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": file_path},
-            ExpiresIn=expires_in,  # Time (in seconds) the URL remains valid
+            Params={"Bucket": AWS_STORAGE_BUCKET_NAME, "Key": file_path},
+            ExpiresIn=expires_in,
         )
-        return url
 
 
 # ✅ Allowlist Trusted Domains (Including Railway & ModelMint)
