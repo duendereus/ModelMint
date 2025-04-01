@@ -1,8 +1,10 @@
 from celery import shared_task
-from accounts.models import User, Organization
+# from accounts.models import User, Organization
 from .models import DataUpload
 from django.contrib.auth import get_user_model
 import logging
+from requests_toolbelt.multipart.encoder import MultipartEncoder
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,22 +15,27 @@ User = get_user_model()
 def test_task():
     return "Celery is working!"
 
-@shared_task(bind=True)
-def finalize_large_upload(self, title, job_instructions, file_key, user_id, org_id):
+@shared_task
+def finalize_large_upload(upload_id, presigned_url, presigned_fields, file_content):
+    import requests
+    import json
+
+    logger.info(f"🚀 Starting S3 upload for DataUpload ID: {upload_id}")
     try:
-        user = User.objects.get(id=user_id)
-        organization = Organization.objects.get(id=org_id)
+        s3_form = json.loads(presigned_fields)
+        files = { "file": file_content }
+        multipart_data = s3_form.copy()
+        multipart_data.update(files)
 
-        DataUpload.objects.create(
-            title=title,
-            job_instructions=job_instructions,
-            uploaded_by=user,
-            organization=organization,
-            file=file_key,
-            status="uploaded"
-        )
+        # Convert fields to multipart form data
+        form = MultipartEncoder(fields={**s3_form, "file": ("upload.csv", file_content)})
 
-        logger.info(f"✅ [CELERY] File {file_key} registered in DataUpload by task")
+        res = requests.post(presigned_url, data=form, headers={"Content-Type": form.content_type})
+        logger.info(f"🧾 S3 response: {res.status_code}, {res.text}")
+
+        # Update upload status
+        DataUpload.objects.filter(id=upload_id).update(status="uploaded")
 
     except Exception as e:
-        logger.exception(f"❌ [CELERY] Error in finalize_large_upload: {e}")
+        logger.exception(f"🔥 Error during background upload for ID: {upload_id}")
+        DataUpload.objects.filter(id=upload_id).update(status="failed")

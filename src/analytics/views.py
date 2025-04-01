@@ -83,12 +83,15 @@ def confirm_upload(request):
         title = request.POST.get("title")
         job_instructions = request.POST.get("job_instructions")
         file_key = request.POST.get("file_key")
+        presigned_url = request.POST.get("presigned_url")
+        presigned_fields_json = request.POST.get("presigned_fields")
+        uploaded_file = request.FILES.get("file")
 
-        logger.info(f"📥 Metadata received → title: {title}, file_key: {file_key}")
+        logger.info(f"📥 Metadata → title: {title}, file_key: {file_key}")
 
-        if not file_key or not title:
-            logger.warning("⚠️ Missing title or file_key in confirm_upload")
-            return JsonResponse({"error": "Missing file or title"}, status=400)
+        if not (file_key and title and presigned_url and presigned_fields_json and uploaded_file):
+            logger.warning("⚠️ Missing required metadata in confirm_upload")
+            return JsonResponse({"error": "Missing fields"}, status=400)
 
         user = request.user
         organization = (
@@ -97,22 +100,30 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        # 🔁 Trigger Celery task for delayed file registration
-        finalize_large_upload.delay(
+        upload = DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
-            file_key=file_key,
-            user_id=user.id,
-            org_id=organization.id,
+            uploaded_by=user,
+            organization=organization,
+            file=file_key,
+            status="uploading"
         )
 
-        logger.info(f"📨 [ASYNC] Finalize upload task queued for {file_key}")
+        # Trigger Celery task to upload the file
+        finalize_large_upload.delay(
+            upload_id=upload.id,
+            presigned_url=presigned_url,
+            presigned_fields=presigned_fields_json,
+            file_content=uploaded_file.read()
+        )
+
+        logger.info(f"✅ Metadata saved and Celery task started for: {file_key}")
         return JsonResponse({"success": True})
 
     except Exception as e:
         logger.exception("❌ Exception in confirm_upload view")
         return JsonResponse({"error": "Server error confirming upload"}, status=500)
-
+    
 @login_required
 def data_upload_list(request):
     """

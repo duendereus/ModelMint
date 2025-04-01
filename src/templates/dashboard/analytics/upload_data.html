@@ -110,16 +110,13 @@
 
                 console.log("⏳ Uploading to S3...");
                 const s3Form = new FormData();
-                Object.entries(data.fields).forEach(([k, v]) => {
-                    s3Form.append(k, v);
-                    console.log(`🧪 Form field: ${k} = ${v}`);
-                });
+                Object.entries(data.fields).forEach(([k, v]) => s3Form.append(k, v));
                 s3Form.append("file", file);
 
-                const s3Res = await fetch(data.url, {
-                    method: "POST",
-                    body: s3Form
-                });
+                // const s3Res = await fetch(data.url, {
+                //    method: "POST",
+                //    body: s3Form
+                // });
 
                 console.log("📦 S3 response status:", s3Res.status);
                 const s3Text = await s3Res.text();
