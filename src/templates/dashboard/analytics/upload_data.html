@@ -64,97 +64,54 @@
         const statusDiv = document.getElementById("upload-status");
         const submitBtn = document.getElementById("submit-btn");
         const originalBtnText = submitBtn.innerText;
-
-        const MAX_SIZE_BYTES = 1181116006; // ~1.1 GB
-
+    
+        const MAX_SIZE_BYTES = 1181116006;
+    
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
-
+    
             const file = fileInput.files[0];
             const title = titleInput.value;
             const instructions = instructionsInput.value;
-
+    
             if (!file || !title) {
                 alert("Please select a file and enter a title.");
                 return;
             }
-
+    
             if (file.size > MAX_SIZE_BYTES) {
                 alert("🚫 File exceeds the 1.1 GB upload limit.");
                 return;
             }
-
+    
             statusDiv.classList.remove("d-none");
             submitBtn.innerText = "Uploading...";
             submitBtn.disabled = true;
-
+    
             console.log("📤 Upload form submitted");
-
+    
             try {
-                // Step 1: Request presigned POST URL from Django
-                console.log("📡 Requesting presigned POST URL...");
-                const cleanFileName = file.name.replace(/\s+/g, "_");
-                const presignForm = new FormData();
-                presignForm.append("file_name", cleanFileName);
-
-                const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
-                    method: "POST",
-                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                    body: presignForm
-                });
-
-                const { data, file_key, error } = await presignRes.json();
-                if (error) throw new Error(error);
-
-                console.log("✅ Presigned POST received");
-                console.log("📄 file_key:", file_key);
-                console.log("🔍 Presigned fields:", data.fields);
-
-                // Step 2: Upload file directly to S3 via presigned POST
-                console.log("⏳ Uploading file to S3...");
-                const s3Form = new FormData();
-                Object.entries(data.fields).forEach(([k, v]) => {
-                    s3Form.append(k, v);
-                    console.log(`🧪 Form field: ${k} = ${v}`);
-                });
-                s3Form.append("file", file);
-
-                const s3Res = await fetch(data.url, {
-                    method: "POST",
-                    body: s3Form
-                });
-
-                if (!s3Res.ok) {
-                    const errorText = await s3Res.text();
-                    console.error("📦 S3 error:", errorText);
-                    throw new Error("S3 upload failed");
-                }
-
-                console.log("✅ File uploaded to S3 successfully");
-
-                // Step 3: Confirm upload metadata with Django (no file sent)
-                console.log("📨 Confirming upload metadata with backend...");
-                const confirmForm = new FormData();
-                confirmForm.append("title", title);
-                confirmForm.append("job_instructions", instructions);
-                confirmForm.append("file_key", file_key); // S3 file path only
-
-                const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
+                const uploadForm = new FormData();
+                uploadForm.append("title", title);
+                uploadForm.append("job_instructions", instructions);
+                uploadForm.append("file", file);
+    
+                const res = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
                     method: "POST",
                     headers: {
                         "X-CSRFToken": "{{ csrf_token }}"
                     },
-                    body: confirmForm
+                    body: uploadForm
                 });
-
-                const confirmData = await confirmRes.json();
-                console.log("✅ Confirm response:", confirmData);
-
-                if (!confirmData.success) throw new Error("Failed to confirm upload");
-
-                alert("✅ Upload complete!");
+    
+                const data = await res.json();
+                console.log("✅ Server response:", data);
+    
+                if (!data.success) throw new Error(data.error || "Upload failed");
+    
+                alert("✅ Upload received! Processing in background...");
                 window.location.href = "{% url 'dashboard:dashboard_home' %}";
-
+    
             } catch (err) {
                 console.error("❌ Upload failed:", err);
                 alert("Upload failed: " + err.message);
@@ -164,6 +121,7 @@
             }
         });
     });
-</script>
+    </script>
+    
 {% endblock extra_scripts %}
 

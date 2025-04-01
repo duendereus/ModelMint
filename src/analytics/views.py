@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.files.storage import default_storage
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
 from .tasks import finalize_large_upload
@@ -77,18 +78,15 @@ def generate_presigned_post(request):
 @require_POST
 @login_required
 def confirm_upload(request):
-    logger.info("📥 confirm_upload: Metadata POST received")
+    logger.info("📥 confirm_upload: File + metadata received")
 
     try:
         title = request.POST.get("title")
         job_instructions = request.POST.get("job_instructions")
-        file_key = request.POST.get("file_key")
+        uploaded_file = request.FILES.get("file")
 
-        logger.info(f"📥 Metadata → title: {title}, file_key: {file_key}")
-
-        if not file_key or not title:
-            logger.warning("⚠️ Missing title or file_key in confirm_upload")
-            return JsonResponse({"error": "Missing fields"}, status=400)
+        if not (title and uploaded_file):
+            return JsonResponse({"error": "Missing title or file"}, status=400)
 
         user = request.user
         organization = (
@@ -97,21 +95,28 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        DataUpload.objects.create(
+        # Save locally (temporarily)
+        local_path = default_storage.save(f"temp_uploads/{uuid.uuid4()}_{uploaded_file.name}", uploaded_file)
+
+        upload = DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
-            file=file_key,
-            status="uploaded"  # file is already in S3
+            file=local_path,
+            status="uploading"
         )
 
-        logger.info(f"✅ Upload confirmed and DataUpload created for: {file_key}")
+        # Trigger Celery
+        finalize_large_upload.delay(upload.id)
+
+        logger.info(f"✅ Saved to temp: {local_path}, Celery task launched")
         return JsonResponse({"success": True})
 
     except Exception as e:
-        logger.exception("❌ Exception in confirm_upload view")
-        return JsonResponse({"error": "Server error confirming upload"}, status=500)
+        logger.exception("❌ Exception in confirm_upload")
+        return JsonResponse({"error": str(e)}, status=500)
+
 
 @login_required
 def data_upload_list(request):
