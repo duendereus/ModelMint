@@ -90,7 +90,6 @@
                 const presignForm = new FormData();
                 presignForm.append("file_name", cleanFileName);
 
-
                 const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
                     method: "POST",
                     headers: { "X-CSRFToken": "{{ csrf_token }}" },
@@ -101,11 +100,15 @@
                 if (error) throw new Error(error);
                 console.log("✅ Presigned POST received");
                 console.log("📄 file_key:", file_key);
+                console.log("🔍 Presigned fields:", data.fields);
 
                 // Step 2: Upload to S3 using multipart/form-data POST
                 console.log("⏳ Uploading to S3...");
                 const s3Form = new FormData();
-                Object.entries(data.fields).forEach(([k, v]) => s3Form.append(k, v));
+                Object.entries(data.fields).forEach(([k, v]) => {
+                    s3Form.append(k, v);
+                    console.log(`🧪 Form field: ${k} = ${v}`);
+                });
                 s3Form.append("file", file);
 
                 const s3Res = await fetch(data.url, {
