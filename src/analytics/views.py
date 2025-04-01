@@ -11,6 +11,10 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import uuid
 import mimetypes
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @login_required
 def upload_data(request):
@@ -19,6 +23,8 @@ def upload_data(request):
 @login_required
 @require_POST
 def generate_presigned_put_url(request):
+    logger.info("🔧 generate_presigned_put_url: Request received")
+
     user = request.user
     organization = (
         user.owned_organization
@@ -27,15 +33,20 @@ def generate_presigned_put_url(request):
     )
 
     file_name = request.POST.get("file_name")
+    logger.info(f"🔧 Requested file_name: {file_name}")
+
     mime_type, _ = mimetypes.guess_type(file_name or "")
     mime_type = mime_type or "application/octet-stream"
 
     if not file_name:
+        logger.warning("⚠️ No file_name provided")
         return JsonResponse({"error": "Missing file name."}, status=400)
 
     org_slug = organization.name.lower().replace(" ", "_")
     unique_id = uuid.uuid4()
     key = f"uploads/{org_slug}/data/{unique_id}_{file_name}"
+
+    logger.info(f"🔧 Generated S3 key: {key}")
 
     s3_client = boto3.client(
         "s3",
@@ -54,7 +65,9 @@ def generate_presigned_put_url(request):
             },
             ExpiresIn=3600,
         )
+        logger.info("✅ Presigned URL successfully generated")
     except Exception as e:
+        logger.error(f"❌ Failed to generate presigned URL: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"url": url, "file_key": key})
@@ -64,11 +77,16 @@ def generate_presigned_put_url(request):
 @require_POST
 @login_required
 def confirm_upload(request):
+    logger.info("📥 confirm_upload: Metadata POST received")
+
     title = request.POST.get("title")
     job_instructions = request.POST.get("job_instructions")
     file_key = request.POST.get("file_key")
 
+    logger.info(f"📥 file_key: {file_key}, title: {title}")
+
     if not file_key or not title:
+        logger.warning("⚠️ Missing title or file_key in confirm_upload")
         return JsonResponse({"error": "Missing file or title"}, status=400)
 
     user = request.user
@@ -87,6 +105,7 @@ def confirm_upload(request):
         status="uploaded"
     )
 
+    logger.info(f"✅ Upload confirmed and DataUpload record created for: {file_key}")
     return JsonResponse({"success": True})
 
 
