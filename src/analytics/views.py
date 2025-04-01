@@ -61,7 +61,8 @@ def generate_presigned_post(request):
             Key=key,
             Fields={},
             Conditions=[
-                ["starts-with", "$key", f"uploads/{org_slug}/data/"]
+                ["starts-with", "$key", f"uploads/{org_slug}/data/"],
+                ["content-length-range", 0, settings.DATA_UPLOAD_MAX_MEMORY_SIZE],
             ],
             ExpiresIn=3600
         )
