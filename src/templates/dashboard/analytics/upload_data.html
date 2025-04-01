@@ -81,21 +81,27 @@
             submitBtn.innerText = "Uploading...";
             submitBtn.disabled = true;
 
+            console.log("📤 Upload form submitted");
+
             try {
                 // Step 1: Request presigned POST
-                const formData = new FormData();
-                formData.append("file_name", file.name);
+                console.log("📡 Requesting presigned POST URL...");
+                const presignForm = new FormData();
+                presignForm.append("file_name", file.name);
 
                 const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
                     method: "POST",
                     headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                    body: formData
+                    body: presignForm
                 });
 
                 const { data, file_key, error } = await presignRes.json();
                 if (error) throw new Error(error);
+                console.log("✅ Presigned POST received");
+                console.log("📄 file_key:", file_key);
 
                 // Step 2: Upload to S3 using multipart/form-data POST
+                console.log("⏳ Uploading to S3...");
                 const s3Form = new FormData();
                 Object.entries(data.fields).forEach(([k, v]) => s3Form.append(k, v));
                 s3Form.append("file", file);
@@ -105,9 +111,14 @@
                     body: s3Form
                 });
 
+                console.log("📦 S3 response status:", s3Res.status);
+                const s3Text = await s3Res.text();
+                console.log("📦 S3 response body:", s3Text);
+
                 if (!s3Res.ok) throw new Error("S3 upload failed");
 
                 // Step 3: Confirm the upload with Django
+                console.log("📨 Confirming upload with backend...");
                 const confirmForm = new FormData();
                 confirmForm.append("title", title);
                 confirmForm.append("job_instructions", instructions);
@@ -122,19 +133,22 @@
                 });
 
                 const confirmData = await confirmRes.json();
+                console.log("✅ Confirm response:", confirmData);
+
                 if (!confirmData.success) throw new Error("Failed to confirm upload");
 
                 alert("✅ Upload complete!");
                 window.location.href = "{% url 'dashboard:dashboard_home' %}";
+
             } catch (err) {
+                console.error("❌ Upload failed:", err);
                 alert("Upload failed: " + err.message);
-                console.error(err);
                 statusDiv.classList.add("d-none");
                 submitBtn.innerText = originalBtnText;
                 submitBtn.disabled = false;
             }
         });
     });
-</script>  
+</script>
 {% endblock extra_scripts %}
 
