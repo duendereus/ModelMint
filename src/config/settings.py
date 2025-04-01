@@ -314,8 +314,7 @@ MESSAGE_TAGS = {
     messages.ERROR: "danger",
 }
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600
-
+MAX_UPLOAD_SIZE_BYTES = 1181116006
 
 LOGGING = {
     "version": 1,
