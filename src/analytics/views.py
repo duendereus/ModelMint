@@ -18,15 +18,25 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def upload_data(request):
+    logger.info("📄 upload_data view rendered (GET)")
     return render(request, "dashboard/analytics/upload_data.html", {"USE_S3": settings.USE_S3})
+
 
 @login_required
 @require_POST
 def generate_presigned_post(request):
-    import mimetypes
-    import boto3
-    import uuid
-    from django.conf import settings
+    logger.info("🔧 generate_presigned_post: Request received")
+
+    file_name = request.POST.get("file_name")
+    logger.info(f"📦 Requested file_name: {file_name}")
+
+    if not file_name:
+        logger.warning("❌ Missing file name in POST")
+        return JsonResponse({"error": "Missing file name"}, status=400)
+
+    mime_type, _ = mimetypes.guess_type(file_name)
+    mime_type = mime_type or "application/octet-stream"
+    logger.info(f"🧪 Guessed MIME type: {mime_type}")
 
     user = request.user
     organization = (
@@ -34,16 +44,9 @@ def generate_presigned_post(request):
         if hasattr(user, "owned_organization") and user.owned_organization
         else user.organization_memberships.first().organization
     )
-
-    file_name = request.POST.get("file_name")
-    if not file_name:
-        return JsonResponse({"error": "Missing file name"}, status=400)
-
-    mime_type, _ = mimetypes.guess_type(file_name)
-    mime_type = mime_type or "application/octet-stream"
-
     org_slug = organization.name.lower().replace(" ", "_")
     key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name}"
+    logger.info(f"🗝️ Generated S3 key: {key}")
 
     s3_client = boto3.client(
         "s3",
@@ -60,8 +63,10 @@ def generate_presigned_post(request):
             Conditions=[{"Content-Type": mime_type}],
             ExpiresIn=3600
         )
+        logger.info("✅ Presigned POST successfully generated")
         return JsonResponse({"data": presigned_post, "file_key": key})
     except Exception as e:
+        logger.exception("🔥 Error generating presigned POST")
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -71,35 +76,39 @@ def generate_presigned_post(request):
 def confirm_upload(request):
     logger.info("📥 confirm_upload: Metadata POST received")
 
-    title = request.POST.get("title")
-    job_instructions = request.POST.get("job_instructions")
-    file_key = request.POST.get("file_key")
+    try:
+        title = request.POST.get("title")
+        job_instructions = request.POST.get("job_instructions")
+        file_key = request.POST.get("file_key")
 
-    logger.info(f"📥 file_key: {file_key}, title: {title}")
+        logger.info(f"📥 Metadata received → title: {title}, file_key: {file_key}")
 
-    if not file_key or not title:
-        logger.warning("⚠️ Missing title or file_key in confirm_upload")
-        return JsonResponse({"error": "Missing file or title"}, status=400)
+        if not file_key or not title:
+            logger.warning("⚠️ Missing title or file_key in confirm_upload")
+            return JsonResponse({"error": "Missing file or title"}, status=400)
 
-    user = request.user
-    organization = (
-        user.owned_organization
-        if hasattr(user, "owned_organization") and user.owned_organization
-        else user.organization_memberships.first().organization
-    )
+        user = request.user
+        organization = (
+            user.owned_organization
+            if hasattr(user, "owned_organization") and user.owned_organization
+            else user.organization_memberships.first().organization
+        )
 
-    DataUpload.objects.create(
-        title=title,
-        job_instructions=job_instructions,
-        uploaded_by=user,
-        organization=organization,
-        file=file_key,
-        status="uploaded"
-    )
+        DataUpload.objects.create(
+            title=title,
+            job_instructions=job_instructions,
+            uploaded_by=user,
+            organization=organization,
+            file=file_key,
+            status="uploaded"
+        )
 
-    logger.info(f"✅ Upload confirmed and DataUpload record created for: {file_key}")
-    return JsonResponse({"success": True})
+        logger.info(f"✅ Upload confirmed and DataUpload record created for: {file_key}")
+        return JsonResponse({"success": True})
 
+    except Exception as e:
+        logger.exception("❌ Exception in confirm_upload view")
+        return JsonResponse({"error": "Server error confirming upload"}, status=500)
 
 @login_required
 def data_upload_list(request):
