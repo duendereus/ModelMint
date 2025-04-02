@@ -78,15 +78,14 @@ def generate_presigned_post(request):
 @require_POST
 @login_required
 def confirm_upload(request):
-    logger.info("📥 confirm_upload: Metadata POST received")
+    logger.info("📥 confirm_upload: File + metadata received")
 
     try:
         title = request.POST.get("title")
         job_instructions = request.POST.get("job_instructions")
-        file_key = request.POST.get("file_key")
+        file = request.FILES.get("file")
 
-        if not (title and file_key):
-            logger.warning("⚠️ Missing title or file_key")
+        if not title or not file:
             return JsonResponse({"error": "Missing fields"}, status=400)
 
         user = request.user
@@ -96,22 +95,27 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        DataUpload.objects.create(
+        # Save the file temporarily
+        filename = f"tmp_uploads/{uuid.uuid4()}_{file.name}"
+        temp_path = default_storage.save(filename, file)
+
+        upload = DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
-            file=file_key,
-            status="uploaded"
+            file=temp_path,
+            status="uploading"
         )
 
-        logger.info(f"✅ Upload confirmed → {file_key}")
+        finalize_large_upload.delay(upload.id)  # Kick off Celery
+
         return JsonResponse({"success": True})
 
     except Exception as e:
         logger.exception("❌ Error in confirm_upload")
         return JsonResponse({"error": "Server error"}, status=500)
-   
+
 
 @login_required
 def data_upload_list(request):

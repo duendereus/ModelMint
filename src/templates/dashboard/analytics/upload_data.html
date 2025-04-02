@@ -66,12 +66,11 @@
         progressBar.classList.add("progress", "mt-2");
         progressBar.innerHTML = `
             <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                 role="progressbar" style="width: 0%">0%</div>`;
+                role="progressbar" style="width: 0%">0%</div>`;
         statusDiv.appendChild(progressBar);
     
         const submitBtn = document.getElementById("submit-btn");
         const originalBtnText = submitBtn.innerText;
-    
         const MAX_SIZE_BYTES = 1181116006; // ~1.1 GB
     
         form.addEventListener("submit", async function (e) {
@@ -113,12 +112,12 @@
                 const s3FormData = new FormData();
                 Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
                 s3FormData.append("file", file);
-                
-                console.log("Before xhr open");
+    
                 const xhr = new XMLHttpRequest();
                 xhr.open("POST", data.url, true);
-                
-                console.log("Before xhr on progress");
+                xhr.timeout = 5 * 60 * 1000; // 5 minutes
+    
+                // Track progress
                 xhr.upload.onprogress = function (e) {
                     if (e.lengthComputable) {
                         const percent = Math.round((e.loaded / e.total) * 100);
@@ -128,49 +127,65 @@
                     }
                 };
     
-                console.log("Before xhr onreadystatechange");
-                xhr.onreadystatechange = async function () {
-                    if (xhr.readyState === 4) {
-                        if (xhr.status === 204 || xhr.status === 201) {
-                            console.log("✅ S3 upload complete — confirming with backend...");
-    
-                            const confirmForm = new FormData();
-                            confirmForm.append("title", title);
-                            confirmForm.append("job_instructions", instructions);
-                            confirmForm.append("file_key", file_key);
-    
+                xhr.onload = async function () {
+                    if (xhr.status === 204 || xhr.status === 201) {
+                        console.log("✅ S3 upload complete — confirming with backend...");
+                
+                        const confirmForm = new FormData();
+                        confirmForm.append("title", title);
+                        confirmForm.append("job_instructions", instructions);
+                        confirmForm.append("file_key", file_key);
+                
+                        try {
                             const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
                                 method: "POST",
                                 headers: { "X-CSRFToken": "{{ csrf_token }}" },
                                 body: confirmForm
                             });
-    
+                
                             const confirmData = await confirmRes.json();
-                            console.log("✅ Confirm response received:", confirmData);
-    
+                            console.log("✅ Confirm response:", confirmData);
+                
                             if (confirmData.success) {
                                 alert("✅ Upload complete!");
                                 window.location.href = "{% url 'dashboard:dashboard_home' %}";
                             } else {
-                                alert("⚠️ Upload confirmed, but response failed.");
+                                alert("⚠️ Upload confirmed but failed on backend.");
                                 resetForm();
                             }
-                        } else {
-                            console.error("📦 S3 error:", xhr.responseText);
-                            alert("❌ S3 upload failed");
+                        } catch (err) {
+                            console.error("❌ Confirm upload failed:", err);
+                            alert("Error confirming upload: " + err.message);
                             resetForm();
                         }
+                
+                    } else {
+                        console.error("📦 S3 error:", xhr.responseText);
+                        alert("❌ S3 upload failed");
+                        resetForm();
                     }
+                };                
+                
+    
+                // Timeout or network failure
+                xhr.ontimeout = function () {
+                    console.error("⏳ Upload timed out");
+                    alert("Upload timed out. Please try again.");
+                    resetForm();
                 };
     
-                console.log('Before xhr onerror')
                 xhr.onerror = function () {
                     alert("❌ Upload failed: Network error");
                     resetForm();
                 };
     
-                console.log('Before xhr send')
                 xhr.send(s3FormData);
+    
+                // ✅ Optional: UX-first redirect after 5 seconds
+                setTimeout(() => {
+                    alert("✅ Upload started! Redirecting...");
+                    window.location.href = "{% url 'dashboard:dashboard_home' %}";
+                }, 5000);
     
             } catch (err) {
                 console.error("❌ Upload failed:", err);
@@ -185,7 +200,6 @@
             }
         });
     });
-    </script>
-        
+</script>           
 {% endblock extra_scripts %}
 
