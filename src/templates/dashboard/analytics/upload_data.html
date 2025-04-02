@@ -134,28 +134,40 @@
                         resetForm();
                         return;
                     }
-
+                
                     console.log("✅ S3 upload complete — confirming with backend...");
-
-                    const confirmForm = new FormData();
-                    confirmForm.append("title", title);
-                    confirmForm.append("job_instructions", instructions);
-                    confirmForm.append("file_key", file_key);
-
-                    const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
-                        method: "POST",
-                        headers: {
-                            "X-CSRFToken": "{{ csrf_token }}"
-                        },
-                        body: confirmForm
-                    });
-
-                    const confirmData = await confirmRes.json();
-                    if (!confirmData.success) throw new Error("Failed to confirm upload");
-
-                    alert("✅ Upload complete!");
-                    window.location.href = "{% url 'dashboard:dashboard_home' %}";
+                
+                    try {
+                        const confirmForm = new FormData();
+                        confirmForm.append("title", title);
+                        confirmForm.append("job_instructions", instructions);
+                        confirmForm.append("file_key", file_key);
+                
+                        const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
+                            method: "POST",
+                            headers: {
+                                "X-CSRFToken": "{{ csrf_token }}"
+                            },
+                            body: confirmForm
+                        });
+                
+                        const confirmData = await confirmRes.json();
+                        console.log("✅ Confirm response received:", confirmData);
+                
+                        if (confirmData.success) {
+                            alert("✅ Upload complete!");
+                            window.location.href = "{% url 'dashboard:dashboard_home' %}";
+                        } else {
+                            alert("⚠️ Upload confirmed, but response failed.");
+                            resetForm();
+                        }
+                    } catch (err) {
+                        console.error("❌ Confirm upload failed:", err);
+                        alert("❌ Confirm upload failed: " + err.message);
+                        resetForm();
+                    }
                 };
+                
 
                 xhr.onerror = function () {
                     alert("❌ Upload failed: Network error");
