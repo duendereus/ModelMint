@@ -75,130 +75,60 @@
     
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
-    
+        
             const file = fileInput.files[0];
             const title = titleInput.value;
             const instructions = instructionsInput.value;
-    
+        
             if (!file || !title) {
                 alert("Please select a file and enter a title.");
                 return;
             }
-    
+        
             if (file.size > MAX_SIZE_BYTES) {
                 alert("🚫 File exceeds the 1.1 GB upload limit.");
                 return;
             }
-    
+        
             statusDiv.classList.remove("d-none");
             submitBtn.innerText = "Uploading...";
             submitBtn.disabled = true;
-    
+        
             try {
-                console.log("📡 Requesting presigned POST...");
-                const cleanFileName = file.name.replace(/\s+/g, "_");
-                const presignForm = new FormData();
-                presignForm.append("file_name", cleanFileName);
-    
-                const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
+                // Step: send file + metadata directly to Django
+                const confirmForm = new FormData();
+                confirmForm.append("title", title);
+                confirmForm.append("job_instructions", instructions);
+                confirmForm.append("file", file);
+        
+                const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
                     method: "POST",
-                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                    body: presignForm
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: confirmForm
                 });
-    
-                const { data, file_key, error } = await presignRes.json();
-                if (error) throw new Error(error);
-    
-                const s3FormData = new FormData();
-                Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
-                s3FormData.append("file", file);
-    
-                const xhr = new XMLHttpRequest();
-                xhr.open("POST", data.url, true);
-                xhr.timeout = 5 * 60 * 1000; // 5 minutes
-    
-                // Track progress
-                xhr.upload.onprogress = function (e) {
-                    if (e.lengthComputable) {
-                        const percent = Math.round((e.loaded / e.total) * 100);
-                        const bar = document.getElementById("upload-progress-bar");
-                        bar.style.width = `${percent}%`;
-                        bar.innerText = `${percent}%`;
-                    }
-                };
-    
-                xhr.onload = async function () {
-                    if (xhr.status === 204 || xhr.status === 201) {
-                        console.log("✅ S3 upload complete — confirming with backend...");
-                
-                        const confirmForm = new FormData();
-                        confirmForm.append("title", title);
-                        confirmForm.append("job_instructions", instructions);
-                        confirmForm.append("file", file);  // send actual file to Django
-                
-                        try {
-                            const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
-                                method: "POST",
-                                headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                                body: confirmForm
-                            });
-                
-                            const confirmData = await confirmRes.json();
-                            console.log("✅ Confirm response:", confirmData);
-                
-                            if (confirmData.success) {
-                                alert("✅ Upload complete!");
-                                window.location.href = "{% url 'dashboard:dashboard_home' %}";
-                            } else {
-                                alert("⚠️ Upload confirmed but failed on backend.");
-                                resetForm();
-                            }
-                        } catch (err) {
-                            console.error("❌ Confirm upload failed:", err);
-                            alert("Error confirming upload: " + err.message);
-                            resetForm();
-                        }
-                
-                    } else {
-                        console.error("📦 S3 error:", xhr.responseText);
-                        alert("❌ S3 upload failed");
-                        resetForm();
-                    }
-                };                
-                
-    
-                // Timeout or network failure
-                xhr.ontimeout = function () {
-                    console.error("⏳ Upload timed out");
-                    alert("Upload timed out. Please try again.");
-                    resetForm();
-                };
-    
-                xhr.onerror = function () {
-                    alert("❌ Upload failed: Network error");
-                    resetForm();
-                };
-    
-                xhr.send(s3FormData);
-    
-                // ✅ Optional: UX-first redirect after 5 seconds
-                setTimeout(() => {
+        
+                const confirmData = await confirmRes.json();
+                if (confirmData.success) {
                     alert("✅ Upload started! Redirecting...");
                     window.location.href = "{% url 'dashboard:dashboard_home' %}";
-                }, 5000);
-    
+                } else {
+                    alert("⚠️ Upload failed.");
+                    resetForm();
+                }
             } catch (err) {
                 console.error("❌ Upload failed:", err);
                 alert("Upload failed: " + err.message);
                 resetForm();
             }
-    
+        
             function resetForm() {
                 statusDiv.classList.add("d-none");
                 submitBtn.innerText = originalBtnText;
                 submitBtn.disabled = false;
             }
-        });
+        });        
     });
 </script>           
 {% endblock extra_scripts %}

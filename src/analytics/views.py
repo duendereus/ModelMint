@@ -83,7 +83,7 @@ def confirm_upload(request):
     try:
         title = request.POST.get("title")
         job_instructions = request.POST.get("job_instructions")
-        file = request.FILES.get("file")
+        file = request.FILES.get("file")  # <-- esto debe venir del FormData
 
         if not title or not file:
             logger.warning("⚠️ Missing title or file in request")
@@ -96,12 +96,10 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        # Guarda el archivo inmediatamente de forma temporal
         filename = f"tmp_uploads/{uuid.uuid4()}_{file.name}"
         temp_path = default_storage.save(filename, file)
         logger.info(f"📦 File temporarily saved at {temp_path}")
 
-        # Crea la entrada de la base de datos
         upload = DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
@@ -111,10 +109,9 @@ def confirm_upload(request):
             status="uploading"
         )
 
-        # Encola la tarea
         finalize_large_upload.delay(upload.id)
+        logger.info("✅ Upload registered and background task launched")
 
-        logger.info(f"✅ Upload registered and background task started")
         return JsonResponse({"success": True})
 
     except Exception as e:
