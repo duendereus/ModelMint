@@ -134,7 +134,7 @@
                         const confirmForm = new FormData();
                         confirmForm.append("title", title);
                         confirmForm.append("job_instructions", instructions);
-                        confirmForm.append("file_key", file_key);
+                        confirmForm.append("file", file);  // send actual file to Django
                 
                         try {
                             const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
