@@ -19,16 +19,13 @@ User = get_user_model()
 def test_task():
     return "Celery is working!"
 
-@shared_task
-def finalize_large_upload(upload_id):
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)  # 60s entre reintentos
+def finalize_large_upload(self, upload_id):
     try:
         upload = DataUpload.objects.get(id=upload_id)
         temp_file_path = upload.file
 
-        logger.info(f"🚀 Uploading temp file to S3: {temp_file_path}")
-
-        with default_storage.open(temp_file_path, "rb") as f:
-            file_content = f.read()
+        logger.info(f"🚀 Starting upload to S3: {temp_file_path}")
 
         s3_client = boto3.client(
             "s3",
@@ -38,6 +35,7 @@ def finalize_large_upload(upload_id):
         )
 
         s3_key = f"uploads/{upload.organization.slug}/data/{uuid.uuid4()}_{os.path.basename(temp_file_path)}"
+        logger.info(f"🗝️ Target S3 key: {s3_key}")
 
         presigned = s3_client.generate_presigned_post(
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
@@ -49,21 +47,34 @@ def finalize_large_upload(upload_id):
             ],
             ExpiresIn=3600
         )
+        logger.info("✅ Presigned POST generated")
 
-        multipart = MultipartEncoder(fields={**presigned['fields'], "file": (os.path.basename(temp_file_path), file_content)})
-        res = requests.post(presigned["url"], data=multipart, headers={"Content-Type": multipart.content_type})
+        with default_storage.open(temp_file_path, "rb") as f:
+            multipart = MultipartEncoder(
+                fields={**presigned['fields'], "file": (os.path.basename(temp_file_path), f)}
+            )
+            res = requests.post(
+                presigned["url"],
+                data=multipart,
+                headers={"Content-Type": multipart.content_type},
+                timeout=600
+            )
 
         if res.status_code == 204:
             upload.status = "uploaded"
             upload.file = s3_key
-            logger.info("✅ S3 upload completed")
+            logger.info(f"✅ File uploaded to S3: {s3_key}")
         else:
             upload.status = "failed"
-            logger.error(f"🔥 S3 upload failed: {res.status_code} - {res.text}")
+            logger.error(f"🔥 Upload failed → {res.status_code} — {res.text}")
 
         upload.save()
         default_storage.delete(temp_file_path)
+        logger.info("🧹 Temporary file deleted")
 
     except Exception as e:
-        logger.exception(f"🔥 Finalize upload failed for ID {upload_id}")
-        DataUpload.objects.filter(id=upload_id).update(status="failed")
+        logger.exception(f"❌ finalize_large_upload failed (ID {upload_id})")
+        try:
+            self.retry(exc=e)
+        except Retry:
+            DataUpload.objects.filter(id=upload_id).update(status="failed")

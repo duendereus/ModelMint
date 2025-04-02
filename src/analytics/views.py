@@ -86,6 +86,7 @@ def confirm_upload(request):
         file = request.FILES.get("file")
 
         if not title or not file:
+            logger.warning("⚠️ Missing title or file in request")
             return JsonResponse({"error": "Missing fields"}, status=400)
 
         user = request.user
@@ -95,10 +96,12 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        # Save the file temporarily
+        # Guarda el archivo inmediatamente de forma temporal
         filename = f"tmp_uploads/{uuid.uuid4()}_{file.name}"
         temp_path = default_storage.save(filename, file)
+        logger.info(f"📦 File temporarily saved at {temp_path}")
 
+        # Crea la entrada de la base de datos
         upload = DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
@@ -108,8 +111,10 @@ def confirm_upload(request):
             status="uploading"
         )
 
-        finalize_large_upload.delay(upload.id)  # Kick off Celery
+        # Encola la tarea
+        finalize_large_upload.delay(upload.id)
 
+        logger.info(f"✅ Upload registered and background task started")
         return JsonResponse({"success": True})
 
     except Exception as e:
