@@ -78,15 +78,16 @@ def generate_presigned_post(request):
 @require_POST
 @login_required
 def confirm_upload(request):
-    logger.info("📥 confirm_upload: File + metadata received")
+    logger.info("📥 confirm_upload: Metadata POST received")
 
     try:
         title = request.POST.get("title")
         job_instructions = request.POST.get("job_instructions")
-        uploaded_file = request.FILES.get("file")
+        file_key = request.POST.get("file_key")
 
-        if not (title and uploaded_file):
-            return JsonResponse({"error": "Missing title or file"}, status=400)
+        if not (title and file_key):
+            logger.warning("⚠️ Missing title or file_key")
+            return JsonResponse({"error": "Missing fields"}, status=400)
 
         user = request.user
         organization = (
@@ -95,28 +96,22 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        # Save locally (temporarily)
-        local_path = default_storage.save(f"temp_uploads/{uuid.uuid4()}_{uploaded_file.name}", uploaded_file)
-
-        upload = DataUpload.objects.create(
+        DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
-            file=local_path,
-            status="uploading"
+            file=file_key,
+            status="uploaded"
         )
 
-        # Trigger Celery
-        finalize_large_upload.delay(upload.id)
-
-        logger.info(f"✅ Saved to temp: {local_path}, Celery task launched")
+        logger.info(f"✅ Upload confirmed → {file_key}")
         return JsonResponse({"success": True})
 
     except Exception as e:
-        logger.exception("❌ Exception in confirm_upload")
-        return JsonResponse({"error": str(e)}, status=500)
-
+        logger.exception("❌ Error in confirm_upload")
+        return JsonResponse({"error": "Server error"}, status=500)
+   
 
 @login_required
 def data_upload_list(request):

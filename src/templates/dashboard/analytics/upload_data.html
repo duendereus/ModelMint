@@ -65,14 +65,14 @@
         const submitBtn = document.getElementById("submit-btn");
         const originalBtnText = submitBtn.innerText;
     
-        const MAX_SIZE_BYTES = 1181116006;
+        const MAX_SIZE_BYTES = 1181116006; // 1.1 GB
     
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
     
             const file = fileInput.files[0];
-            const title = titleInput.value;
-            const instructions = instructionsInput.value;
+            const title = titleInput.value.trim();
+            const instructions = instructionsInput.value.trim();
     
             if (!file || !title) {
                 alert("Please select a file and enter a title.");
@@ -88,28 +88,63 @@
             submitBtn.innerText = "Uploading...";
             submitBtn.disabled = true;
     
-            console.log("📤 Upload form submitted");
-    
             try {
-                const uploadForm = new FormData();
-                uploadForm.append("title", title);
-                uploadForm.append("job_instructions", instructions);
-                uploadForm.append("file", file);
+                // Step 1: Get presigned POST from Django
+                console.log("📡 Requesting presigned POST...");
+                const cleanFileName = file.name.replace(/\s+/g, "_");
+                const presignForm = new FormData();
+                presignForm.append("file_name", cleanFileName);
     
-                const res = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
+                const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
                     method: "POST",
-                    headers: {
-                        "X-CSRFToken": "{{ csrf_token }}"
-                    },
-                    body: uploadForm
+                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                    body: presignForm
                 });
     
-                const data = await res.json();
-                console.log("✅ Server response:", data);
+                const { data, file_key, error } = await presignRes.json();
+                if (error) throw new Error(error);
     
-                if (!data.success) throw new Error(data.error || "Upload failed");
+                console.log("✅ Presigned POST received");
+                console.log("📄 file_key:", file_key);
     
-                alert("✅ Upload received! Processing in background...");
+                // Step 2: Upload file to S3
+                console.log("⏳ Uploading to S3...");
+                const s3Form = new FormData();
+                Object.entries(data.fields).forEach(([k, v]) => {
+                    s3Form.append(k, v);
+                    console.log(`🧪 Field: ${k} = ${v}`);
+                });
+                s3Form.append("file", file);
+    
+                const s3Res = await fetch(data.url, {
+                    method: "POST",
+                    body: s3Form
+                });
+    
+                if (!s3Res.ok) {
+                    const errText = await s3Res.text();
+                    throw new Error(`S3 upload failed: ${errText}`);
+                }
+    
+                console.log("✅ Upload to S3 successful");
+    
+                // Step 3: Confirm metadata to Django
+                console.log("📨 Confirming metadata...");
+                const confirmForm = new FormData();
+                confirmForm.append("title", title);
+                confirmForm.append("job_instructions", instructions);
+                confirmForm.append("file_key", file_key);
+    
+                const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
+                    method: "POST",
+                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                    body: confirmForm
+                });
+    
+                const confirmData = await confirmRes.json();
+                if (!confirmData.success) throw new Error("Failed to confirm upload");
+    
+                alert("✅ Upload complete!");
                 window.location.href = "{% url 'dashboard:dashboard_home' %}";
     
             } catch (err) {
@@ -121,7 +156,6 @@
             }
         });
     });
-    </script>
-    
+</script>    
 {% endblock extra_scripts %}
 
