@@ -62,17 +62,24 @@
         const titleInput = document.getElementById("id_title");
         const instructionsInput = document.getElementById("id_job_instructions");
         const statusDiv = document.getElementById("upload-status");
+        const progressBar = document.createElement("div");
+        progressBar.classList.add("progress", "mt-2");
+        progressBar.innerHTML = `
+            <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                 role="progressbar" style="width: 0%">0%</div>`;
+        statusDiv.appendChild(progressBar);
+    
         const submitBtn = document.getElementById("submit-btn");
         const originalBtnText = submitBtn.innerText;
     
-        const MAX_SIZE_BYTES = 1181116006; // 1.1 GB
+        const MAX_SIZE_BYTES = 1181116006; // ~1.1 GB
     
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
     
             const file = fileInput.files[0];
-            const title = titleInput.value.trim();
-            const instructions = instructionsInput.value.trim();
+            const title = titleInput.value;
+            const instructions = instructionsInput.value;
     
             if (!file || !title) {
                 alert("Please select a file and enter a title.");
@@ -88,9 +95,10 @@
             submitBtn.innerText = "Uploading...";
             submitBtn.disabled = true;
     
+            console.log("📤 Upload form submitted");
+    
             try {
-                // Step 1: Get presigned POST from Django
-                console.log("📡 Requesting presigned POST...");
+                // Step 1: Request presigned POST
                 const cleanFileName = file.name.replace(/\s+/g, "_");
                 const presignForm = new FormData();
                 presignForm.append("file_name", cleanFileName);
@@ -104,48 +112,64 @@
                 const { data, file_key, error } = await presignRes.json();
                 if (error) throw new Error(error);
     
-                console.log("✅ Presigned POST received");
-                console.log("📄 file_key:", file_key);
+                const s3FormData = new FormData();
+                Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
+                s3FormData.append("file", file);
     
-                // Step 2: Upload file to S3
-                console.log("⏳ Uploading to S3...");
-                const s3Form = new FormData();
-                Object.entries(data.fields).forEach(([k, v]) => {
-                    s3Form.append(k, v);
-                    console.log(`🧪 Field: ${k} = ${v}`);
-                });
-                s3Form.append("file", file);
+                // Step 2: Upload with progress using XMLHttpRequest
+                console.log("⏳ Uploading file to S3 with progress...");
     
-                const s3Res = await fetch(data.url, {
-                    method: "POST",
-                    body: s3Form
-                });
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", data.url, true);
     
-                if (!s3Res.ok) {
-                    const errText = await s3Res.text();
-                    throw new Error(`S3 upload failed: ${errText}`);
-                }
+                xhr.upload.onprogress = function (e) {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        const bar = document.getElementById("upload-progress-bar");
+                        bar.style.width = `${percent}%`;
+                        bar.innerText = `${percent}%`;
+                    }
+                };
     
-                console.log("✅ Upload to S3 successful");
+                xhr.onload = async function () {
+                    if (xhr.status !== 204 && xhr.status !== 201) {
+                        console.error("📦 S3 error:", xhr.responseText);
+                        alert("S3 upload failed!");
+                        statusDiv.classList.add("d-none");
+                        submitBtn.innerText = originalBtnText;
+                        submitBtn.disabled = false;
+                        return;
+                    }
     
-                // Step 3: Confirm metadata to Django
-                console.log("📨 Confirming metadata...");
-                const confirmForm = new FormData();
-                confirmForm.append("title", title);
-                confirmForm.append("job_instructions", instructions);
-                confirmForm.append("file_key", file_key);
+                    console.log("✅ S3 Upload complete, confirming with backend...");
     
-                const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
-                    method: "POST",
-                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                    body: confirmForm
-                });
+                    // Step 3: Confirm metadata
+                    const confirmForm = new FormData();
+                    confirmForm.append("title", title);
+                    confirmForm.append("job_instructions", instructions);
+                    confirmForm.append("file_key", file_key);
     
-                const confirmData = await confirmRes.json();
-                if (!confirmData.success) throw new Error("Failed to confirm upload");
+                    const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
+                        method: "POST",
+                        headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                        body: confirmForm
+                    });
     
-                alert("✅ Upload complete!");
-                window.location.href = "{% url 'dashboard:dashboard_home' %}";
+                    const confirmData = await confirmRes.json();
+                    if (!confirmData.success) throw new Error("Failed to confirm upload");
+    
+                    alert("✅ Upload complete!");
+                    window.location.href = "{% url 'dashboard:dashboard_home' %}";
+                };
+    
+                xhr.onerror = function () {
+                    alert("❌ Upload failed: Network error");
+                    statusDiv.classList.add("d-none");
+                    submitBtn.innerText = originalBtnText;
+                    submitBtn.disabled = false;
+                };
+    
+                xhr.send(s3FormData);
     
             } catch (err) {
                 console.error("❌ Upload failed:", err);
@@ -156,6 +180,6 @@
             }
         });
     });
-</script>    
+</script>     
 {% endblock extra_scripts %}
 
