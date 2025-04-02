@@ -128,14 +128,17 @@
                 };
 
                 xhr.onload = async function () {
-                    if (xhr.status !== 204 && xhr.status !== 201) {
-                        console.error("📦 S3 error:", xhr.responseText);
-                        alert("S3 upload failed!");
+                    console.log("📦 xhr.status:", xhr.status);
+                    console.log("📦 xhr.responseText:", xhr.responseText);
+                
+                    if (xhr.status !== 204 && xhr.status !== 201 && xhr.status !== 200) {
+                        console.error("❌ Unexpected S3 response status");
+                        alert("S3 upload may have failed: " + xhr.status);
                         resetForm();
                         return;
                     }
                 
-                    console.log("✅ S3 upload complete — confirming with backend...");
+                    console.log("✅ S3 upload complete — attempting to confirm with backend...");
                 
                     try {
                         const confirmForm = new FormData();
@@ -152,21 +155,22 @@
                         });
                 
                         const confirmData = await confirmRes.json();
-                        console.log("✅ Confirm response received:", confirmData);
+                        console.log("📬 Confirm response data:", confirmData);
                 
                         if (confirmData.success) {
                             alert("✅ Upload complete!");
                             window.location.href = "{% url 'dashboard:dashboard_home' %}";
                         } else {
-                            alert("⚠️ Upload confirmed, but response failed.");
+                            alert("⚠️ Upload confirmed but backend failed");
                             resetForm();
                         }
                     } catch (err) {
-                        console.error("❌ Confirm upload failed:", err);
+                        console.error("🔥 Confirm upload failed:", err);
                         alert("❌ Confirm upload failed: " + err.message);
                         resetForm();
                     }
                 };
+                
                 
 
                 xhr.onerror = function () {
