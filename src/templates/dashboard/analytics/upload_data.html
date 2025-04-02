@@ -62,17 +62,18 @@
         const titleInput = document.getElementById("id_title");
         const instructionsInput = document.getElementById("id_job_instructions");
         const statusDiv = document.getElementById("upload-status");
-        const progressBar = document.createElement("div");
-        progressBar.classList.add("progress", "mt-2");
-        progressBar.innerHTML = `
-            <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                 role="progressbar" style="width: 0%">0%</div>`;
-        statusDiv.appendChild(progressBar);
-    
         const submitBtn = document.getElementById("submit-btn");
         const originalBtnText = submitBtn.innerText;
     
         const MAX_SIZE_BYTES = 1181116006; // ~1.1 GB
+    
+        // Add progress bar
+        const progressBarContainer = document.createElement("div");
+        progressBarContainer.classList.add("progress", "mt-3");
+        progressBarContainer.innerHTML = `
+            <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                role="progressbar" style="width: 0%">0%</div>`;
+        statusDiv.appendChild(progressBarContainer);
     
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
@@ -98,10 +99,10 @@
             console.log("📤 Upload form submitted");
     
             try {
-                // Step 1: Request presigned POST
-                const cleanFileName = file.name.replace(/\s+/g, "_");
+                // Step 1: Request presigned POST URL
+                console.log("📡 Requesting presigned POST...");
                 const presignForm = new FormData();
-                presignForm.append("file_name", cleanFileName);
+                presignForm.append("file_name", file.name.replace(/\s+/g, "_"));
     
                 const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
                     method: "POST",
@@ -112,12 +113,13 @@
                 const { data, file_key, error } = await presignRes.json();
                 if (error) throw new Error(error);
     
-                const s3FormData = new FormData();
-                Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
-                s3FormData.append("file", file);
+                console.log("✅ Presigned POST received");
+                console.log("📄 file_key:", file_key);
     
-                // Step 2: Upload with progress using XMLHttpRequest
-                console.log("⏳ Uploading file to S3 with progress...");
+                // Step 2: Upload to S3 using XMLHttpRequest
+                const s3Form = new FormData();
+                Object.entries(data.fields).forEach(([k, v]) => s3Form.append(k, v));
+                s3Form.append("file", file);
     
                 const xhr = new XMLHttpRequest();
                 xhr.open("POST", data.url, true);
@@ -134,16 +136,12 @@
                 xhr.onload = async function () {
                     if (xhr.status !== 204 && xhr.status !== 201) {
                         console.error("📦 S3 error:", xhr.responseText);
-                        alert("S3 upload failed!");
-                        statusDiv.classList.add("d-none");
-                        submitBtn.innerText = originalBtnText;
-                        submitBtn.disabled = false;
-                        return;
+                        throw new Error("S3 upload failed");
                     }
     
-                    console.log("✅ S3 Upload complete, confirming with backend...");
+                    console.log("✅ File uploaded to S3, confirming with backend...");
     
-                    // Step 3: Confirm metadata
+                    // Step 3: Confirm upload metadata
                     const confirmForm = new FormData();
                     confirmForm.append("title", title);
                     confirmForm.append("job_instructions", instructions);
@@ -169,7 +167,7 @@
                     submitBtn.disabled = false;
                 };
     
-                xhr.send(s3FormData);
+                xhr.send(s3Form);
     
             } catch (err) {
                 console.error("❌ Upload failed:", err);
@@ -180,6 +178,6 @@
             }
         });
     });
-</script>     
+</script>      
 {% endblock extra_scripts %}
 
