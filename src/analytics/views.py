@@ -95,7 +95,7 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        upload = DataUpload.objects.create(
+        DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
             uploaded_by=user,
@@ -104,7 +104,7 @@ def confirm_upload(request):
             status="uploaded"
         )
 
-        logger.info(f"✅ Upload record saved with key: {file_key}")
+        logger.info(f"✅ Upload registered: {file_key}")
         return JsonResponse({"success": True})
 
     except Exception as e:

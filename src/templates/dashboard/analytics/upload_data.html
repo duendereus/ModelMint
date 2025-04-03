@@ -67,13 +67,12 @@
         progressBar.classList.add("progress", "mt-2");
         progressBar.innerHTML = `
             <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                 role="progressbar" style="width: 0%">0%</div>`;
+                role="progressbar" style="width: 0%">0%</div>`;
         statusDiv.appendChild(progressBar);
     
         const submitBtn = document.getElementById("submit-btn");
         const originalBtnText = submitBtn.innerText;
-    
-        const MAX_SIZE_BYTES = 1181116006;
+        const MAX_SIZE_BYTES = 1181116006; // ~1.1 GB
     
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
@@ -88,7 +87,7 @@
             }
     
             if (file.size > MAX_SIZE_BYTES) {
-                alert("🚫 File exceeds 1.1 GB limit.");
+                alert("🚫 File exceeds the 1.1 GB upload limit.");
                 return;
             }
     
@@ -97,9 +96,9 @@
             submitBtn.disabled = true;
     
             try {
-                // Step 1: Get presigned POST from Django
+                const cleanFileName = file.name.replace(/\s+/g, "_");
                 const presignForm = new FormData();
-                presignForm.append("file_name", file.name.replace(/\s+/g, "_"));
+                presignForm.append("file_name", cleanFileName);
     
                 const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
                     method: "POST",
@@ -110,14 +109,12 @@
                 const { data, file_key, error } = await presignRes.json();
                 if (error) throw new Error(error);
     
-                // Step 2: Upload file directly to S3
                 const s3FormData = new FormData();
                 Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
                 s3FormData.append("file", file);
     
                 const xhr = new XMLHttpRequest();
                 xhr.open("POST", data.url, true);
-                xhr.timeout = 600000; // 10 min
     
                 xhr.upload.onprogress = function (e) {
                     if (e.lengthComputable) {
@@ -127,12 +124,13 @@
                         bar.innerText = `${percent}%`;
                     }
                 };
-    
+                
+                console.log("entering xhr.onload")
                 xhr.onload = async function () {
+                    console.log("xhr.status")
+                    console.log(xhr.status)
                     if (xhr.status === 204 || xhr.status === 201) {
-                        console.log("✅ Upload to S3 successful");
-    
-                        // Step 3: Send metadata to Django
+                        // Register the upload with backend
                         const confirmForm = new FormData();
                         confirmForm.append("title", title);
                         confirmForm.append("job_instructions", instructions);
@@ -146,20 +144,21 @@
     
                         const confirmData = await confirmRes.json();
                         if (confirmData.success) {
-                            alert("✅ Upload complete!");
+                            alert("✅ Upload complete! Redirecting...");
                             window.location.href = "{% url 'dashboard:dashboard_home' %}";
                         } else {
-                            alert("⚠️ Upload registered but failed to confirm.");
+                            alert("⚠️ Upload registered but failed to save.");
                             resetForm();
                         }
                     } else {
+                        console.error("📦 S3 error:", xhr.responseText);
                         alert("❌ Upload to S3 failed.");
                         resetForm();
                     }
                 };
     
                 xhr.onerror = function () {
-                    alert("❌ Network error during upload");
+                    alert("❌ Upload failed: Network error");
                     resetForm();
                 };
     
@@ -178,6 +177,6 @@
             }
         });
     });
-</script>                 
+</script>           
 {% endblock extra_scripts %}
 
