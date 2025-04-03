@@ -95,16 +95,17 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        DataUpload.objects.create(
+        # Guardar el registro con estado 'uploading'
+        upload = DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
             file=file_key,
-            status="uploaded"
+            status="uploading",
         )
 
-        logger.info(f"✅ Upload registered: {file_key}")
+        logger.info(f"✅ Upload registered with key {file_key}")
         return JsonResponse({"success": True})
 
     except Exception as e:

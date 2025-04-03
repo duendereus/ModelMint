@@ -125,37 +125,34 @@
                     }
                 };
                 
-                console.log("entering xhr.onload")
-                xhr.onload = async function () {
-                    console.log("xhr.status")
-                    console.log(xhr.status)
-                    if (xhr.status === 204 || xhr.status === 201) {
-                        // Register the upload with backend
-                        const confirmForm = new FormData();
-                        confirmForm.append("title", title);
-                        confirmForm.append("job_instructions", instructions);
-                        confirmForm.append("file_key", file_key);
-    
+                xhr.onloadstart = async function () {
+                    // ✅ Apenas empieza la subida, registramos en backend y redirigimos
+                    const confirmForm = new FormData();
+                    confirmForm.append("title", title);
+                    confirmForm.append("job_instructions", instructions);
+                    confirmForm.append("file_key", file_key);
+                
+                    try {
                         const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
                             method: "POST",
                             headers: { "X-CSRFToken": "{{ csrf_token }}" },
                             body: confirmForm
                         });
-    
+                
                         const confirmData = await confirmRes.json();
                         if (confirmData.success) {
-                            alert("✅ Upload complete! Redirecting...");
+                            alert("✅ File is uploading in the background. Redirecting...");
                             window.location.href = "{% url 'dashboard:dashboard_home' %}";
                         } else {
-                            alert("⚠️ Upload registered but failed to save.");
+                            alert("⚠️ Metadata failed to register.");
                             resetForm();
                         }
-                    } else {
-                        console.error("📦 S3 error:", xhr.responseText);
-                        alert("❌ Upload to S3 failed.");
+                    } catch (err) {
+                        console.error("❌ Metadata upload failed:", err);
+                        alert("❌ Metadata failed to register.");
                         resetForm();
                     }
-                };
+                };                
     
                 xhr.onerror = function () {
                     alert("❌ Upload failed: Network error");
