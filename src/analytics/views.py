@@ -77,7 +77,7 @@ def generate_presigned_post(request):
 @require_POST
 @login_required
 def confirm_upload(request):
-    logger.info("📥 confirm_upload: Metadata received (not actual file)")
+    logger.info("📥 confirm_upload: Metadata received")
 
     try:
         title = request.POST.get("title")
@@ -110,6 +110,7 @@ def confirm_upload(request):
     except Exception as e:
         logger.exception("❌ Error in confirm_upload")
         return JsonResponse({"error": "Server error"}, status=500)
+
 
 @login_required
 def data_upload_list(request):

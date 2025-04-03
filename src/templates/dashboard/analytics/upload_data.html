@@ -62,16 +62,18 @@
         const titleInput = document.getElementById("id_title");
         const instructionsInput = document.getElementById("id_job_instructions");
         const statusDiv = document.getElementById("upload-status");
+    
         const progressBar = document.createElement("div");
         progressBar.classList.add("progress", "mt-2");
         progressBar.innerHTML = `
             <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                role="progressbar" style="width: 0%">0%</div>`;
+                 role="progressbar" style="width: 0%">0%</div>`;
         statusDiv.appendChild(progressBar);
     
         const submitBtn = document.getElementById("submit-btn");
         const originalBtnText = submitBtn.innerText;
-        const MAX_SIZE_BYTES = 1181116006; // ~1.1 GB
+    
+        const MAX_SIZE_BYTES = 1181116006;
     
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
@@ -86,7 +88,7 @@
             }
     
             if (file.size > MAX_SIZE_BYTES) {
-                alert("🚫 File exceeds the 1.1 GB upload limit.");
+                alert("🚫 File exceeds 1.1 GB limit.");
                 return;
             }
     
@@ -95,9 +97,9 @@
             submitBtn.disabled = true;
     
             try {
-                const cleanFileName = file.name.replace(/\s+/g, "_");
+                // Step 1: Get presigned POST from Django
                 const presignForm = new FormData();
-                presignForm.append("file_name", cleanFileName);
+                presignForm.append("file_name", file.name.replace(/\s+/g, "_"));
     
                 const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
                     method: "POST",
@@ -108,12 +110,14 @@
                 const { data, file_key, error } = await presignRes.json();
                 if (error) throw new Error(error);
     
+                // Step 2: Upload file directly to S3
                 const s3FormData = new FormData();
                 Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
                 s3FormData.append("file", file);
     
                 const xhr = new XMLHttpRequest();
                 xhr.open("POST", data.url, true);
+                xhr.timeout = 600000; // 10 min
     
                 xhr.upload.onprogress = function (e) {
                     if (e.lengthComputable) {
@@ -124,15 +128,11 @@
                     }
                 };
     
-                xhr.onerror = function () {
-                    alert("❌ Upload failed: Network error");
-                    resetForm();
-                };
-    
                 xhr.onload = async function () {
                     if (xhr.status === 204 || xhr.status === 201) {
-                        console.log("✅ Upload to S3 complete");
+                        console.log("✅ Upload to S3 successful");
     
+                        // Step 3: Send metadata to Django
                         const confirmForm = new FormData();
                         confirmForm.append("title", title);
                         confirmForm.append("job_instructions", instructions);
@@ -146,19 +146,25 @@
     
                         const confirmData = await confirmRes.json();
                         if (confirmData.success) {
-                            alert("✅ Upload complete! Redirecting...");
+                            alert("✅ Upload complete!");
                             window.location.href = "{% url 'dashboard:dashboard_home' %}";
                         } else {
-                            alert("⚠️ Upload confirmed but failed.");
+                            alert("⚠️ Upload registered but failed to confirm.");
                             resetForm();
                         }
                     } else {
-                        alert("❌ S3 upload failed.");
+                        alert("❌ Upload to S3 failed.");
                         resetForm();
                     }
                 };
     
+                xhr.onerror = function () {
+                    alert("❌ Network error during upload");
+                    resetForm();
+                };
+    
                 xhr.send(s3FormData);
+    
             } catch (err) {
                 console.error("❌ Upload failed:", err);
                 alert("Upload failed: " + err.message);
@@ -172,6 +178,6 @@
             }
         });
     });
-</script>               
+</script>                 
 {% endblock extra_scripts %}
 
