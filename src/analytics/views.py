@@ -29,12 +29,11 @@ def generate_presigned_post(request):
     logger.info("🔧 generate_presigned_post: Request received")
 
     file_name = request.POST.get("file_name")
-    logger.info(f"📦 Requested file_name: {file_name}")
-
     if not file_name:
         logger.warning("❌ Missing file name in POST")
         return JsonResponse({"error": "Missing file name"}, status=400)
 
+    logger.info(f"📦 Requested file_name: {file_name}")
     mime_type, _ = mimetypes.guess_type(file_name)
     mime_type = mime_type or "application/octet-stream"
     logger.info(f"🧪 Guessed MIME type: {mime_type}")
@@ -78,15 +77,15 @@ def generate_presigned_post(request):
 @require_POST
 @login_required
 def confirm_upload(request):
-    logger.info("📥 confirm_upload: File + metadata received")
+    logger.info("📥 confirm_upload: Metadata received (not actual file)")
 
     try:
         title = request.POST.get("title")
         job_instructions = request.POST.get("job_instructions")
-        file = request.FILES.get("file")  # <-- esto debe venir del FormData
+        file_key = request.POST.get("file_key")
 
-        if not title or not file:
-            logger.warning("⚠️ Missing title or file in request")
+        if not title or not file_key:
+            logger.warning("⚠️ Missing title or file_key in request")
             return JsonResponse({"error": "Missing fields"}, status=400)
 
         user = request.user
@@ -96,28 +95,21 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        filename = f"tmp_uploads/{uuid.uuid4()}_{file.name}"
-        temp_path = default_storage.save(filename, file)
-        logger.info(f"📦 File temporarily saved at {temp_path}")
-
         upload = DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
-            file=temp_path,
-            status="uploading"
+            file=file_key,
+            status="uploaded"
         )
 
-        finalize_large_upload.delay(upload.id)
-        logger.info("✅ Upload registered and background task launched")
-
+        logger.info(f"✅ Upload record saved with key: {file_key}")
         return JsonResponse({"success": True})
 
     except Exception as e:
         logger.exception("❌ Error in confirm_upload")
         return JsonResponse({"error": "Server error"}, status=500)
-
 
 @login_required
 def data_upload_list(request):
