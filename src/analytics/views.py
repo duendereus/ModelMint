@@ -95,17 +95,20 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        # Guardar el registro con estado 'uploading'
+        # Crea el registro con status = uploading
         upload = DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
             file=file_key,
-            status="uploading",
+            status="uploading"
         )
 
-        logger.info(f"✅ Upload registered with key {file_key}")
+        # Llama la tarea asíncrona para procesar en segundo plano
+        finalize_large_upload.delay(upload.id)
+
+        logger.info(f"✅ Upload registered and Celery task triggered: {file_key}")
         return JsonResponse({"success": True})
 
     except Exception as e:
