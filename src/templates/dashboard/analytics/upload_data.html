@@ -108,6 +108,7 @@
                 });
     
                 const { data, file_key, error } = await presignRes.json();
+                console.log("🧾 Presigned POST:", data);
                 if (error) throw new Error(error);
     
                 // 💡 Log the CURL command
