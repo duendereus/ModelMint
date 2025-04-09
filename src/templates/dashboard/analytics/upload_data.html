@@ -59,6 +59,7 @@
 {% endblock content %}
 
 {% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const MAX_SIZE_BYTES = 50 * 1024 * 1024;
@@ -153,34 +154,45 @@
         }
 
         async function uploadLargeFile(file, title, instructions) {
-            const cleanFileName = file.name.replace(/\s+/g, "_");
-
+            const zip = new JSZip();
+            const zipFileName = file.name.replace(/\s+/g, "_") + ".zip";
+        
+            // 🔧 Añade el archivo al zip
+            zip.file(file.name, file);
+        
+            // 🧨 Comprimir
+            const compressedBlob = await zip.generateAsync({ type: "blob" });
+        
+            // 🆕 Usa el archivo comprimido en lugar del original
+            const fileToUpload = new File([compressedBlob], zipFileName, { type: "application/zip" });
+        
+            // 📡 Iniciar la carga multipart
             const initForm = new FormData();
-            initForm.append("file_name", cleanFileName);
-            initForm.append("content_type", file.type);
-
+            initForm.append("file_name", fileToUpload.name);
+            initForm.append("content_type", fileToUpload.type);
+        
             const initRes = await fetch("{% url 'dashboard:analytics:initiate_multipart_upload' %}", {
                 method: "POST",
                 headers: { "X-CSRFToken": "{{ csrf_token }}" },
                 body: initForm
             });
-
+        
             const { uploadId, key, error } = await initRes.json();
             if (error) {
                 alert("❌ Could not initiate upload");
                 reset();
                 return;
             }
-
-            const partCount = Math.ceil(file.size / CHUNK_SIZE);
+        
+            const partCount = Math.ceil(fileToUpload.size / CHUNK_SIZE);
             const parts = [];
-
+        
             for (let i = 0; i < partCount; i++) {
                 const start = i * CHUNK_SIZE;
-                const end = Math.min(start + CHUNK_SIZE, file.size);
-                const chunk = file.slice(start, end);
+                const end = Math.min(start + CHUNK_SIZE, fileToUpload.size);
+                const chunk = fileToUpload.slice(start, end);
                 const partNumber = i + 1;
-
+        
                 const res = await fetch("{% url 'dashboard:analytics:generate_part_presigned_url' %}", {
                     method: "POST",
                     headers: {
@@ -189,14 +201,14 @@
                     },
                     body: JSON.stringify({ key, uploadId, partNumber })
                 });
-
+        
                 const { url } = await res.json();
-
+        
                 const putRes = await fetch(url, {
                     method: "PUT",
                     body: chunk,
                 });
-
+        
                 if (putRes.ok) {
                     const etag = putRes.headers.get("ETag");
                     parts.push({ ETag: etag.replace(/"/g, ""), PartNumber: partNumber });
@@ -207,7 +219,7 @@
                     return;
                 }
             }
-
+        
             const completeRes = await fetch("{% url 'dashboard:analytics:complete_multipart_upload' %}", {
                 method: "POST",
                 headers: {
@@ -222,16 +234,16 @@
                     job_instructions: instructions
                 })
             });
-
+        
             const result = await completeRes.json();
             if (result.success) {
-                alert("✅ Large file upload complete!");
+                alert("✅ Large file (compressed) upload complete!");
                 window.location.href = "{% url 'dashboard:dashboard_home' %}";
             } else {
                 alert("❌ Failed to complete multipart upload.");
                 reset();
             }
-        }
+        }        
 
         function updateProgress(percent) {
             progressBar.style.width = `${percent}%`;
