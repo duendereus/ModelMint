@@ -94,10 +94,27 @@
         <script src="{% static 'dashboard/js/plugins.init.js' %}"></script>
         <script src="{% static 'dashboard/js/app.js' %}"></script>
         <script src="{% static 'dashboard/js/custom.js' %}"></script>
+        <script src="{% static 'dashboard/js/uploader.js' %}"></script>
 
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css">
 
         {% block extra_scripts %}{% endblock extra_scripts %}
+
+        <div id="upload-widget" style="position: fixed; bottom: 15px; right: 15px; width: 320px; z-index: 9999; display: none;">
+            <div class="card shadow border-success">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>Uploading...</strong>
+                        <button class="btn-close" onclick="hideUploadWidget()"></button>
+                    </div>
+                    <div class="progress mt-2">
+                        <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar" style="width: 0%">0%</div>
+                    </div>
+                    <div class="small mt-2 text-muted" id="upload-status-text">Preparing upload...</div>
+                </div>
+            </div>
+        </div>
 
     </body>
 
