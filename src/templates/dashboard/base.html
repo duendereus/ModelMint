@@ -116,6 +116,26 @@
             </div>
         </div>
 
+        <div id="upload-warning-popup" class="modal fade" tabindex="-1" aria-labelledby="uploadWarningLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content border border-warning">
+                <div class="modal-header bg-warning text-dark">
+                  <h5 class="modal-title" id="uploadWarningLabel">Heads up!</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                  <p style="font-size: 1.1rem;">
+                    Your file is being uploaded. <strong>If you navigate away, the upload will be canceled.</strong><br><br>
+                    <span class="text-primary">Want to keep working?</span> Open a new browser tab to explore the platform while the upload continues in this one. 🚀
+                  </p>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-success" data-bs-dismiss="modal">Got it!</button>
+                </div>
+              </div>
+            </div>
+        </div>          
+
     </body>
 
 </html>
