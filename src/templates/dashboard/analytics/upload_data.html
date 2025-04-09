@@ -47,6 +47,10 @@
                 <div id="upload-status" class="mt-3 d-none">
                     <div class="spinner-border text-success me-2" role="status"></div>
                     <span>Uploading your file, please wait…</span>
+                    <div class="progress mt-2">
+                        <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                            role="progressbar" style="width: 0%">0%</div>
+                    </div>
                 </div>
             </form>            
         </div>
@@ -57,8 +61,8 @@
 {% block extra_scripts %}
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB límite para archivos pequeños
-        const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB por chunk
+        const MAX_SIZE_BYTES = 50 * 1024 * 1024;
+        const CHUNK_SIZE = 5 * 1024 * 1024;
         const form = document.getElementById("upload-form");
         const fileInput = document.getElementById("id_file");
         const titleInput = document.getElementById("id_title");
@@ -66,73 +70,71 @@
         const statusDiv = document.getElementById("upload-status");
         const progressBar = document.getElementById("upload-progress-bar");
         const submitBtn = document.getElementById("submit-btn");
-    
+
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
             const file = fileInput.files[0];
             const title = titleInput.value;
             const instructions = instructionsInput.value;
-    
+
             if (!file || !title) {
                 alert("⚠️ Please provide a title and select a file.");
                 return;
             }
-    
+
             statusDiv.classList.remove("d-none");
             submitBtn.disabled = true;
             submitBtn.innerText = "Uploading...";
-    
+
             if (file.size <= MAX_SIZE_BYTES) {
-                // ✅ Small file → use regular presigned POST
                 await uploadSmallFile(file, title, instructions);
             } else {
-                // 🚀 Large file → use multipart
                 await uploadLargeFile(file, title, instructions);
             }
         });
-    
+
         async function uploadSmallFile(file, title, instructions) {
             const cleanFileName = file.name.replace(/\s+/g, "_");
             const presignForm = new FormData();
             presignForm.append("file_name", cleanFileName);
-    
+
             const res = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
                 method: "POST",
                 headers: { "X-CSRFToken": "{{ csrf_token }}" },
                 body: presignForm
             });
-    
+
             const { data, file_key, error } = await res.json();
             if (error) {
                 alert("❌ Failed to get upload URL");
                 reset();
                 return;
             }
-    
+
             const s3FormData = new FormData();
             Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
             s3FormData.append("file", file);
-    
+
             const xhr = new XMLHttpRequest();
             xhr.open("POST", data.url, true);
-    
+
             xhr.upload.onprogress = function (e) {
                 if (e.lengthComputable) updateProgress((e.loaded / e.total) * 100);
             };
-    
+
             xhr.onload = async function () {
                 if (xhr.status === 204 || xhr.status === 201) {
                     const confirmForm = new FormData();
                     confirmForm.append("title", title);
                     confirmForm.append("job_instructions", instructions);
                     confirmForm.append("file_key", file_key);
-    
+
                     const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
                         method: "POST",
                         headers: { "X-CSRFToken": "{{ csrf_token }}" },
                         body: confirmForm
                     });
-    
+
                     const confirmData = await confirmRes.json();
                     if (confirmData.success) {
                         alert("✅ Upload complete!");
@@ -146,39 +148,39 @@
                     reset();
                 }
             };
-    
+
             xhr.send(s3FormData);
         }
-    
+
         async function uploadLargeFile(file, title, instructions) {
             const cleanFileName = file.name.replace(/\s+/g, "_");
-    
+
             const initForm = new FormData();
             initForm.append("file_name", cleanFileName);
             initForm.append("content_type", file.type);
-    
+
             const initRes = await fetch("{% url 'dashboard:analytics:initiate_multipart_upload' %}", {
                 method: "POST",
                 headers: { "X-CSRFToken": "{{ csrf_token }}" },
                 body: initForm
             });
-    
+
             const { uploadId, key, error } = await initRes.json();
             if (error) {
                 alert("❌ Could not initiate upload");
                 reset();
                 return;
             }
-    
+
             const partCount = Math.ceil(file.size / CHUNK_SIZE);
             const parts = [];
-    
+
             for (let i = 0; i < partCount; i++) {
                 const start = i * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, file.size);
                 const chunk = file.slice(start, end);
                 const partNumber = i + 1;
-    
+
                 const res = await fetch("{% url 'dashboard:analytics:generate_part_presigned_url' %}", {
                     method: "POST",
                     headers: {
@@ -187,20 +189,25 @@
                     },
                     body: JSON.stringify({ key, uploadId, partNumber })
                 });
-    
+
                 const { url } = await res.json();
-    
+
                 const putRes = await fetch(url, {
                     method: "PUT",
                     body: chunk,
                 });
-    
-                const etag = putRes.headers.get("ETag");
-                parts.push({ ETag: etag.replace(/"/g, ""), PartNumber: partNumber });
-    
-                updateProgress(((i + 1) / partCount) * 100);
+
+                if (putRes.ok) {
+                    const etag = putRes.headers.get("ETag");
+                    parts.push({ ETag: etag.replace(/"/g, ""), PartNumber: partNumber });
+                    updateProgress(((i + 1) / partCount) * 100);
+                } else {
+                    alert(`❌ Error uploading part ${partNumber}`);
+                    reset();
+                    return;
+                }
             }
-    
+
             const completeRes = await fetch("{% url 'dashboard:analytics:complete_multipart_upload' %}", {
                 method: "POST",
                 headers: {
@@ -215,7 +222,7 @@
                     job_instructions: instructions
                 })
             });
-    
+
             const result = await completeRes.json();
             if (result.success) {
                 alert("✅ Large file upload complete!");
@@ -225,12 +232,12 @@
                 reset();
             }
         }
-    
+
         function updateProgress(percent) {
             progressBar.style.width = `${percent}%`;
             progressBar.innerText = `${Math.round(percent)}%`;
         }
-    
+
         function reset() {
             submitBtn.disabled = false;
             submitBtn.innerText = "Submit";
