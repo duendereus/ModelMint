@@ -57,109 +57,76 @@
 {% block extra_scripts %}
 <script>
     document.addEventListener("DOMContentLoaded", function () {
+        const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB límite para archivos pequeños
+        const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB por chunk
         const form = document.getElementById("upload-form");
         const fileInput = document.getElementById("id_file");
         const titleInput = document.getElementById("id_title");
         const instructionsInput = document.getElementById("id_job_instructions");
         const statusDiv = document.getElementById("upload-status");
-    
-        const progressBar = document.createElement("div");
-        progressBar.classList.add("progress", "mt-2");
-        progressBar.innerHTML = `
-            <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                role="progressbar" style="width: 0%">0%</div>`;
-        statusDiv.appendChild(progressBar);
-    
+        const progressBar = document.getElementById("upload-progress-bar");
         const submitBtn = document.getElementById("submit-btn");
-        const originalBtnText = submitBtn.innerText;
-        const MAX_SIZE_BYTES = 1181116006; // ~1.1 GB
     
         form.addEventListener("submit", async function (e) {
             e.preventDefault();
-    
             const file = fileInput.files[0];
             const title = titleInput.value;
             const instructions = instructionsInput.value;
     
             if (!file || !title) {
-                alert("Please select a file and enter a title.");
-                return;
-            }
-    
-            if (file.size > MAX_SIZE_BYTES) {
-                alert("🚫 File exceeds the 1.1 GB upload limit.");
+                alert("⚠️ Please provide a title and select a file.");
                 return;
             }
     
             statusDiv.classList.remove("d-none");
-            submitBtn.innerText = "Uploading...";
             submitBtn.disabled = true;
+            submitBtn.innerText = "Uploading...";
     
-            try {
-                console.log("📡 Requesting presigned POST...");
-                const cleanFileName = file.name.replace(/\s+/g, "_");
-                const presignForm = new FormData();
-                presignForm.append("file_name", cleanFileName);
+            if (file.size <= MAX_SIZE_BYTES) {
+                // ✅ Small file → use regular presigned POST
+                await uploadSmallFile(file, title, instructions);
+            } else {
+                // 🚀 Large file → use multipart
+                await uploadLargeFile(file, title, instructions);
+            }
+        });
     
-                const presignRes = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
-                    method: "POST",
-                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                    body: presignForm
-                });
+        async function uploadSmallFile(file, title, instructions) {
+            const cleanFileName = file.name.replace(/\s+/g, "_");
+            const presignForm = new FormData();
+            presignForm.append("file_name", cleanFileName);
     
-                const { data, file_key, error } = await presignRes.json();
-                console.log("🧾 Presigned POST:", data);
-                if (error) throw new Error(error);
+            const res = await fetch("{% url 'dashboard:analytics:generate_presigned_post' %}", {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                body: presignForm
+            });
     
-                // 💡 Log the CURL command
-                console.log("📋 Use this to test manually via curl:");
-                console.log(`curl -X POST ${data.url} \\`);
-                Object.entries(data.fields).forEach(([k, v]) => {
-                    console.log(`  -F "${k}=${v}" \\`);
-                });
-                console.log(`  -F "file=@/ruta/a/tu/archivo.csv"`);
+            const { data, file_key, error } = await res.json();
+            if (error) {
+                alert("❌ Failed to get upload URL");
+                reset();
+                return;
+            }
     
-                const s3FormData = new FormData();
-                Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
-                s3FormData.append("file", file);
+            const s3FormData = new FormData();
+            Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
+            s3FormData.append("file", file);
     
-                const xhr = new XMLHttpRequest();
-                xhr.open("POST", data.url, true);
-                xhr.timeout = 10 * 60 * 1000; // 10 minutes
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", data.url, true);
     
-                xhr.upload.onprogress = function (e) {
-                    if (e.lengthComputable) {
-                        const percent = Math.round((e.loaded / e.total) * 100);
-                        const bar = document.getElementById("upload-progress-bar");
-                        bar.style.width = `${percent}%`;
-                        bar.innerText = `${percent}%`;
-                        console.log(`📊 Upload progress: ${percent}%`);
-                    }
-                };
+            xhr.upload.onprogress = function (e) {
+                if (e.lengthComputable) updateProgress((e.loaded / e.total) * 100);
+            };
     
-                xhr.onerror = function () {
-                    console.error("❌ xhr.onerror triggered");
-                    alert("❌ Upload failed: Network error");
-                    resetForm();
-                };
+            xhr.onload = async function () {
+                if (xhr.status === 204 || xhr.status === 201) {
+                    const confirmForm = new FormData();
+                    confirmForm.append("title", title);
+                    confirmForm.append("job_instructions", instructions);
+                    confirmForm.append("file_key", file_key);
     
-                xhr.ontimeout = function () {
-                    console.error("⏳ xhr.timeout triggered");
-                    alert("⏳ Upload timed out. Please try again.");
-                    resetForm();
-                };
-    
-                console.log("📤 Sending file to S3...");
-                xhr.send(s3FormData);
-                console.log("📬 File sent to S3 — triggering backend confirm");
-    
-                // ✅ Confirm metadata after launching the upload
-                const confirmForm = new FormData();
-                confirmForm.append("title", title);
-                confirmForm.append("job_instructions", instructions);
-                confirmForm.append("file_key", file_key);
-    
-                try {
                     const confirmRes = await fetch("{% url 'dashboard:analytics:confirm_upload' %}", {
                         method: "POST",
                         headers: { "X-CSRFToken": "{{ csrf_token }}" },
@@ -168,31 +135,108 @@
     
                     const confirmData = await confirmRes.json();
                     if (confirmData.success) {
-                        alert("✅ File is uploading in the background. Redirecting...");
+                        alert("✅ Upload complete!");
                         window.location.href = "{% url 'dashboard:dashboard_home' %}";
                     } else {
-                        alert("⚠️ Metadata failed to register.");
-                        resetForm();
+                        alert("❌ Upload succeeded but confirmation failed.");
+                        reset();
                     }
-                } catch (err) {
-                    console.error("❌ Metadata upload failed:", err);
-                    alert("❌ Metadata failed to register.");
-                    resetForm();
+                } else {
+                    alert("❌ Upload failed.");
+                    reset();
                 }
+            };
     
-            } catch (err) {
-                console.error("❌ Upload failed:", err);
-                alert("Upload failed: " + err.message);
-                resetForm();
+            xhr.send(s3FormData);
+        }
+    
+        async function uploadLargeFile(file, title, instructions) {
+            const cleanFileName = file.name.replace(/\s+/g, "_");
+    
+            const initForm = new FormData();
+            initForm.append("file_name", cleanFileName);
+            initForm.append("content_type", file.type);
+    
+            const initRes = await fetch("{% url 'dashboard:analytics:initiate_multipart_upload' %}", {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                body: initForm
+            });
+    
+            const { uploadId, key, error } = await initRes.json();
+            if (error) {
+                alert("❌ Could not initiate upload");
+                reset();
+                return;
             }
     
-            function resetForm() {
-                statusDiv.classList.add("d-none");
-                submitBtn.innerText = originalBtnText;
-                submitBtn.disabled = false;
+            const partCount = Math.ceil(file.size / CHUNK_SIZE);
+            const parts = [];
+    
+            for (let i = 0; i < partCount; i++) {
+                const start = i * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunk = file.slice(start, end);
+                const partNumber = i + 1;
+    
+                const res = await fetch("{% url 'dashboard:analytics:generate_part_presigned_url' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify({ key, uploadId, partNumber })
+                });
+    
+                const { url } = await res.json();
+    
+                const putRes = await fetch(url, {
+                    method: "PUT",
+                    body: chunk,
+                });
+    
+                const etag = putRes.headers.get("ETag");
+                parts.push({ ETag: etag.replace(/"/g, ""), PartNumber: partNumber });
+    
+                updateProgress(((i + 1) / partCount) * 100);
             }
-        });
+    
+            const completeRes = await fetch("{% url 'dashboard:analytics:complete_multipart_upload' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({
+                    uploadId,
+                    key,
+                    parts,
+                    title,
+                    job_instructions: instructions
+                })
+            });
+    
+            const result = await completeRes.json();
+            if (result.success) {
+                alert("✅ Large file upload complete!");
+                window.location.href = "{% url 'dashboard:dashboard_home' %}";
+            } else {
+                alert("❌ Failed to complete multipart upload.");
+                reset();
+            }
+        }
+    
+        function updateProgress(percent) {
+            progressBar.style.width = `${percent}%`;
+            progressBar.innerText = `${Math.round(percent)}%`;
+        }
+    
+        function reset() {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Submit";
+            statusDiv.classList.add("d-none");
+        }
     });
-</script>       
+</script>
 {% endblock extra_scripts %}
 

@@ -1,10 +1,8 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.core.files.storage import default_storage
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
-from .tasks import finalize_large_upload
 import boto3
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
@@ -12,6 +10,7 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import uuid
 import mimetypes
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -95,25 +94,143 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        # Crea el registro con status = uploading
+        # ✅ Guardar con status uploaded (ya no usamos Celery)
         upload = DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
             file=file_key,
-            status="uploading"
+            status="uploaded"
         )
 
-        # Llama la tarea asíncrona para procesar en segundo plano
-        finalize_large_upload.delay(upload.id)
-
-        logger.info(f"✅ Upload registered and Celery task triggered: {file_key}")
+        logger.info(f"✅ Upload metadata saved and file marked as uploaded: {file_key}")
         return JsonResponse({"success": True})
 
     except Exception as e:
         logger.exception("❌ Error in confirm_upload")
         return JsonResponse({"error": "Server error"}, status=500)
+
+@csrf_exempt
+@require_POST
+@login_required
+def initiate_multipart_upload(request):
+    file_name = request.POST.get("file_name")
+    mime_type = request.POST.get("content_type", "application/octet-stream")
+
+    if not file_name:
+        return JsonResponse({"error": "Missing file_name"}, status=400)
+
+    user = request.user
+    organization = (
+        user.owned_organization
+        if hasattr(user, "owned_organization") and user.owned_organization
+        else user.organization_memberships.first().organization
+    )
+    org_slug = organization.name.lower().replace(" ", "_")
+    key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name.replace(' ', '_')}"
+
+    s3 = boto3.client(
+        "s3",
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_S3_REGION_NAME,
+    )
+
+    try:
+        response = s3.create_multipart_upload(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=key,
+            ContentType=mime_type,
+        )
+        return JsonResponse({"uploadId": response["UploadId"], "key": key})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_POST
+@login_required
+def generate_part_presigned_url(request):
+    data = json.loads(request.body)
+    key = data.get("key")
+    upload_id = data.get("uploadId")
+    part_number = data.get("partNumber")
+
+    if not key or not upload_id or not part_number:
+        return JsonResponse({"error": "Missing required parameters"}, status=400)
+
+    s3 = boto3.client(
+        "s3",
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_S3_REGION_NAME,
+    )
+
+    try:
+        url = s3.generate_presigned_url(
+            "upload_part",
+            Params={
+                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                "Key": key,
+                "UploadId": upload_id,
+                "PartNumber": part_number,
+            },
+            ExpiresIn=3600,
+        )
+        return JsonResponse({"url": url})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_POST
+@login_required
+def complete_multipart_upload(request):
+    data = json.loads(request.body)
+    upload_id = data.get("uploadId")
+    key = data.get("key")
+    parts = data.get("parts")  # list of {ETag, PartNumber}
+    title = data.get("title")
+    job_instructions = data.get("job_instructions")
+
+    if not upload_id or not key or not parts or not title:
+        return JsonResponse({"error": "Missing fields"}, status=400)
+
+    user = request.user
+    organization = (
+        user.owned_organization
+        if hasattr(user, "owned_organization") and user.owned_organization
+        else user.organization_memberships.first().organization
+    )
+
+    s3 = boto3.client(
+        "s3",
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_S3_REGION_NAME,
+    )
+
+    try:
+        s3.complete_multipart_upload(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=key,
+            UploadId=upload_id,
+            MultipartUpload={"Parts": parts},
+        )
+
+        DataUpload.objects.create(
+            title=title,
+            job_instructions=job_instructions,
+            uploaded_by=user,
+            organization=organization,
+            file=key,
+            status="uploaded"
+        )
+
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @login_required
