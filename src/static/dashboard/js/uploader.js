@@ -12,9 +12,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const progressBar = document.getElementById("upload-progress-bar");
     const statusText = document.getElementById("upload-status-text");
 
+    // ✅ Comentado para evitar confusión con botón de cerrar el widget
+    /*
     window.hideUploadWidget = function () {
         widget.style.display = "none";
     };
+    */
 
     form.addEventListener("submit", async function (e) {
         e.preventDefault();
@@ -32,12 +35,10 @@ document.addEventListener("DOMContentLoaded", function () {
         submitBtn.disabled = true;
         submitBtn.innerText = "Uploading...";
 
-        // 📢 Si el archivo es grande, muestra el popup
         if (file.size > MAX_SIZE_BYTES) {
             const warningModal = new bootstrap.Modal(document.getElementById("upload-warning-popup"));
             warningModal.show();
 
-            // Esperar a que el modal se muestre antes de iniciar la carga
             setTimeout(() => {
                 uploadLargeFile(file, title, instructions);
             }, 500);
