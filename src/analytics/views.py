@@ -1,8 +1,12 @@
 from django.shortcuts import render, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.utils.timezone import now
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
+from .utils import can_upload_data
+from subscriptions.utils import get_plan_limits 
 import boto3
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
@@ -13,14 +17,34 @@ import mimetypes
 import json
 import logging
 
+
 logger = logging.getLogger(__name__)
 
 
 @login_required
 def upload_data(request):
-    logger.info("📄 upload_data view rendered (GET)")
-    return render(request, "dashboard/analytics/upload_data.html", {"USE_S3": settings.USE_S3})
+    user = request.user
+    organization = (
+        user.owned_organization
+        if hasattr(user, "owned_organization") and user.owned_organization
+        else user.organization_memberships.first().organization
+    )
 
+    limits = get_plan_limits(organization)
+    max_uploads = limits.get("max_uploads_per_month", 1)
+    start_of_month = now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    uploads_used = organization.data_uploads.filter(created_at__gte=start_of_month).count()
+
+    return render(
+        request,
+        "dashboard/analytics/upload_data.html",
+        {
+            "USE_S3": settings.USE_S3,
+            "uploads_used": uploads_used,
+            "uploads_remaining": max(0, max_uploads - uploads_used),
+            "max_uploads": max_uploads,
+        },
+    )
 
 @login_required
 @require_POST
@@ -85,7 +109,8 @@ def confirm_upload(request):
 
         if not title or not file_key:
             logger.warning("⚠️ Missing title or file_key in request")
-            return JsonResponse({"error": "Missing fields"}, status=400)
+            messages.error(request, "Missing required fields.")
+            return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=400)
 
         user = request.user
         organization = (
@@ -94,8 +119,12 @@ def confirm_upload(request):
             else user.organization_memberships.first().organization
         )
 
-        # ✅ Guardar con status uploaded (ya no usamos Celery)
-        upload = DataUpload.objects.create(
+        if not can_upload_data(organization):
+            logger.warning(f"⛔ Upload limit reached for {organization.name}")
+            messages.warning(request, "Upload limit reached for your current subscription plan.")
+            return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=403)
+
+        DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
             uploaded_by=user,
@@ -109,7 +138,8 @@ def confirm_upload(request):
 
     except Exception as e:
         logger.exception("❌ Error in confirm_upload")
-        return JsonResponse({"error": "Server error"}, status=500)
+        messages.error(request, "Something went wrong while confirming the upload.")
+        return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=500)
 
 @csrf_exempt
 @require_POST
@@ -187,31 +217,37 @@ def generate_part_presigned_url(request):
 @require_POST
 @login_required
 def complete_multipart_upload(request):
-    data = json.loads(request.body)
-    upload_id = data.get("uploadId")
-    key = data.get("key")
-    parts = data.get("parts")  # list of {ETag, PartNumber}
-    title = data.get("title")
-    job_instructions = data.get("job_instructions")
-
-    if not upload_id or not key or not parts or not title:
-        return JsonResponse({"error": "Missing fields"}, status=400)
-
-    user = request.user
-    organization = (
-        user.owned_organization
-        if hasattr(user, "owned_organization") and user.owned_organization
-        else user.organization_memberships.first().organization
-    )
-
-    s3 = boto3.client(
-        "s3",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_S3_REGION_NAME,
-    )
-
     try:
+        data = json.loads(request.body)
+        upload_id = data.get("uploadId")
+        key = data.get("key")
+        parts = data.get("parts")
+        title = data.get("title")
+        job_instructions = data.get("job_instructions")
+
+        if not upload_id or not key or not parts or not title:
+            messages.error(request, "Missing required fields.")
+            return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=400)
+
+        user = request.user
+        organization = (
+            user.owned_organization
+            if hasattr(user, "owned_organization") and user.owned_organization
+            else user.organization_memberships.first().organization
+        )
+
+        if not can_upload_data(organization):
+            logger.warning(f"⛔ Upload limit reached (multipart) for {organization.name}")
+            messages.warning(request, "Upload limit reached for your current subscription plan.")
+            return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=403)
+
+        s3 = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_S3_REGION_NAME,
+        )
+
         s3.complete_multipart_upload(
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
             Key=key,
@@ -228,9 +264,13 @@ def complete_multipart_upload(request):
             status="uploaded"
         )
 
+        logger.info("✅ Multipart upload completed and saved.")
         return JsonResponse({"success": True})
+
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.exception("❌ Error during multipart upload completion")
+        messages.error(request, "Error finalizing the upload.")
+        return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=500)
 
 
 @login_required

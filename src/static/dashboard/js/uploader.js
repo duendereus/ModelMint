@@ -159,9 +159,14 @@ document.addEventListener("DOMContentLoaded", function () {
             updateStatusText("✅ Upload complete!");
             setTimeout(() => window.location.href = "/dashboard/", 1200);
         } else {
-            alert("❌ Failed to complete multipart upload.");
-            reset();
+            if (result.redirect_url) {
+                window.location.href = result.redirect_url;
+            } else {
+                alert("❌ Failed to complete multipart upload.");
+                reset();
+            }
         }
+
     }
 
     async function confirmUpload(file_key, title, instructions) {
@@ -181,8 +186,12 @@ document.addEventListener("DOMContentLoaded", function () {
             updateStatusText("✅ Upload complete!");
             setTimeout(() => window.location.href = "/dashboard/", 1200);
         } else {
-            alert("❌ Confirmation failed.");
-            reset();
+            if (result.redirect_url) {
+                window.location.href = result.redirect_url;
+            } else {
+                alert("❌ Confirmation failed.");
+                reset();
+            }
         }
     }
 

@@ -15,6 +15,13 @@
     {% endfor %}
     {% endif %}
 
+    {% if uploads_remaining == 0 %}
+        <div class="alert alert-warning">
+            You've reached the upload limit for your current plan. Upgrade to upload more.
+        </div>
+    {% endif %}
+
+
     {% if form.errors %}
     <div class="alert alert-danger">
         <ul>
