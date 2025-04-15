@@ -67,6 +67,41 @@ def dashboard_home(request):
     )
 
 @login_required
+def dashboard_customize(request):
+    """
+    Allows organization owners to select which metrics appear on the main dashboard.
+    """
+    organization = get_object_or_404(Organization, owner=request.user)
+
+    # Get or create the selection model for this organization
+    dashboard_selection, created = DashboardSelection.objects.get_or_create(
+        organization=organization
+    )
+
+    # Get all available metrics from the organization's DataUpload reports
+    available_metrics = Metric.objects.filter(datasource__organization=organization)
+
+    if request.method == "POST":
+        selected_metric_ids = request.POST.getlist(
+            "metrics"
+        )  # List of selected metric IDs
+
+        # Update selection
+        dashboard_selection.metrics.set(selected_metric_ids)
+
+        messages.success(request, "Dashboard selection updated successfully!")
+        return redirect("dashboard:dashboard_home")
+
+    return render(
+        request,
+        "dashboard/customize_dashboard.html",
+        {
+            "available_metrics": available_metrics,
+            "dashboard_selection": dashboard_selection,
+        },
+    )
+
+@login_required
 def invite_member(request):
     """Allows organization owners to invite new members or admins."""
     organization = get_object_or_404(Organization, owner=request.user)
@@ -168,39 +203,3 @@ def organization_users(request):
         "max_members": max_members,
     }
     return render(request, "dashboard/accounts/organization_users.html", context)
-
-
-@login_required
-def dashboard_customize(request):
-    """
-    Allows organization owners to select which metrics appear on the main dashboard.
-    """
-    organization = get_object_or_404(Organization, owner=request.user)
-
-    # Get or create the selection model for this organization
-    dashboard_selection, created = DashboardSelection.objects.get_or_create(
-        organization=organization
-    )
-
-    # Get all available metrics from the organization's DataUpload reports
-    available_metrics = Metric.objects.filter(datasource__organization=organization)
-
-    if request.method == "POST":
-        selected_metric_ids = request.POST.getlist(
-            "metrics"
-        )  # List of selected metric IDs
-
-        # Update selection
-        dashboard_selection.metrics.set(selected_metric_ids)
-
-        messages.success(request, "Dashboard selection updated successfully!")
-        return redirect("dashboard:dashboard_home")
-
-    return render(
-        request,
-        "dashboard/customize_dashboard.html",
-        {
-            "available_metrics": available_metrics,
-            "dashboard_selection": dashboard_selection,
-        },
-    )
