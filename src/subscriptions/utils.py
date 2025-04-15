@@ -74,6 +74,7 @@ def sync_subs_group_permissions():
         for group in obj.groups.all():
             group.permissions.set(sub_perms)
 
+
 def get_plan_limits(organization):
     """
     Returns the limits dictionary for the current plan, or None if no active plan.
@@ -85,3 +86,19 @@ def get_plan_limits(organization):
     except AttributeError:
         pass
     return None
+
+
+def can_add_member(organization):
+    """
+    Returns True if the organization can add another member based on its subscription plan.
+    """
+    limits = get_plan_limits(organization)
+    if limits is None:
+        return False  # No subscription, no member additions
+
+    max_members = limits.get("max_members", 1)
+    if max_members == float("inf"):
+        return True
+
+    current_member_count = organization.members.count() + 1  # Include the owner
+    return current_member_count < max_members

@@ -3,10 +3,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
-from accounts.models import OrganizationMembership, Organization, UserProfile
+from accounts.models import OrganizationMembership, Organization
 from accounts.utils import generate_random_password
 from accounts.tasks import send_verification_email_task
 from analytics.models import Metric
+from subscriptions.utils import can_add_member, get_plan_limits
 from .forms import InviteMemberForm
 from .models import DashboardSelection
 from django.contrib.auth import get_user_model
@@ -70,17 +71,24 @@ def invite_member(request):
     """Allows organization owners to invite new members or admins."""
     organization = get_object_or_404(Organization, owner=request.user)
 
+    # ✅ Check member limit
+    if not can_add_member(organization):
+        messages.warning(
+            request,
+            "You’ve reached the maximum number of members allowed by your subscription plan. "
+            "Please remove members or upgrade your plan to add more."
+        )
+        return redirect("dashboard:organization_users")
+
     if request.method == "POST":
         form = InviteMemberForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data["email"]
             role = form.cleaned_data["role"]
-            name = form.cleaned_data["name"]  # Capture the name
+            name = form.cleaned_data["name"]
 
-            # Generate a random password
             random_password = generate_random_password()
 
-            # Create the new user with a random password (inactive)
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={
@@ -94,16 +102,13 @@ def invite_member(request):
                 user.set_password(random_password)
                 user.save()
 
-                # Set name after profile creation
                 user.profile.name = name
                 user.profile.save()
 
-            # Ensure the user is added to the organization
             OrganizationMembership.objects.get_or_create(
                 user=user, organization=organization, defaults={"role": role}
             )
 
-            # Generate password reset token and send the direct reset link
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
 
@@ -119,12 +124,10 @@ def invite_member(request):
 
             messages.success(request, f"{email} has been invited successfully!")
             return redirect("dashboard:dashboard_home")
-
     else:
         form = InviteMemberForm()
 
     return render(request, "dashboard/accounts/invite_member.html", {"form": form})
-
 
 @login_required
 def organization_users(request):
@@ -155,10 +158,14 @@ def organization_users(request):
     # These are OrganizationMembership objects containing user and role information.
     memberships = organization.members.all()
 
+    limits = get_plan_limits(organization)
+    max_members = limits.get("max_members", 1) if limits else 1
+
     context = {
         "organization": organization,
         "owner": owner,
         "memberships": memberships,
+        "max_members": max_members,
     }
     return render(request, "dashboard/accounts/organization_users.html", context)
 

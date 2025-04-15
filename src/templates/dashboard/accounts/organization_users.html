@@ -7,6 +7,14 @@
 <div class="container mt-4">
     <h2 class="mb-4">Users in {{ organization.name }}</h2>
 
+    {% if memberships|length|add:"1" >= max_members %}
+    <div class="alert alert-warning">
+        You’ve reached your member limit for this plan ({{ max_members }}). 
+        Upgrade to add more members.
+    </div>
+    {% endif %}
+
+
     <table class="table table-bordered table-striped align-middle">
         <thead class="table-light">
             <tr>
