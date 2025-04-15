@@ -73,11 +73,11 @@ def invite_member(request):
 
     # ✅ Check member limit
     if not can_add_member(organization):
-        messages.warning(
-            request,
-            "You’ve reached the maximum number of members allowed by your subscription plan. "
-            "Please remove members or upgrade your plan to add more."
-        )
+        # messages.warning(
+        #     request,
+        #     "You’ve reached the maximum number of members allowed by your subscription plan. "
+        #     "Please remove members or upgrade your plan to add more."
+        # )
         return redirect("dashboard:organization_users")
 
     if request.method == "POST":
