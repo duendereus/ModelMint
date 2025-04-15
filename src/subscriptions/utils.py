@@ -1,6 +1,7 @@
 import helpers.billing
 from customers.models import OrganizationCustomer
 from subscriptions.models import Subscription, OrganizationSubscription
+from .constants import PLAN_LIMITS
 
 
 def refresh_active_users_subscriptions(
@@ -72,3 +73,12 @@ def sync_subs_group_permissions():
         sub_perms = obj.permissions.all()
         for group in obj.groups.all():
             group.permissions.set(sub_perms)
+
+def get_plan_limits(organization):
+    try:
+        sub = organization.subscription
+        if sub and sub.subscription and sub.subscription.name in PLAN_LIMITS:
+            return PLAN_LIMITS[sub.subscription.name]
+    except AttributeError:
+        pass
+    return PLAN_LIMITS["Starter Plan"]  # fallback

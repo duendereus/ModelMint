@@ -10,8 +10,9 @@ from accounts.models import Organization
 User = get_user_model()
 
 SUBSCRIPTION_PERMISSIONS = [
-    ("pro", "Pro Perm"),  # subscriptions.pro
-    ("basic", "Basic Perm"),  # subscriptions.basic
+    ("starter", "Starter Plan Access"),       # subscriptions.starter
+    ("business", "Business Plan Access"),     # subscriptions.business
+    ("enterprise", "Enterprise Plan Access"), # subscriptions.enterprise
 ]
 
 
