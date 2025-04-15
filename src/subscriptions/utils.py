@@ -75,10 +75,13 @@ def sync_subs_group_permissions():
             group.permissions.set(sub_perms)
 
 def get_plan_limits(organization):
+    """
+    Returns the limits dictionary for the current plan, or None if no active plan.
+    """
     try:
         sub = organization.subscription
-        if sub and sub.subscription and sub.subscription.name in PLAN_LIMITS:
-            return PLAN_LIMITS[sub.subscription.name]
+        if sub and sub.subscription and sub.is_active_status:
+            return PLAN_LIMITS.get(sub.subscription.name, PLAN_LIMITS["Starter Plan"])
     except AttributeError:
         pass
-    return PLAN_LIMITS["Starter Plan"]  # fallback
+    return None

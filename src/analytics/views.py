@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -31,6 +31,9 @@ def upload_data(request):
     )
 
     limits = get_plan_limits(organization)
+    if limits is None:
+        messages.warning(request, "You need an active subscription to upload data.")
+        return redirect("subscriptions:pricing")
     max_uploads = limits.get("max_uploads_per_month", 1)
     start_of_month = now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     uploads_used = organization.data_uploads.filter(created_at__gte=start_of_month).count()

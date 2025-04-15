@@ -41,10 +41,17 @@ def upload_to_metric(instance, filename):
 
     return f"uploads/{org_name}/data/{dataupload_title}/metrics/{metric_name}/{new_filename}"
 
-def can_upload_data(organization):
-    limits = get_plan_limits(organization)
-    max_uploads = limits.get("max_uploads_per_month", 1)
 
+def can_upload_data(organization):
+    """
+    Checks if the organization is allowed to upload more data this month.
+    Returns True if allowed, False if limit reached or no subscription.
+    """
+    limits = get_plan_limits(organization)
+    if limits is None:
+        return False
+
+    max_uploads = limits.get("max_uploads_per_month", 1)
     if max_uploads == float("inf"):
         return True
 
