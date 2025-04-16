@@ -18,15 +18,17 @@ ENV PYTHONUNBUFFERED 1
 
 # Install os dependencies for our mini vm
 RUN apt-get update && apt-get install -y \
+    # Database / image processing
     libpq-dev \
     libjpeg-dev \
-    libcairo2 \
     gcc \
-    # ✅ Add these dependencies for WeasyPrint
+    libcairo2 \
     libpango-1.0-0 \
+    libpangoft2-1.0-0 \
     libgdk-pixbuf2.0-0 \
     libffi-dev \
     shared-mime-info \
+    fonts-liberation fonts-dejavu fonts-freefont-ttf \
     && rm -rf /var/lib/apt/lists/*
 
 
