@@ -5,8 +5,12 @@ from django.core.exceptions import PermissionDenied
 from django.utils.timezone import now
 from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
-from .utils import can_upload_data
-from subscriptions.utils import get_plan_limits 
+from subscriptions.utils import (
+    get_plan_limits, 
+    can_upload_data, 
+    can_view_more_reports, 
+    can_download_pdf_reports,
+    )
 import boto3
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
@@ -48,6 +52,7 @@ def upload_data(request):
             "max_uploads": max_uploads,
         },
     )
+
 
 @login_required
 @require_POST
@@ -278,40 +283,43 @@ def complete_multipart_upload(request):
 
 @login_required
 def data_upload_list(request):
-    """
-    Displays a list of processed DataUploads that the authenticated user has access to.
-    The user must be either:
-    1. The owner of an organization.
-    2. A member of an organization.
-    """
     user = request.user
 
-    # Determine the organization
-    organization = None
-
-    if hasattr(user, "owned_organization"):
-        # ✅ User is the **organization owner**
-        organization = user.owned_organization
-    else:
-        # ✅ User is a **member of an organization**
-        membership = OrganizationMembership.objects.filter(user=user).first()
-        if membership:
-            organization = membership.organization
+    organization = (
+        user.owned_organization
+        if hasattr(user, "owned_organization") and user.owned_organization
+        else user.organization_memberships.first().organization
+    )
 
     if not organization:
-        # ❌ User does not belong to any organization → Deny access
         raise PermissionDenied("You are not part of any organization.")
 
-    # ✅ Fetch only `processed=True` DataUploads for the user's organization
+    if not can_view_more_reports(organization):
+        messages.warning(
+            request,
+            "You've reached the maximum number of processed reports allowed by your current plan."
+        )
+
     data_uploads = (
         DataUpload.objects.filter(organization=organization, processed=True)
         .select_related("organization", "uploaded_by")
         .order_by("-created_at")
     )
 
-    # Render template with the list
+    limits = get_plan_limits(organization)
+    max_reports = limits.get("max_reports", 3) if limits else 3
+    current_reports = organization.data_uploads.filter(processed=True).count()
+    can_download_pdf = limits.get("allow_pdf_download", False) if limits else False
+
     return render(
-        request, "dashboard/analytics/uploads_list.html", {"data_uploads": data_uploads}
+        request,
+        "dashboard/analytics/uploads_list.html",
+        {
+            "data_uploads": data_uploads,
+            "can_download_pdf": can_download_pdf,
+            "max_reports": max_reports,
+            "current_reports": current_reports,
+        },
     )
 
 

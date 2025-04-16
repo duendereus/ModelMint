@@ -1,7 +1,5 @@
 import os
 from django.core.exceptions import ValidationError
-from django.utils.timezone import now
-from subscriptions.utils import get_plan_limits
 
 # import pandas as pd
 
@@ -40,22 +38,3 @@ def upload_to_metric(instance, filename):
     new_filename = f"{base}_{instance.id}{ext}" if instance.id else filename
 
     return f"uploads/{org_name}/data/{dataupload_title}/metrics/{metric_name}/{new_filename}"
-
-
-def can_upload_data(organization):
-    """
-    Checks if the organization is allowed to upload more data this month.
-    Returns True if allowed, False if limit reached or no subscription.
-    """
-    limits = get_plan_limits(organization)
-    if limits is None:
-        return False
-
-    max_uploads = limits.get("max_uploads_per_month", 1)
-    if max_uploads == float("inf"):
-        return True
-
-    start_of_month = now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    uploads_this_month = organization.data_uploads.filter(created_at__gte=start_of_month).count()
-
-    return uploads_this_month < max_uploads

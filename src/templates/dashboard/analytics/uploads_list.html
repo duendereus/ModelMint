@@ -6,15 +6,16 @@
 <div class="container mt-4">
     <h2 class="mb-4">Processed Data Uploads</h2>
 
-    <!-- Display Messages -->
-    {% if messages %}
-    {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+
+    {% if not can_download_pdf %}
+        <div class="alert alert-info">
+            PDF downloads are only available for Business and Enterprise plans.
         </div>
-    {% endfor %}
     {% endif %}
+
+    <p class="text-muted">
+        {{ current_reports }} of {{ max_reports }} reports used this cycle.
+    </p>
 
     {% if data_uploads %}
         <div class="card">

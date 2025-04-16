@@ -2,6 +2,7 @@ import helpers.billing
 from customers.models import OrganizationCustomer
 from subscriptions.models import Subscription, OrganizationSubscription
 from .constants import PLAN_LIMITS
+from django.utils.timezone import now
 
 
 def refresh_active_users_subscriptions(
@@ -102,3 +103,40 @@ def can_add_member(organization):
 
     current_member_count = organization.members.count() + 1  # Include the owner
     return current_member_count < max_members
+
+def can_upload_data(organization):
+    """
+    Checks if the organization is allowed to upload more data this month.
+    Returns True if allowed, False if limit reached or no subscription.
+    """
+    limits = get_plan_limits(organization)
+    if limits is None:
+        return False
+
+    max_uploads = limits.get("max_uploads_per_month", 1)
+    if max_uploads == float("inf"):
+        return True
+
+    start_of_month = now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    uploads_this_month = organization.data_uploads.filter(created_at__gte=start_of_month).count()
+
+    return uploads_this_month < max_uploads
+
+def can_view_more_reports(organization):
+    limits = get_plan_limits(organization)
+    if limits is None:
+        return False  # No subscription = no access to reports
+
+    max_reports = limits.get("max_reports", 3)
+    if max_reports == float("inf"):
+        return True
+
+    current_reports = organization.data_uploads.filter(processed=True).count()
+    return current_reports < max_reports
+
+
+def can_download_pdf_reports(organization):
+    limits = get_plan_limits(organization)
+    if limits is None:
+        return False
+    return limits.get("allow_pdf_download", False)

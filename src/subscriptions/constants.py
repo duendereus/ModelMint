@@ -2,16 +2,22 @@ PLAN_LIMITS = {
     "Starter Plan": {
         "max_uploads_per_month": 1,
         "max_members": 3,
+        "max_reports": 3,  # ✅ Limit processed DataUploads
+        "allow_pdf_download": False,
         "turnaround_days": 5,
     },
     "Business Plan": {
         "max_uploads_per_month": 4,
         "max_members": 10,
+        "max_reports": 10,
+        "allow_pdf_download": True,
         "turnaround_days": 3,
     },
     "Enterprise Plan": {
         "max_uploads_per_month": float("inf"),
         "max_members": float("inf"),
+        "max_reports": float("inf"),
+        "allow_pdf_download": True,
         "turnaround_days": 1,
     },
 }

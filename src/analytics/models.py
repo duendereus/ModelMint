@@ -59,9 +59,9 @@ class DataUpload(models.Model):
         if not self.file:
             return None  # No file uploaded
 
-        # ✅ If running locally, return MEDIA_URL path
+        # ✅ If running locally, return MEDIA_URL + file path (self.file is a string)
         if not settings.USE_S3:
-            return f"{settings.MEDIA_URL}{self.file.name}"
+            return f"{settings.MEDIA_URL}{self.file}"  # Remove .name!
 
         # ✅ Otherwise, generate a pre-signed URL for S3
         s3_client = boto3.client(
@@ -74,12 +74,13 @@ class DataUpload(models.Model):
         try:
             url = s3_client.generate_presigned_url(
                 "get_object",
-                Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": self.file.name},
+                Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": self.file},
                 ExpiresIn=expires_in,  # URL valid for 1 hour
             )
             return url
         except Exception as e:
             return None  # Return None if URL generation fails
+
 
     def clean(self):
         """
