@@ -3,7 +3,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.utils.timezone import now
-from accounts.models import OrganizationMembership
 from .models import DataUpload, Metric
 from subscriptions.utils import (
     get_plan_limits, 
@@ -379,32 +378,59 @@ def data_upload_detail(request, upload_id):
 
 @login_required
 def download_pdf_report(request, upload_id):
-    data_upload = get_object_or_404(DataUpload, id=upload_id, processed=True)
+    try:
+        logger.info(f"📝 PDF download requested for upload ID: {upload_id}")
+        data_upload = get_object_or_404(DataUpload, id=upload_id, processed=True)
+        logger.info(f"✅ DataUpload fetched: {data_upload}")
 
-    organization = (
-        request.user.owned_organization
-        if hasattr(request.user, "owned_organization") and request.user.owned_organization
-        else request.user.organization_memberships.first().organization
-    )
+        # Determine the user's organization
+        if hasattr(request.user, "owned_organization") and request.user.owned_organization:
+            organization = request.user.owned_organization
+        else:
+            membership = request.user.organization_memberships.first()
+            organization = membership.organization if membership else None
 
-    if not organization or data_upload.organization != organization:
-        raise PermissionDenied("You do not have access to this report.")
+        logger.info(f"🔍 Organization detected: {organization}")
 
-    if not can_download_pdf_reports(organization):
-        from django.contrib import messages
-        messages.warning(request, "PDF downloads are only available on Business and Enterprise plans.")
-        return redirect("analytics:data_upload_detail", upload_id=upload_id)
+        # Access control
+        if not organization or data_upload.organization != organization:
+            logger.warning("⛔ Access denied for user to this report.")
+            raise PermissionDenied("You do not have access to this report.")
 
-    metrics = Metric.objects.filter(datasource=data_upload).select_related("table_data")
+        # Check subscription permission
+        if not can_download_pdf_reports(organization):
+            from django.contrib import messages
+            messages.warning(
+                request,
+                "PDF downloads are only available on Business and Enterprise plans."
+            )
+            logger.warning("🚫 Organization not allowed to download PDF.")
+            return redirect("analytics:data_upload_detail", upload_id=upload_id)
 
-    html = render_to_string(
-        "dashboard/analytics/pdf_report.html",
-        {"data_upload": data_upload, "metrics": metrics},
-        request=request
-    )
+        # Fetch metrics
+        metrics = Metric.objects.filter(datasource=data_upload).select_related("table_data")
+        logger.info(f"📊 Metrics found: {metrics.count()}")
 
-    pdf_file = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
+        # Render HTML
+        html = render_to_string(
+            "dashboard/analytics/pdf_report.html",
+            {"data_upload": data_upload, "metrics": metrics},
+            request=request
+        )
+        logger.info("✅ HTML rendered successfully")
 
-    response = HttpResponse(pdf_file, content_type="application/pdf")
-    response["Content-Disposition"] = f"inline; filename=Report_{data_upload.id}.pdf"
-    return response
+        # Generate PDF
+        pdf_file = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
+        logger.info("📄 PDF generated successfully")
+
+        # Return response
+        response = HttpResponse(pdf_file, content_type="application/pdf")
+        response["Content-Disposition"] = f"inline; filename=Report_{data_upload.id}.pdf"
+        return response
+
+    except Exception as e:
+        logger.exception(f"❌ PDF generation failed for upload ID {upload_id}: {str(e)}")
+        return HttpResponse(
+            "An error occurred while generating the PDF. Please try again later.",
+            status=500
+        )

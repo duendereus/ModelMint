@@ -26,7 +26,7 @@ urlpatterns = [
         name="data_upload_detail",
     ),
     path(
-        "data-uploads/<int:upload_id>/download-pdf/", 
+        "data-uploads/download-pdf/<int:upload_id>/", 
         views.download_pdf_report,
         name="download_pdf_report"),
 ]
