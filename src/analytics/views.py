@@ -405,7 +405,7 @@ def download_pdf_report(request, upload_id):
                 "PDF downloads are only available on Business and Enterprise plans."
             )
             logger.warning("🚫 Organization not allowed to download PDF.")
-            return redirect("analytics:data_upload_detail", upload_id=upload_id)
+            return redirect("dashboard:analytics:data_upload_detail", upload_id=upload_id)
 
         # Fetch metrics
         metrics = Metric.objects.filter(datasource=data_upload).select_related("table_data")
