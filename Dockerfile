@@ -18,15 +18,17 @@ ENV PYTHONUNBUFFERED 1
 
 # Install os dependencies for our mini vm
 RUN apt-get update && apt-get install -y \
-    # for postgres
     libpq-dev \
-    # for Pillow
     libjpeg-dev \
-    # for CairoSVG
     libcairo2 \
-    # other
     gcc \
+    # ✅ Add these dependencies for WeasyPrint
+    libpango-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Create the mini vm's code directory
 RUN mkdir -p /code

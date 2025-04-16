@@ -16,6 +16,9 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
+from weasyprint import HTML
+from django.template.loader import render_to_string
+from django.http import HttpResponse
 import uuid
 import mimetypes
 import json
@@ -356,11 +359,48 @@ def data_upload_detail(request, upload_id):
     # ✅ Generate pre-signed URLs for all files
     data_upload_presigned_url = data_upload.get_presigned_url()
     for metric in metrics:
-        metric.presigned_url = metric.get_presigned_url()  # Add presigned_url to metric
+        metric.presigned_url = metric.get_presigned_url()
+
+    # ✅ Check if the organization is allowed to download PDFs
+    can_download_pdf = can_download_pdf_reports(organization)
 
     context = {
         "data_upload": data_upload,
-        "data_upload_presigned_url": data_upload_presigned_url,  # ✅ Pass the pre-signed URL
+        "data_upload_presigned_url": data_upload_presigned_url,
         "metrics": metrics,
+        "can_download_pdf": can_download_pdf,  # ✅ Include in template context
     }
     return render(request, "dashboard/analytics/upload_detail.html", context)
+
+
+@login_required
+def download_pdf_report(request, upload_id):
+    data_upload = get_object_or_404(DataUpload, id=upload_id, processed=True)
+
+    organization = (
+        request.user.owned_organization
+        if hasattr(request.user, "owned_organization") and request.user.owned_organization
+        else request.user.organization_memberships.first().organization
+    )
+
+    if not organization or data_upload.organization != organization:
+        raise PermissionDenied("You do not have access to this report.")
+
+    if not can_download_pdf_reports(organization):
+        from django.contrib import messages
+        messages.warning(request, "PDF downloads are only available on Business and Enterprise plans.")
+        return redirect("analytics:data_upload_detail", upload_id=upload_id)
+
+    metrics = Metric.objects.filter(datasource=data_upload).select_related("table_data")
+
+    html = render_to_string(
+        "dashboard/analytics/pdf_report.html",
+        {"data_upload": data_upload, "metrics": metrics},
+        request=request
+    )
+
+    pdf_file = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
+
+    response = HttpResponse(pdf_file, content_type="application/pdf")
+    response["Content-Disposition"] = f"inline; filename=Report_{data_upload.id}.pdf"
+    return response

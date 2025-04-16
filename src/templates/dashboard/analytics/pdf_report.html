@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Report - {{ data_upload.title }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; margin: 30px; }
+        h1 { font-size: 20px; }
+        h2 { font-size: 16px; margin-top: 24px; }
+        .metric { margin-bottom: 20px; page-break-inside: avoid; }
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        th, td { border: 1px solid #999; padding: 6px; font-size: 11px; }
+        img { max-width: 100%; height: auto; margin-top: 10px; }
+        .muted { color: #999; font-style: italic; }
+        .metric-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <h1>📊 Report: {{ data_upload.title }}</h1>
+    <p><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
+    <p><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
+    <p><strong>Created At:</strong> {{ data_upload.created_at|date:"Y-m-d H:i" }}</p>
+    <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions }}</p>
+
+    <h2>📈 Metrics</h2>
+
+    {% for metric in metrics %}
+        <div class="metric">
+            <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
+
+            {% if metric.type == "single_value" %}
+                <p style="font-size: 16px;"><strong>{{ metric.value }}</strong></p>
+
+            {% elif metric.type == "text" %}
+                <p>{{ metric.value }}</p>
+
+            {% elif metric.type == "plot" and metric.file %}
+                <img src="{{ metric.file.url }}" alt="Plot Image">
+
+            {% elif metric.type == "table" and metric.table_data %}
+                <table>
+                    <thead>
+                        <tr>
+                            {% for col in metric.table_data.columns %}
+                                <th>{{ col }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in metric.table_data.data %}
+                            <tr>
+                                {% for col in metric.table_data.columns %}
+                                    <td>{{ row|get_item:col }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            {% else %}
+                <p class="muted">No data available for this metric.</p>
+            {% endif %}
+        </div>
+    {% empty %}
+        <p class="muted">No metrics available for this report.</p>
+    {% endfor %}
+</body>
+</html>
