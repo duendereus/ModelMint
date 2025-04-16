@@ -24,11 +24,11 @@
             </p>
             {% endif %} -->
 
-            {% comment %} {% if can_download_pdf %} {% endcomment %}
+            {% if can_download_pdf %}
                 <a href="{% url 'dashboard:analytics:download_pdf_report' data_upload.id %}" target="_blank" class="btn btn-outline-primary mt-2">
                     📄 Download PDF Report
                 </a>
-            {% comment %} {% endif %} {% endcomment %}
+            {% endif %}
         </div>
     </div>
 

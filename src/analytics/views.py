@@ -15,7 +15,10 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
-from weasyprint import HTML
+try:
+    from weasyprint import HTML
+except ImportError:
+    HTML = None
 from django.template.loader import render_to_string
 from django.http import HttpResponse
 import uuid
