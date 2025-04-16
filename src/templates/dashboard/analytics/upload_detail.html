@@ -24,12 +24,15 @@
             </p>
             {% endif %} -->
 
-            <a href="{% url 'analytics:download_pdf_report' data_upload.id %}" target="_blank" class="btn btn-outline-primary mt-2">
-                📄 Download PDF Report
-            </a>
+            {% comment %} {% if can_download_pdf %} {% endcomment %}
+                <a href="{% url 'analytics:download_pdf_report' data_upload.id %}" target="_blank" class="btn btn-outline-primary mt-2">
+                    📄 Download PDF Report
+                </a>
+            {% comment %} {% endif %} {% endcomment %}
         </div>
     </div>
 
+    
 
     <!-- ✅ Metrics Section -->
     <h3 class="mt-4">Metrics</h3>

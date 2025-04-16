@@ -57,13 +57,13 @@ class DataUpload(models.Model):
     def get_presigned_url(self, expires_in=3600):
         """Generate a pre-signed URL for private file access (valid for 1 hour)."""
         if not self.file:
-            return None  # No file uploaded
+            return None
 
-        # ✅ If running locally, return MEDIA_URL + file path (self.file is a string)
+        # ✅ Handle local (no S3) case
         if not settings.USE_S3:
-            return f"{settings.MEDIA_URL}{self.file}"  # Remove .name!
+            return f"{settings.MEDIA_URL}{self.file}"  # ← FIXED
 
-        # ✅ Otherwise, generate a pre-signed URL for S3
+        # ✅ Handle S3 case
         s3_client = boto3.client(
             "s3",
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
@@ -72,14 +72,13 @@ class DataUpload(models.Model):
         )
 
         try:
-            url = s3_client.generate_presigned_url(
+            return s3_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": self.file},
-                ExpiresIn=expires_in,  # URL valid for 1 hour
+                ExpiresIn=expires_in,
             )
-            return url
         except Exception as e:
-            return None  # Return None if URL generation fails
+            return None
 
 
     def clean(self):

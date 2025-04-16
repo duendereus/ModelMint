@@ -357,7 +357,11 @@ def data_upload_detail(request, upload_id):
     )
 
     # ✅ Generate pre-signed URLs for all files
-    data_upload_presigned_url = data_upload.get_presigned_url()
+    try:
+        data_upload_presigned_url = data_upload.get_presigned_url()
+    except Exception as e:
+        data_upload_presigned_url = None
+
     for metric in metrics:
         metric.presigned_url = metric.get_presigned_url()
 
