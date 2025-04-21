@@ -5,16 +5,17 @@ from django.core.exceptions import PermissionDenied
 from django.utils.timezone import now
 from .models import DataUpload, Metric
 from subscriptions.utils import (
-    get_plan_limits, 
-    can_upload_data, 
-    can_view_more_reports, 
+    get_plan_limits,
+    can_upload_data,
+    can_view_more_reports,
     can_download_pdf_reports,
-    )
+)
 import boto3
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
+
 try:
     from weasyprint import HTML
 except ImportError:
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def upload_data(request):
+    # writing a comment to see if it works
     user = request.user
     organization = (
         user.owned_organization
@@ -45,7 +47,9 @@ def upload_data(request):
         return redirect("subscriptions:pricing")
     max_uploads = limits.get("max_uploads_per_month", 1)
     start_of_month = now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    uploads_used = organization.data_uploads.filter(created_at__gte=start_of_month).count()
+    uploads_used = organization.data_uploads.filter(
+        created_at__gte=start_of_month
+    ).count()
 
     return render(
         request,
@@ -100,7 +104,7 @@ def generate_presigned_post(request):
                 ["starts-with", "$key", f"uploads/{org_slug}/data/"],
                 ["content-length-range", 0, settings.MAX_UPLOAD_SIZE_BYTES],
             ],
-            ExpiresIn=3600
+            ExpiresIn=3600,
         )
         logger.info("✅ Presigned POST successfully generated")
         return JsonResponse({"data": presigned_post, "file_key": key})
@@ -123,7 +127,9 @@ def confirm_upload(request):
         if not title or not file_key:
             logger.warning("⚠️ Missing title or file_key in request")
             messages.error(request, "Missing required fields.")
-            return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=400)
+            return JsonResponse(
+                {"redirect_url": "/dashboard/analytics/upload/"}, status=400
+            )
 
         user = request.user
         organization = (
@@ -134,8 +140,12 @@ def confirm_upload(request):
 
         if not can_upload_data(organization):
             logger.warning(f"⛔ Upload limit reached for {organization.name}")
-            messages.warning(request, "Upload limit reached for your current subscription plan.")
-            return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=403)
+            messages.warning(
+                request, "Upload limit reached for your current subscription plan."
+            )
+            return JsonResponse(
+                {"redirect_url": "/dashboard/analytics/upload/"}, status=403
+            )
 
         DataUpload.objects.create(
             title=title,
@@ -143,7 +153,7 @@ def confirm_upload(request):
             uploaded_by=user,
             organization=organization,
             file=file_key,
-            status="uploaded"
+            status="uploaded",
         )
 
         logger.info(f"✅ Upload metadata saved and file marked as uploaded: {file_key}")
@@ -152,7 +162,10 @@ def confirm_upload(request):
     except Exception as e:
         logger.exception("❌ Error in confirm_upload")
         messages.error(request, "Something went wrong while confirming the upload.")
-        return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=500)
+        return JsonResponse(
+            {"redirect_url": "/dashboard/analytics/upload/"}, status=500
+        )
+
 
 @csrf_exempt
 @require_POST
@@ -240,7 +253,9 @@ def complete_multipart_upload(request):
 
         if not upload_id or not key or not parts or not title:
             messages.error(request, "Missing required fields.")
-            return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=400)
+            return JsonResponse(
+                {"redirect_url": "/dashboard/analytics/upload/"}, status=400
+            )
 
         user = request.user
         organization = (
@@ -250,9 +265,15 @@ def complete_multipart_upload(request):
         )
 
         if not can_upload_data(organization):
-            logger.warning(f"⛔ Upload limit reached (multipart) for {organization.name}")
-            messages.warning(request, "Upload limit reached for your current subscription plan.")
-            return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=403)
+            logger.warning(
+                f"⛔ Upload limit reached (multipart) for {organization.name}"
+            )
+            messages.warning(
+                request, "Upload limit reached for your current subscription plan."
+            )
+            return JsonResponse(
+                {"redirect_url": "/dashboard/analytics/upload/"}, status=403
+            )
 
         s3 = boto3.client(
             "s3",
@@ -274,7 +295,7 @@ def complete_multipart_upload(request):
             uploaded_by=user,
             organization=organization,
             file=key,
-            status="uploaded"
+            status="uploaded",
         )
 
         logger.info("✅ Multipart upload completed and saved.")
@@ -283,7 +304,9 @@ def complete_multipart_upload(request):
     except Exception as e:
         logger.exception("❌ Error during multipart upload completion")
         messages.error(request, "Error finalizing the upload.")
-        return JsonResponse({"redirect_url": "/dashboard/analytics/upload/"}, status=500)
+        return JsonResponse(
+            {"redirect_url": "/dashboard/analytics/upload/"}, status=500
+        )
 
 
 @login_required
@@ -302,7 +325,7 @@ def data_upload_list(request):
     if not can_view_more_reports(organization):
         messages.warning(
             request,
-            "You've reached the maximum number of processed reports allowed by your current plan."
+            "You've reached the maximum number of processed reports allowed by your current plan.",
         )
 
     data_uploads = (
@@ -389,7 +412,10 @@ def download_pdf_report(request, upload_id):
         # logger.info(f"✅ DataUpload fetched: {data_upload}")
 
         # Determine the user's organization
-        if hasattr(request.user, "owned_organization") and request.user.owned_organization:
+        if (
+            hasattr(request.user, "owned_organization")
+            and request.user.owned_organization
+        ):
             organization = request.user.owned_organization
         else:
             membership = request.user.organization_memberships.first()
@@ -405,22 +431,27 @@ def download_pdf_report(request, upload_id):
         # Check subscription permission
         if not can_download_pdf_reports(organization):
             from django.contrib import messages
+
             messages.warning(
                 request,
-                "PDF downloads are only available on Business and Enterprise plans."
+                "PDF downloads are only available on Business and Enterprise plans.",
             )
             # logger.warning("🚫 Organization not allowed to download PDF.")
-            return redirect("dashboard:analytics:data_upload_detail", upload_id=upload_id)
+            return redirect(
+                "dashboard:analytics:data_upload_detail", upload_id=upload_id
+            )
 
         # Fetch metrics
-        metrics = Metric.objects.filter(datasource=data_upload).select_related("table_data")
+        metrics = Metric.objects.filter(datasource=data_upload).select_related(
+            "table_data"
+        )
         # logger.info(f"📊 Metrics found: {metrics.count()}")
 
         # Render HTML
         html = render_to_string(
             "dashboard/analytics/pdf_report.html",
             {"data_upload": data_upload, "metrics": metrics},
-            request=request
+            request=request,
         )
         # logger.info("✅ HTML rendered successfully")
 
@@ -430,12 +461,14 @@ def download_pdf_report(request, upload_id):
 
         # Return response
         response = HttpResponse(pdf_file, content_type="application/pdf")
-        response["Content-Disposition"] = f"inline; filename=Report_{data_upload.id}.pdf"
+        response["Content-Disposition"] = (
+            f"inline; filename=Report_{data_upload.id}.pdf"
+        )
         return response
 
     except Exception as e:
         # logger.exception(f"❌ PDF generation failed for upload ID {upload_id}: {str(e)}")
         return HttpResponse(
             "An error occurred while generating the PDF. Please try again later.",
-            status=500
+            status=500,
         )
