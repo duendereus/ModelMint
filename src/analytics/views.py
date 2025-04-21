@@ -382,9 +382,9 @@ def data_upload_detail(request, upload_id):
 @login_required
 def download_pdf_report(request, upload_id):
     try:
-        logger.info(f"📝 PDF download requested for upload ID: {upload_id}")
+        # logger.info(f"📝 PDF download requested for upload ID: {upload_id}")
         data_upload = get_object_or_404(DataUpload, id=upload_id, processed=True)
-        logger.info(f"✅ DataUpload fetched: {data_upload}")
+        # logger.info(f"✅ DataUpload fetched: {data_upload}")
 
         # Determine the user's organization
         if hasattr(request.user, "owned_organization") and request.user.owned_organization:
@@ -393,11 +393,11 @@ def download_pdf_report(request, upload_id):
             membership = request.user.organization_memberships.first()
             organization = membership.organization if membership else None
 
-        logger.info(f"🔍 Organization detected: {organization}")
+        # logger.info(f"🔍 Organization detected: {organization}")
 
         # Access control
         if not organization or data_upload.organization != organization:
-            logger.warning("⛔ Access denied for user to this report.")
+            # logger.warning("⛔ Access denied for user to this report.")
             raise PermissionDenied("You do not have access to this report.")
 
         # Check subscription permission
@@ -407,12 +407,12 @@ def download_pdf_report(request, upload_id):
                 request,
                 "PDF downloads are only available on Business and Enterprise plans."
             )
-            logger.warning("🚫 Organization not allowed to download PDF.")
+            # logger.warning("🚫 Organization not allowed to download PDF.")
             return redirect("dashboard:analytics:data_upload_detail", upload_id=upload_id)
 
         # Fetch metrics
         metrics = Metric.objects.filter(datasource=data_upload).select_related("table_data")
-        logger.info(f"📊 Metrics found: {metrics.count()}")
+        # logger.info(f"📊 Metrics found: {metrics.count()}")
 
         # Render HTML
         html = render_to_string(
@@ -420,11 +420,11 @@ def download_pdf_report(request, upload_id):
             {"data_upload": data_upload, "metrics": metrics},
             request=request
         )
-        logger.info("✅ HTML rendered successfully")
+        # logger.info("✅ HTML rendered successfully")
 
         # Generate PDF
         pdf_file = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
-        logger.info("📄 PDF generated successfully")
+        # logger.info("📄 PDF generated successfully")
 
         # Return response
         response = HttpResponse(pdf_file, content_type="application/pdf")
@@ -432,7 +432,7 @@ def download_pdf_report(request, upload_id):
         return response
 
     except Exception as e:
-        logger.exception(f"❌ PDF generation failed for upload ID {upload_id}: {str(e)}")
+        # logger.exception(f"❌ PDF generation failed for upload ID {upload_id}: {str(e)}")
         return HttpResponse(
             "An error occurred while generating the PDF. Please try again later.",
             status=500
