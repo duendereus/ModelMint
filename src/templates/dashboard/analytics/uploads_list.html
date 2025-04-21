@@ -7,15 +7,27 @@
     <h2 class="mb-4">Processed Data Uploads</h2>
 
 
-    {% if not can_download_pdf %}
+    {% comment %} {% if not can_download_pdf %}
         <div class="alert alert-info">
             PDF downloads are only available for Business and Enterprise plans.
         </div>
+    {% endif %} {% endcomment %}
+
+    {% if is_unlimited %}
+        <p class="text-muted">
+            {{ current_reports }} reports uploaded. Your plan allows <strong>unlimited</strong> reports.
+        </p>
+    {% elif max_reports == 0 %}
+        <p class="text-muted text-danger">
+            You don't have a subscription plan. <a href="{% url 'subscriptions:pricing' %}">Upgrade now</a> to unlock reports.
+        </p>
+    {% else %}
+        <p class="text-muted">
+            {{ current_reports }} of {{ max_reports }} reports used this cycle.
+        </p>
     {% endif %}
 
-    <p class="text-muted">
-        {{ current_reports }} of {{ max_reports }} reports used this cycle.
-    </p>
+
 
     {% if data_uploads %}
         <div class="card">

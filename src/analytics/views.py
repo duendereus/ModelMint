@@ -312,7 +312,8 @@ def data_upload_list(request):
     )
 
     limits = get_plan_limits(organization)
-    max_reports = limits.get("max_reports", 3) if limits else 3
+    max_reports = limits.get("max_reports") if limits else 0
+    is_unlimited = max_reports == float("inf")  # ✅ Add this flag
     current_reports = organization.data_uploads.filter(processed=True).count()
     can_download_pdf = limits.get("allow_pdf_download", False) if limits else False
 
@@ -324,6 +325,7 @@ def data_upload_list(request):
             "can_download_pdf": can_download_pdf,
             "max_reports": max_reports,
             "current_reports": current_reports,
+            "is_unlimited": is_unlimited,  # ✅ Include in context
         },
     )
 
