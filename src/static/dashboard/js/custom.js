@@ -101,18 +101,28 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function toggleDatasetInputs() {
         const selected = operationSelect.value;
-
+    
         if (selected === "create") {
             datasetNameGroup.style.display = "block";
             datasetDescriptionGroup.style.display = "block";
             datasetDropdownGroup.style.display = "none";
+    
+            // Make only dataset_name required
+            document.getElementById("id_dataset_name").required = true;
+            document.getElementById("id_dataset_id").required = false;
+    
         } else if (selected === "append" || selected === "replace") {
             datasetNameGroup.style.display = "none";
             datasetDescriptionGroup.style.display = "none";
             datasetDropdownGroup.style.display = "block";
+    
+            // Make only dataset_id required
+            document.getElementById("id_dataset_name").required = false;
+            document.getElementById("id_dataset_id").required = true;
+    
             fetchDatasets();
         }
-    }
+    }    
 
     if (operationSelect) {
         toggleDatasetInputs();  // Initial state on load

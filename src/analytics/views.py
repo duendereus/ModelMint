@@ -58,7 +58,6 @@ def upload_data(request):
         request,
         "dashboard/analytics/upload_data.html",
         {
-            "USE_S3": settings.USE_S3,
             "uploads_used": uploads_used,
             "uploads_remaining": max(0, max_uploads - uploads_used),
             "max_uploads": max_uploads,
@@ -90,20 +89,6 @@ def generate_presigned_post(request):
     org_slug = organization.name.lower().replace(" ", "_")
     key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name.replace(' ', '_')}"
 
-    if not settings.USE_S3:
-        # Simulate presigned post result with local upload key
-        logger.info("🧪 Running locally, simulating S3 upload")
-        return JsonResponse(
-            {
-                "data": {
-                    "url": f"/media/{key}",  # URL won't be used but it's safe
-                    "fields": {},
-                },
-                "file_key": key,
-            }
-        )
-
-    # In production → real S3 presigned POST
     try:
         s3_client = boto3.client(
             "s3",
@@ -112,10 +97,23 @@ def generate_presigned_post(request):
             region_name=settings.AWS_S3_REGION_NAME,
         )
 
+        logger.info("After s3_client")
+        # presigned_post = s3_client.generate_presigned_post(
+        #     Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+        #     Key=key,
+        #     Fields={
+        #         "Content-Type": mime_type,
+        #     },
+        #     Conditions=[
+        #         {"Content-Type": mime_type},
+        #         ["starts-with", "$key", f"uploads/{org_slug}/data/"],
+        #         ["content-length-range", 0, settings.MAX_UPLOAD_SIZE_BYTES],
+        #     ],
+        #     ExpiresIn=3600,
+        # )
         presigned_post = s3_client.generate_presigned_post(
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
             Key=key,
-            Fields={},
             Conditions=[
                 ["starts-with", "$key", f"uploads/{org_slug}/data/"],
                 ["content-length-range", 0, settings.MAX_UPLOAD_SIZE_BYTES],
@@ -139,15 +137,23 @@ def confirm_upload(request):
         title = request.POST.get("title")
         job_instructions = request.POST.get("job_instructions")
         file_key = request.POST.get("file_key")
-        dataset_name = request.POST.get("dataset_name")
         operation = request.POST.get("operation", "create")
 
-        if not title or not file_key or not dataset_name:
-            logger.warning("⚠️ Missing required fields in confirm_upload")
-            messages.error(request, "Missing required fields.")
-            return JsonResponse(
-                {"redirect_url": "/dashboard/analytics/upload/"}, status=400
-            )
+        if not title or not file_key or not operation:
+            logger.warning("⚠️ Missing basic required fields")
+            return JsonResponse({"error": "Missing basic required fields."}, status=400)
+
+        # Extra validation for "create"
+        if operation == "create":
+            dataset_name = request.POST.get("dataset_name")
+            if not dataset_name:
+                logger.warning("⚠️ Missing dataset name for 'create'")
+                return JsonResponse({"error": "Missing dataset name."}, status=400)
+        else:
+            dataset_id = request.POST.get("dataset_id")
+            if not dataset_id:
+                logger.warning("⚠️ Missing dataset ID for append/replace")
+                return JsonResponse({"error": "Missing dataset ID."}, status=400)
 
         user = request.user
         organization = (
@@ -167,10 +173,6 @@ def confirm_upload(request):
 
         # Handle dataset
         if operation == "create":
-            dataset_name = request.POST.get("dataset_name")
-            if not dataset_name:
-                return JsonResponse({"error": "Missing dataset name."}, status=400)
-
             dataset = DataSet.objects.create(
                 name=dataset_name,
                 organization=organization,
@@ -178,12 +180,6 @@ def confirm_upload(request):
                 description=request.POST.get("dataset_description", ""),
             )
         else:
-            dataset_id = request.POST.get("dataset_id")
-            if not dataset_id:
-                return JsonResponse(
-                    {"error": "Missing dataset ID for append/replace."}, status=400
-                )
-
             dataset = get_object_or_404(
                 DataSet, id=dataset_id, organization=organization
             )

@@ -206,57 +206,48 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 # ✅ Use S3 for media, WhiteNoise for static files
-USE_S3 = config("USE_S3", default=False, cast=bool)
+# ✅ Always use S3 for media files
+USE_S3 = config("USE_S3", default=True, cast=bool)  # You can still disable if needed
 
 STORAGES = {
-    # 🔹 Use S3 for media files
-    "default": (
-        {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        }
-        if USE_S3
-        else {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-            "OPTIONS": {"location": os.path.join(BASE_DIR, "media")},
-        }
-    ),
-    # 🔹 Use WhiteNoise for static files
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
-# ✅ AWS S3 Configurations (For Media Files)
-if USE_S3:
-    AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
-    AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
-    AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-west-2")
-    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+# ✅ AWS S3 Configuration
+AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-west-2")
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
 
-    # 🔒 Secure Media Files (Not Publicly Accessible by Default)
-    AWS_S3_OBJECT_PARAMETERS = {
-        "CacheControl": "max-age=86400",
-    }
+# 🔒 Secure Media Files (default is private)
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": "max-age=86400",
+}
 
-# ✅ Static & Media URLs
-STATIC_URL = "/static/"  # Served via WhiteNoise
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/" if USE_S3 else "/media/"
+# ✅ Static and Media URLs
+STATIC_URL = "/static/"  # Still served via WhiteNoise
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 
-# ✅ Static & Media Paths
+# ✅ Static file config (WhiteNoise)
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-MEDIA_ROOT = (
-    os.path.join(BASE_DIR, "media") if not USE_S3 else None
-)  # Only for local dev
 
-# ✅ Enable WhiteNoise Compression & Caching
+# ✅ No need for MEDIA_ROOT in S3
+# MEDIA_ROOT is only relevant when using FileSystemStorage
+
+# ✅ WhiteNoise settings
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 
 
-# ✅ Custom Storage for Public Profile Pictures & Private Uploads
+# ✅ Custom storage classes
 class PublicMediaStorage(S3Boto3Storage):
-    """Storage class for publicly accessible profile pictures."""
+    """Storage class for publicly accessible media."""
 
     location = "profile_pictures"
     default_acl = "public-read"
@@ -264,6 +255,8 @@ class PublicMediaStorage(S3Boto3Storage):
 
 
 class PrivateMediaStorage(S3Boto3Storage):
+    """Storage class for private uploads."""
+
     location = "uploads"
     default_acl = "private"
     custom_domain = False
@@ -271,9 +264,7 @@ class PrivateMediaStorage(S3Boto3Storage):
     querystring_expire = 3600
 
     def get_presigned_url(self, file_path, expires_in=3600):
-        if not USE_S3:
-            return f"/media/{file_path}"  # fallback for local dev
-        import boto3  # ← safely imported here, avoids global dependency
+        import boto3
 
         s3_client = boto3.client(
             "s3",

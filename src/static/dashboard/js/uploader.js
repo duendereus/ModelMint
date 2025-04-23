@@ -12,42 +12,45 @@ document.addEventListener("DOMContentLoaded", function () {
     const progressBar = document.getElementById("upload-progress-bar");
     const statusText = document.getElementById("upload-status-text");
 
-    // ✅ Comentado para evitar confusión con botón de cerrar el widget
-    /*
-    window.hideUploadWidget = function () {
-        widget.style.display = "none";
-    };
-    */
-
     form.addEventListener("submit", async function (e) {
         e.preventDefault();
-
+        console.log("🚀 Form submitted");  // ✅ Debug line
+    
         const file = fileInput.files[0];
         const title = titleInput.value;
         const instructions = instructionsInput.value;
-
+    
         if (!file || !title) {
             alert("⚠️ Please provide a title and select a file.");
+            console.log("⚠️ Missing file or title");
             return;
         }
-
+    
+        console.log("📂 File selected:", file.name);
+        console.log("📝 Title:", title);
+        console.log("🛠️ Instructions:", instructions);
+    
         showUploadWidget("Starting upload...");
         submitBtn.disabled = true;
         submitBtn.innerText = "Uploading...";
-
+    
         if (file.size > MAX_SIZE_BYTES) {
+            console.log("📦 Large file, using multipart upload");
             const warningModal = new bootstrap.Modal(document.getElementById("upload-warning-popup"));
             warningModal.show();
-
+    
             setTimeout(() => {
                 uploadLargeFile(file, title, instructions);
             }, 500);
         } else {
+            console.log("📦 Small file, using direct POST upload");
             await uploadSmallFile(file, title, instructions);
         }
     });
+    
 
     async function uploadSmallFile(file, title, instructions) {
+        console.log("🔹 Starting small file upload:", file.name, file.size);
         const cleanFileName = file.name.replace(/\s+/g, "_");
         const presignForm = new FormData();
         presignForm.append("file_name", cleanFileName);
@@ -64,24 +67,18 @@ document.addEventListener("DOMContentLoaded", function () {
             reset();
             return;
         }
-    
-        if (window.USE_S3 === false) {
-            // ✅ Simulate successful upload locally
-            await confirmUpload(file_key, title, instructions);
-            return;
-        }
-    
+
         const s3FormData = new FormData();
         Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
         s3FormData.append("file", file);
     
         const xhr = new XMLHttpRequest();
         xhr.open("POST", data.url, true);
-    
+
         xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) updateProgress((e.loaded / e.total) * 100);
         };
-    
+
         xhr.onload = async function () {
             if (xhr.status === 204 || xhr.status === 201) {
                 await confirmUpload(file_key, title, instructions);
@@ -90,11 +87,20 @@ document.addEventListener("DOMContentLoaded", function () {
                 reset();
             }
         };
-    
+
+        // ✅ Add this block below xhr.onload
+        xhr.onerror = function () {
+            console.error("❌ XMLHttpRequest failed:", xhr.status, xhr.statusText);
+            alert("❌ Upload failed due to network error.");
+            reset();
+        };
+
         xhr.send(s3FormData);
+
     }
 
     async function uploadLargeFile(file, title, instructions) {
+        console.log("🔸 Starting large file upload:", file.name, file.size);
         const cleanFileName = file.name.replace(/\s+/g, "_");
         const initForm = new FormData();
         initForm.append("file_name", cleanFileName);
@@ -172,7 +178,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 reset();
             }
         }
-
     }
 
     async function confirmUpload(file_key, title, instructions) {
@@ -189,27 +194,9 @@ document.addEventListener("DOMContentLoaded", function () {
             const datasetDesc = document.getElementById("id_dataset_description").value;
             confirmForm.append("dataset_name", datasetName);
             confirmForm.append("dataset_description", datasetDesc);
-    
-            console.log("📦 Creating new dataset with:", {
-                title,
-                file_key,
-                instructions,
-                operation,
-                dataset_name: datasetName,
-                dataset_description: datasetDesc,
-            });
-    
         } else {
             const datasetId = document.getElementById("id_dataset_id").value;
             confirmForm.append("dataset_id", datasetId);
-    
-            console.log("📎 Appending or replacing to existing dataset:", {
-                title,
-                file_key,
-                instructions,
-                operation,
-                dataset_id: datasetId,
-            });
         }
     
         try {
@@ -225,7 +212,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 updateStatusText("✅ Upload complete!");
                 setTimeout(() => window.location.href = "/dashboard/", 1200);
             } else {
-                console.error("❌ Upload confirmation failed:", result);
                 if (result.redirect_url) {
                     window.location.href = result.redirect_url;
                 } else {
@@ -234,11 +220,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             }
         } catch (err) {
-            console.error("❌ Network error during confirmation:", err);
             alert("❌ Network error. Please try again.");
             reset();
         }
-    }      
+    }
 
     function updateProgress(percent) {
         progressBar.style.width = `${percent}%`;
@@ -250,10 +235,12 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function showUploadWidget(initialText) {
+        if (!widget || !progressBar || !statusText) return;
         widget.style.display = "block";
         updateStatusText(initialText);
         updateProgress(0);
     }
+    
 
     function reset() {
         submitBtn.disabled = false;
@@ -265,3 +252,4 @@ document.addEventListener("DOMContentLoaded", function () {
         return document.querySelector("[name=csrfmiddlewaretoken]").value;
     }
 });
+
