@@ -27,25 +27,75 @@
         <div class="card-body">
             <form id="upload-form">
                 {% csrf_token %}
+            
+                <!-- Upload Type -->
                 <div class="mb-3">
-                    <label for="id_title" class="form-label">Title</label>
+                    <label for="id_operation" class="form-label">Upload Type</label>
+                    <select name="operation" id="id_operation" class="form-select" required>
+                        <option value="create" selected>Create New Dataset</option>
+                        <option value="append">Append to Existing</option>
+                        <option value="replace">Replace Existing</option>
+                    </select>
+                </div>
+            
+                <!-- Title -->
+                <div class="mb-3">
+                    <label for="id_title" class="form-label">Upload Title</label>
                     <input type="text" name="title" id="id_title" class="form-control" required>
                 </div>
+            
+                <!-- File Upload -->
                 <div class="mb-3">
                     <label for="id_file" class="form-label">Upload File (.csv or .xlsx)</label>
                     <div class="input-group">
                         <input type="file" class="form-control" id="id_file" required>
                     </div>
                 </div>
+            
+                <!-- Job Instructions -->
                 <div class="mb-3">
                     <label for="id_job_instructions" class="form-label">Job Instructions</label>
                     <textarea name="job_instructions" id="id_job_instructions" class="form-control"></textarea>
                 </div>
+            
+                <!-- Dataset Dropdown (append/replace only) -->
+                <div class="mb-3" id="dataset-dropdown-group" style="display: none;">
+                    <label for="id_dataset_id" class="form-label">Select Dataset</label>
+                    <select name="dataset_id" id="id_dataset_id" class="form-select" required>
+                        <option value="">Select Dataset</option>
+                        {% for ds in datasets %}
+                            <option value="{{ ds.id }}">{{ ds.name }}</option>
+                        {% endfor %}
+                    </select>                      
+                </div>
+            
+                <!-- Dataset Name (create only) -->
+                <div class="mb-3" id="dataset-name-group">
+                    <label for="id_dataset_name" class="form-label">Dataset Name</label>
+                    <input type="text" name="dataset_name" id="id_dataset_name" class="form-control" required>
+                </div>
+            
+                <!-- Dataset Description (create only) -->
+                <div class="mb-3" id="dataset-description-group">
+                    <label for="id_dataset_description" class="form-label">Dataset Description (optional)</label>
+                    <textarea name="dataset_description" id="id_dataset_description" class="form-control" placeholder="Only required if creating a new dataset."></textarea>
+                </div>
+            
+                <!-- Submit -->
                 <button id="submit-btn" type="submit" class="btn btn-success">Submit</button>
-            </form>            
+            </form>
+                    
         </div>
     </div>
 </div>
 {% endblock content %}
+
+{% block extra_scripts %}
+{{ USE_S3|json_script:"use-s3-data" }}
+<script>
+  window.USE_S3 = JSON.parse(document.getElementById("use-s3-data").textContent);
+</script>
+{% endblock extra_scripts %}
+
 
 

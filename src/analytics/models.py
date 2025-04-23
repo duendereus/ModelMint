@@ -2,22 +2,56 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from .utils import upload_to_metric # validate_file_extension, upload_to_data_file, 
+from .utils import upload_to_metric  # validate_file_extension, upload_to_data_file,
 from accounts.models import Organization, OrganizationMembership
 import boto3
 
 User = get_user_model()
 
 
+class DataSet(models.Model):
+    """
+    A logical group of related data uploads (versioned dataset uploads).
+    """
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="datasets"
+    )
+    name = models.CharField(
+        max_length=255, help_text="Name of the dataset (e.g. 'Monthly Sales')"
+    )
+    description = models.TextField(
+        blank=True, help_text="Optional description of the dataset"
+    )
+    created_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="created_datasets"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("organization", "name")
+        ordering = ["organization", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.organization.name})"
+
+
 class DataUpload(models.Model):
     """
     Model to handle file uploads for customer data processing.
     """
+
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('uploading', 'Uploading'),
-        ('uploaded', 'Uploaded'),
-        ('failed', 'Failed'),
+        ("pending", "Pending"),
+        ("uploading", "Uploading"),
+        ("uploaded", "Uploaded"),
+        ("failed", "Failed"),
+    ]
+
+    OPERATION_CHOICES = [
+        ("create", "Create New Dataset"),
+        ("append", "Append to Existing Dataset"),
+        ("replace", "Replace Dataset"),
     ]
 
     organization = models.ForeignKey(
@@ -29,41 +63,56 @@ class DataUpload(models.Model):
     title = models.CharField(
         max_length=255, help_text="A short title describing the data upload."
     )
-    # file = models.FileField(
-    #     upload_to=upload_to_data_file, validators=[validate_file_extension]
-    # )
-    file = models.CharField(
-        max_length=1024,
-        help_text="S3 key for the uploaded file"
-    )
+    file = models.CharField(max_length=1024, help_text="S3 key for the uploaded file")
     job_instructions = models.TextField(
         blank=False,
         help_text="Detailed instructions on what needs to be done with the data.",
     )
+    dataset = models.ForeignKey(
+        "DataSet",
+        on_delete=models.CASCADE,
+        related_name="uploads",
+        null=True,
+        blank=True,
+        help_text="Group uploads by versioned datasets.",
+    )
+    operation = models.CharField(
+        max_length=10,
+        choices=OPERATION_CHOICES,
+        default="create",
+        help_text="Create, append, or replace the dataset.",
+    )
+    version = models.PositiveIntegerField(
+        default=1, help_text="Version of this upload within the dataset."
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     processed = models.BooleanField(default=False)
     processing_notes = models.TextField(blank=True, null=True)
+
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='pending',
-        help_text="Track the background upload status"
+        default="pending",
+        help_text="Track the background upload status",
     )
 
+    class Meta:
+        ordering = ["-created_at", "organization", "dataset", "-version"]
+
     def __str__(self):
-        return f"{self.title} - {self.organization.name}"
-    
+        return f"{self.title} - {self.organization.name} - v{self.version}"
+
     def get_presigned_url(self, expires_in=3600):
         """Generate a pre-signed URL for private file access (valid for 1 hour)."""
         if not self.file:
             return None
 
-        # ✅ Handle local (no S3) case
         if not settings.USE_S3:
-            return f"{settings.MEDIA_URL}{self.file}"  # ← FIXED
+            return f"{settings.MEDIA_URL}{self.file}"
 
-        # ✅ Handle S3 case
         s3_client = boto3.client(
             "s3",
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
@@ -77,21 +126,16 @@ class DataUpload(models.Model):
                 Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": self.file},
                 ExpiresIn=expires_in,
             )
-        except Exception as e:
+        except Exception:
             return None
 
-
     def clean(self):
-        """
-        Ensures that only users from the same organization OR the owner can upload files.
-        """
         if not self.organization_id:
             raise ValidationError("Organization must be set before validation.")
 
         if not self.uploaded_by:
             raise ValidationError("uploaded_by must be set before saving.")
 
-        # Check if the user is the owner or a member of the organization
         if (
             self.uploaded_by != self.organization.owner
             and not OrganizationMembership.objects.filter(
@@ -104,6 +148,16 @@ class DataUpload(models.Model):
 
     def save(self, *args, **kwargs):
         self.clean()
+
+        # Auto-increment version if part of dataset
+        if self.dataset and not self.pk:
+            last_upload = (
+                DataUpload.objects.filter(dataset=self.dataset)
+                .order_by("-version")
+                .first()
+            )
+            self.version = (last_upload.version + 1) if last_upload else 1
+
         super().save(*args, **kwargs)
 
 
@@ -163,7 +217,10 @@ class Metric(models.Model):
         try:
             url = s3_client.generate_presigned_url(
                 "get_object",
-                Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": self.file.name},
+                Params={
+                    "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                    "Key": self.file.name,
+                },
                 ExpiresIn=expires_in,  # URL valid for 1 hour
             )
             return url

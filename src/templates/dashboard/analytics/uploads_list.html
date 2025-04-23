@@ -36,7 +36,8 @@
                     <thead>
                         <tr>
                             <th>Title</th>
-                            <th>Organization</th>
+                            <th>Dataset</th>
+                            <th>Version</th>
                             <th>Uploaded By</th>
                             <th>Created At</th>
                             <th>Actions</th>
@@ -46,7 +47,8 @@
                         {% for upload in data_uploads %}
                         <tr>
                             <td>{{ upload.title }}</td>
-                            <td>{{ upload.organization.name }}</td>
+                            <td>{{ upload.dataset.name if upload.dataset }}</td>
+                            <td>v{{ upload.version }}</td>
                             <td>{{ upload.uploaded_by.email }}</td>
                             <td>{{ upload.created_at|date:"Y-m-d" }}</td>
                             <td>
@@ -56,7 +58,7 @@
                             </td>
                         </tr>
                         {% endfor %}
-                    </tbody>
+                    </tbody>                    
                 </table>
             </div>
         </div>

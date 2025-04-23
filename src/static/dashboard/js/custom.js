@@ -61,7 +61,64 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
+document.addEventListener("DOMContentLoaded", function () {
+    const operationSelect = document.getElementById("id_operation");
+    const datasetNameGroup = document.getElementById("dataset-name-group");
+    const datasetDescriptionGroup = document.getElementById("dataset-description-group");
+    const datasetDropdownGroup = document.getElementById("dataset-dropdown-group");
+    const datasetDropdown = document.getElementById("id_dataset_id");
 
+    function fetchDatasets() {
+        fetch("/dashboard/analytics/get-datasets/")
+            .then((res) => res.json())
+            .then((data) => {
+                datasetDropdown.innerHTML = ""; // Clear existing options
+
+                if (data.datasets.length === 0) {
+                    const option = document.createElement("option");
+                    option.value = "";
+                    option.textContent = "No datasets available";
+                    datasetDropdown.appendChild(option);
+                } else {
+                    const defaultOption = document.createElement("option");
+                    defaultOption.value = "";
+                    defaultOption.textContent = "Select a dataset";
+                    datasetDropdown.appendChild(defaultOption);
+
+                    data.datasets.forEach((dataset) => {
+                        const option = document.createElement("option");
+                        option.value = dataset.id;
+                        option.textContent = dataset.name;
+                        datasetDropdown.appendChild(option);
+                    });
+                }
+            })
+            .catch((err) => {
+                console.error("⚠️ Error fetching datasets:", err);
+                datasetDropdown.innerHTML = "<option value=''>Error loading datasets</option>";
+            });
+    }
+
+    function toggleDatasetInputs() {
+        const selected = operationSelect.value;
+
+        if (selected === "create") {
+            datasetNameGroup.style.display = "block";
+            datasetDescriptionGroup.style.display = "block";
+            datasetDropdownGroup.style.display = "none";
+        } else if (selected === "append" || selected === "replace") {
+            datasetNameGroup.style.display = "none";
+            datasetDescriptionGroup.style.display = "none";
+            datasetDropdownGroup.style.display = "block";
+            fetchDatasets();
+        }
+    }
+
+    if (operationSelect) {
+        toggleDatasetInputs();  // Initial state on load
+        operationSelect.addEventListener("change", toggleDatasetInputs);
+    }
+});
 
 
 

@@ -51,31 +51,37 @@ document.addEventListener("DOMContentLoaded", function () {
         const cleanFileName = file.name.replace(/\s+/g, "_");
         const presignForm = new FormData();
         presignForm.append("file_name", cleanFileName);
-
+    
         const res = await fetch("/dashboard/analytics/upload/generate-url/", {
             method: "POST",
             headers: { "X-CSRFToken": getCSRFToken() },
             body: presignForm
         });
-
+    
         const { data, file_key, error } = await res.json();
         if (error) {
             alert("❌ Failed to get upload URL");
             reset();
             return;
         }
-
+    
+        if (window.USE_S3 === false) {
+            // ✅ Simulate successful upload locally
+            await confirmUpload(file_key, title, instructions);
+            return;
+        }
+    
         const s3FormData = new FormData();
         Object.entries(data.fields).forEach(([k, v]) => s3FormData.append(k, v));
         s3FormData.append("file", file);
-
+    
         const xhr = new XMLHttpRequest();
         xhr.open("POST", data.url, true);
-
+    
         xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) updateProgress((e.loaded / e.total) * 100);
         };
-
+    
         xhr.onload = async function () {
             if (xhr.status === 204 || xhr.status === 201) {
                 await confirmUpload(file_key, title, instructions);
@@ -84,7 +90,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 reset();
             }
         };
-
+    
         xhr.send(s3FormData);
     }
 
@@ -170,30 +176,69 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     async function confirmUpload(file_key, title, instructions) {
+        const operation = document.getElementById("id_operation").value;
+    
         const confirmForm = new FormData();
         confirmForm.append("title", title);
         confirmForm.append("job_instructions", instructions);
         confirmForm.append("file_key", file_key);
-
-        const res = await fetch("/dashboard/analytics/upload/confirm/", {
-            method: "POST",
-            headers: { "X-CSRFToken": getCSRFToken() },
-            body: confirmForm
-        });
-
-        const result = await res.json();
-        if (result.success) {
-            updateStatusText("✅ Upload complete!");
-            setTimeout(() => window.location.href = "/dashboard/", 1200);
+        confirmForm.append("operation", operation);
+    
+        if (operation === "create") {
+            const datasetName = document.getElementById("id_dataset_name").value;
+            const datasetDesc = document.getElementById("id_dataset_description").value;
+            confirmForm.append("dataset_name", datasetName);
+            confirmForm.append("dataset_description", datasetDesc);
+    
+            console.log("📦 Creating new dataset with:", {
+                title,
+                file_key,
+                instructions,
+                operation,
+                dataset_name: datasetName,
+                dataset_description: datasetDesc,
+            });
+    
         } else {
-            if (result.redirect_url) {
-                window.location.href = result.redirect_url;
-            } else {
-                alert("❌ Confirmation failed.");
-                reset();
-            }
+            const datasetId = document.getElementById("id_dataset_id").value;
+            confirmForm.append("dataset_id", datasetId);
+    
+            console.log("📎 Appending or replacing to existing dataset:", {
+                title,
+                file_key,
+                instructions,
+                operation,
+                dataset_id: datasetId,
+            });
         }
-    }
+    
+        try {
+            const res = await fetch("/dashboard/analytics/upload/confirm/", {
+                method: "POST",
+                headers: { "X-CSRFToken": getCSRFToken() },
+                body: confirmForm
+            });
+    
+            const result = await res.json();
+    
+            if (result.success) {
+                updateStatusText("✅ Upload complete!");
+                setTimeout(() => window.location.href = "/dashboard/", 1200);
+            } else {
+                console.error("❌ Upload confirmation failed:", result);
+                if (result.redirect_url) {
+                    window.location.href = result.redirect_url;
+                } else {
+                    alert("❌ Confirmation failed.");
+                    reset();
+                }
+            }
+        } catch (err) {
+            console.error("❌ Network error during confirmation:", err);
+            alert("❌ Network error. Please try again.");
+            reset();
+        }
+    }      
 
     function updateProgress(percent) {
         progressBar.style.width = `${percent}%`;

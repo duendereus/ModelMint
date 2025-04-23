@@ -1,7 +1,19 @@
 from django.contrib import admin
-from .models import DataUpload, Metric, TableMetric
+from .models import DataSet, DataUpload, Metric, TableMetric
 from django.utils.html import format_html
 from django.contrib import messages
+
+
+@admin.register(DataSet)
+class DataSetAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for versioned dataset groups.
+    """
+
+    list_display = ("name", "organization", "created_by", "created_at")
+    search_fields = ("name", "organization__name", "created_by__email")
+    readonly_fields = ("created_at",)
+    autocomplete_fields = ["organization", "created_by"]
 
 
 @admin.register(DataUpload)
@@ -14,14 +26,22 @@ class DataUploadAdmin(admin.ModelAdmin):
         "title",
         "organization",
         "uploaded_by",
-        "file",
+        "dataset",
+        "operation",
+        "version",
         "created_at",
         "processed",
         "status",
     )
-    list_filter = ("processed", "created_at", "status")
-    search_fields = ("title", "organization__name", "uploaded_by__email", "file")
-    readonly_fields = ("created_at", "updated_at")
+    list_filter = ("processed", "created_at", "status", "operation", "dataset")
+    search_fields = (
+        "title",
+        "organization__name",
+        "uploaded_by__email",
+        "file",
+        "dataset__name",
+    )
+    readonly_fields = ("created_at", "updated_at", "version")
 
     fieldsets = (
         (
@@ -31,6 +51,8 @@ class DataUploadAdmin(admin.ModelAdmin):
                     "title",
                     "organization",
                     "uploaded_by",
+                    "dataset",
+                    "operation",
                     "file",
                     "job_instructions",
                 )
@@ -38,12 +60,11 @@ class DataUploadAdmin(admin.ModelAdmin):
         ),
         ("Processing Status", {"fields": ("processed", "processing_notes")}),
         ("Upload Status", {"fields": ("status",)}),
-        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+        ("Version & Timestamps", {"fields": ("version", "created_at", "updated_at")}),
     )
 
-    # Optimized Selection
-    raw_id_fields = ("uploaded_by",)  # More efficient selection for large user bases
-    autocomplete_fields = ["organization"]  # Allows searching organizations
+    raw_id_fields = ("uploaded_by",)
+    autocomplete_fields = ["organization", "dataset"]
 
     def has_change_permission(self, request, obj=None):
         """Allow changing only if the file is not processed yet."""

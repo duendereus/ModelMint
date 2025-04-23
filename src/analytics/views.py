@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.utils.timezone import now
-from .models import DataUpload, Metric
+from .models import DataSet, DataUpload, Metric
 from subscriptions.utils import (
     get_plan_limits,
     can_upload_data,
@@ -33,7 +33,6 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def upload_data(request):
-    # writing a comment to see if it works
     user = request.user
     organization = (
         user.owned_organization
@@ -45,11 +44,15 @@ def upload_data(request):
     if limits is None:
         messages.warning(request, "You need an active subscription to upload data.")
         return redirect("subscriptions:pricing")
+
     max_uploads = limits.get("max_uploads_per_month", 1)
     start_of_month = now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     uploads_used = organization.data_uploads.filter(
         created_at__gte=start_of_month
     ).count()
+
+    # ✅ ADD THIS
+    datasets = DataSet.objects.filter(organization=organization).order_by("name")
 
     return render(
         request,
@@ -59,6 +62,7 @@ def upload_data(request):
             "uploads_used": uploads_used,
             "uploads_remaining": max(0, max_uploads - uploads_used),
             "max_uploads": max_uploads,
+            "datasets": datasets,  # ✅ Include for the dropdown
         },
     )
 
@@ -76,7 +80,6 @@ def generate_presigned_post(request):
     logger.info(f"📦 Requested file_name: {file_name}")
     mime_type, _ = mimetypes.guess_type(file_name)
     mime_type = mime_type or "application/octet-stream"
-    logger.info(f"🧪 Guessed MIME type: {mime_type}")
 
     user = request.user
     organization = (
@@ -86,16 +89,29 @@ def generate_presigned_post(request):
     )
     org_slug = organization.name.lower().replace(" ", "_")
     key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name.replace(' ', '_')}"
-    logger.info(f"🗝️ Generated S3 key: {key}")
 
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_S3_REGION_NAME,
-    )
+    if not settings.USE_S3:
+        # Simulate presigned post result with local upload key
+        logger.info("🧪 Running locally, simulating S3 upload")
+        return JsonResponse(
+            {
+                "data": {
+                    "url": f"/media/{key}",  # URL won't be used but it's safe
+                    "fields": {},
+                },
+                "file_key": key,
+            }
+        )
 
+    # In production → real S3 presigned POST
     try:
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_S3_REGION_NAME,
+        )
+
         presigned_post = s3_client.generate_presigned_post(
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
             Key=key,
@@ -123,9 +139,11 @@ def confirm_upload(request):
         title = request.POST.get("title")
         job_instructions = request.POST.get("job_instructions")
         file_key = request.POST.get("file_key")
+        dataset_name = request.POST.get("dataset_name")
+        operation = request.POST.get("operation", "create")
 
-        if not title or not file_key:
-            logger.warning("⚠️ Missing title or file_key in request")
+        if not title or not file_key or not dataset_name:
+            logger.warning("⚠️ Missing required fields in confirm_upload")
             messages.error(request, "Missing required fields.")
             return JsonResponse(
                 {"redirect_url": "/dashboard/analytics/upload/"}, status=400
@@ -147,6 +165,33 @@ def confirm_upload(request):
                 {"redirect_url": "/dashboard/analytics/upload/"}, status=403
             )
 
+        # Handle dataset
+        if operation == "create":
+            dataset_name = request.POST.get("dataset_name")
+            if not dataset_name:
+                return JsonResponse({"error": "Missing dataset name."}, status=400)
+
+            dataset = DataSet.objects.create(
+                name=dataset_name,
+                organization=organization,
+                created_by=user,
+                description=request.POST.get("dataset_description", ""),
+            )
+        else:
+            dataset_id = request.POST.get("dataset_id")
+            if not dataset_id:
+                return JsonResponse(
+                    {"error": "Missing dataset ID for append/replace."}, status=400
+                )
+
+            dataset = get_object_or_404(
+                DataSet, id=dataset_id, organization=organization
+            )
+
+            if operation == "replace":
+                dataset.uploads.all().delete()
+
+        # Create the DataUpload (version is auto-handled in save())
         DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
@@ -154,6 +199,8 @@ def confirm_upload(request):
             organization=organization,
             file=file_key,
             status="uploaded",
+            dataset=dataset,
+            operation=operation,
         )
 
         logger.info(f"✅ Upload metadata saved and file marked as uploaded: {file_key}")
@@ -250,8 +297,10 @@ def complete_multipart_upload(request):
         parts = data.get("parts")
         title = data.get("title")
         job_instructions = data.get("job_instructions")
+        dataset_name = data.get("dataset_name")
+        operation = data.get("operation", "create")
 
-        if not upload_id or not key or not parts or not title:
+        if not upload_id or not key or not parts or not title or not dataset_name:
             messages.error(request, "Missing required fields.")
             return JsonResponse(
                 {"redirect_url": "/dashboard/analytics/upload/"}, status=400
@@ -275,6 +324,7 @@ def complete_multipart_upload(request):
                 {"redirect_url": "/dashboard/analytics/upload/"}, status=403
             )
 
+        # Finalize the multipart upload with S3
         s3 = boto3.client(
             "s3",
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
@@ -289,6 +339,33 @@ def complete_multipart_upload(request):
             MultipartUpload={"Parts": parts},
         )
 
+        # Handle dataset
+        if operation == "create":
+            dataset_name = data.get("dataset_name")
+            if not dataset_name:
+                return JsonResponse({"error": "Missing dataset name."}, status=400)
+
+            dataset = DataSet.objects.create(
+                name=dataset_name,
+                organization=organization,
+                created_by=user,
+                description=data.get("dataset_description", ""),
+            )
+        else:
+            dataset_id = data.get("dataset_id")
+            if not dataset_id:
+                return JsonResponse(
+                    {"error": "Missing dataset ID for append/replace."}, status=400
+                )
+
+            dataset = get_object_or_404(
+                DataSet, id=dataset_id, organization=organization
+            )
+
+            if operation == "replace":
+                dataset.uploads.all().delete()
+
+        # Save the upload
         DataUpload.objects.create(
             title=title,
             job_instructions=job_instructions,
@@ -296,6 +373,8 @@ def complete_multipart_upload(request):
             organization=organization,
             file=key,
             status="uploaded",
+            dataset=dataset,
+            operation=operation,
         )
 
         logger.info("✅ Multipart upload completed and saved.")
@@ -472,3 +551,25 @@ def download_pdf_report(request, upload_id):
             "An error occurred while generating the PDF. Please try again later.",
             status=500,
         )
+
+
+@login_required
+def get_available_datasets(request):
+    """
+    Return a list of versioned datasets available to the user's organization.
+    Only used for 'append' and 'replace' uploads.
+    """
+    user = request.user
+    organization = (
+        user.owned_organization
+        if hasattr(user, "owned_organization") and user.owned_organization
+        else user.organization_memberships.first().organization
+    )
+
+    datasets = (
+        DataSet.objects.filter(organization=organization)
+        .order_by("name")
+        .values("id", "name")
+    )
+
+    return JsonResponse({"datasets": list(datasets)})
