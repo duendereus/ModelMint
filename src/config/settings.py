@@ -218,7 +218,7 @@ STORAGES = {
     },
 }
 
-# ✅ AWS S3 Configuration #let's try to pull new code to railway
+# ✅ AWS S3 Configuration
 AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
 AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
