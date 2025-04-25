@@ -10,18 +10,15 @@ class DataSetAdmin(admin.ModelAdmin):
     Admin configuration for versioned dataset groups.
     """
 
-    list_display = ("name", "organization", "created_by", "created_at")
+    list_display = ("name", "organization", "created_by", "processed", "created_at")
     search_fields = ("name", "organization__name", "created_by__email")
+    list_filter = ("processed", "created_at")
     readonly_fields = ("created_at",)
     autocomplete_fields = ["organization", "created_by"]
 
 
 @admin.register(DataUpload)
 class DataUploadAdmin(admin.ModelAdmin):
-    """
-    Admin configuration for managing data uploads.
-    """
-
     list_display = (
         "title",
         "organization",
@@ -30,18 +27,18 @@ class DataUploadAdmin(admin.ModelAdmin):
         "operation",
         "version",
         "created_at",
-        "processed",
+        "used_for_processing",
         "status",
     )
-    list_filter = ("processed", "created_at", "status", "operation", "dataset")
-    search_fields = (
-        "title",
-        "organization__name",
-        "uploaded_by__email",
-        "file",
-        "dataset__name",
+    list_filter = (
+        "used_for_processing",
+        "created_at",
+        "status",
+        "operation",
+        "dataset",
     )
-    readonly_fields = ("created_at", "updated_at", "version")
+
+    readonly_fields = ("version", "created_at", "updated_at")
 
     fieldsets = (
         (
@@ -58,17 +55,20 @@ class DataUploadAdmin(admin.ModelAdmin):
                 )
             },
         ),
-        ("Processing Status", {"fields": ("processed", "processing_notes")}),
+        (
+            "Processing Status",
+            {"fields": ("used_for_processing", "processing_notes")},
+        ),
         ("Upload Status", {"fields": ("status",)}),
-        ("Version & Timestamps", {"fields": ("version", "created_at", "updated_at")}),
+        (
+            "Version & Timestamps",
+            {"fields": ()},
+        ),  # ❌ Quitar editable (se muestra como readonly)
     )
 
-    raw_id_fields = ("uploaded_by",)
-    autocomplete_fields = ["organization", "dataset"]
-
     def has_change_permission(self, request, obj=None):
-        """Allow changing only if the file is not processed yet."""
-        if obj and obj.processed:
+        """Allow changing only if this upload was not yet used to process metrics."""
+        if obj and obj.used_for_processing:
             return False
         return super().has_change_permission(request, obj)
 
@@ -95,37 +95,29 @@ class TableMetricInline(admin.TabularInline):
 class MetricAdmin(admin.ModelAdmin):
     list_display = (
         "name",
-        "datasource",
-        "datasource_organization",
+        "dataset",
+        "source_upload",
         "type",
         "position",
         "created_at",
         "preview_data",
     )
-    list_filter = ("type", "datasource__organization")
-    search_fields = ("name", "datasource__title", "datasource__organization__name")
-    ordering = ["datasource__organization", "datasource", "-created_at"]
+    list_filter = ("type", "dataset__organization")
+    search_fields = ("name", "dataset__name", "dataset__organization__name")
+    ordering = ["dataset__organization", "dataset", "-created_at"]
     list_editable = ("position",)
     readonly_fields = ("created_at", "updated_at")
 
     inlines = [TableMetricInline]
 
-    def datasource_organization(self, obj):
-        """Returns the organization name related to the metric's datasource."""
-        return obj.datasource.organization.name if obj.datasource.organization else ""
-
-    datasource_organization.short_description = "Organization"
-
     def get_queryset(self, request):
-        """Optimize query performance using select_related to fetch related objects in a single query."""
         return (
             super()
             .get_queryset(request)
-            .select_related("datasource", "datasource__organization")
+            .select_related("dataset", "dataset__organization", "source_upload")
         )
 
     def preview_data(self, obj):
-        """Displays a small preview of the table data in the admin list view."""
         if obj.type == "table" and hasattr(obj, "table_data") and obj.table_data.data:
             return format_html(
                 "<pre style='max-width:400px; max-height:100px; overflow:auto; white-space:pre-wrap;'>{}</pre>",
@@ -136,9 +128,6 @@ class MetricAdmin(admin.ModelAdmin):
     preview_data.short_description = "Table Preview"
 
     def save_model(self, request, obj, form, change):
-        """
-        Override save_model to show a warning message instead of throwing an error
-        """
         obj.save()
         if hasattr(obj, "_warning_message"):
             self.message_user(request, obj._warning_message, level=messages.WARNING)

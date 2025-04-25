@@ -26,6 +26,7 @@ class DataSet(models.Model):
     created_by = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="created_datasets"
     )
+    processed = models.BooleanField(default=False)  # ✅ NEW
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -89,7 +90,7 @@ class DataUpload(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    processed = models.BooleanField(default=False)
+    used_for_processing = models.BooleanField(default=False)
     processing_notes = models.TextField(blank=True, null=True)
 
     status = models.CharField(
@@ -162,11 +163,6 @@ class DataUpload(models.Model):
 
 
 class Metric(models.Model):
-    """
-    Stores metrics, tables, plots, and other analytical
-    results generated from DataUpload processing.
-    """
-
     METRIC_TYPES = [
         ("table", "Table"),
         ("plot", "Plot"),
@@ -174,39 +170,62 @@ class Metric(models.Model):
         ("text", "Text"),
     ]
 
-    datasource = models.ForeignKey(
-        DataUpload, on_delete=models.CASCADE, related_name="metrics"
+    dataset = models.ForeignKey(  # ✅ nuevo campo obligatorio
+        "analytics.DataSet", on_delete=models.CASCADE, related_name="metrics"
     )
+
+    source_upload = models.ForeignKey(  # ✅ opcional para trazabilidad
+        "analytics.DataUpload",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generated_metrics",
+        help_text="Original DataUpload used to generate this metric (for tracking only).",
+    )
+
     type = models.CharField(max_length=20, choices=METRIC_TYPES)
     name = models.CharField(max_length=255, help_text="Name of the metric")
-    file = models.FileField(
-        upload_to=upload_to_metric, blank=True, null=True
-    )  # For plot or file metrics
-    value = models.TextField(blank=True, null=True)  # For single_value or text
-    position = models.PositiveIntegerField(
-        default=0, help_text="Display order of metric"
-    )
+    file = models.FileField(upload_to=upload_to_metric, blank=True, null=True)
+    value = models.TextField(blank=True, null=True)
+    position = models.PositiveIntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("datasource", "position")
-        ordering = ["datasource__organization", "datasource", "-created_at"]
+        unique_together = ("dataset", "position")
+        ordering = ["dataset__organization", "dataset", "-created_at"]
 
     def __str__(self):
-        return f"{self.name} ({self.get_type_display()}) - {self.datasource.title}"
+        return f"{self.name} ({self.get_type_display()}) - {self.dataset.name}"
+
+    def save(self, *args, **kwargs):
+        if self.position is None:
+            self.position = 0
+
+        conflict = (
+            Metric.objects.filter(dataset=self.dataset, position=self.position)
+            .exclude(id=self.id)
+            .first()
+        )
+        if conflict:
+            message = f"⚠️ Metric position {self.position} is already taken"
+            message += " within this dataset. Please select a different position."
+            self._warning_message = message
+            return
+
+        super().save(*args, **kwargs)
 
     def get_presigned_url(self, expires_in=3600):
-        """Generate a pre-signed URL for private metric files."""
+        """
+        Generate a pre-signed URL for accessing the metric file (e.g. image/plot).
+        """
         if not self.file:
-            return None  # No file uploaded
+            return None
 
-        # ✅ If running locally, return MEDIA_URL path
         if not settings.USE_S3:
-            return f"{settings.MEDIA_URL}{self.file.name}"
+            return f"{settings.MEDIA_URL}{self.file}"
 
-        # ✅ Otherwise, generate a pre-signed URL for S3
         s3_client = boto3.client(
             "s3",
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
@@ -215,39 +234,16 @@ class Metric(models.Model):
         )
 
         try:
-            url = s3_client.generate_presigned_url(
+            return s3_client.generate_presigned_url(
                 "get_object",
                 Params={
                     "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
                     "Key": self.file.name,
                 },
-                ExpiresIn=expires_in,  # URL valid for 1 hour
+                ExpiresIn=expires_in,
             )
-            return url
-        except Exception as e:
-            return None  # Return None if URL generation fails
-
-    def save(self, *args, **kwargs):
-        """
-        Ensures the metric position is unique within a datasource.
-        If the position is taken, it does NOT auto-increment but instead adds a warning.
-        """
-        if self.position is None:
-            self.position = 0
-
-        # Check for conflicting positions
-        conflicting_metric = (
-            Metric.objects.filter(datasource=self.datasource, position=self.position)
-            .exclude(id=self.id)
-            .first()
-        )
-
-        if conflicting_metric:
-            # Store the error in a non-blocking way
-            self._warning_message = f"⚠️ Metric position {self.position} is already taken within this datasource. Please select a different position."
-            return  # Stop save execution but do not raise an error
-
-        super().save(*args, **kwargs)
+        except Exception:
+            return None
 
 
 class TableMetric(models.Model):

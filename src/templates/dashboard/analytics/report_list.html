@@ -1,0 +1,56 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %} Reports {% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Your Reports</h2>
+
+    {% if is_unlimited %}
+        <p class="text-muted">
+            {{ current_reports }} reports uploaded. Your plan allows <strong>unlimited</strong> reports.
+        </p>
+    {% elif max_reports == 0 %}
+        <p class="text-muted text-danger">
+            You don't have a subscription plan. <a href="{% url 'subscriptions:pricing' %}">Upgrade now</a> to unlock reports.
+        </p>
+    {% else %}
+        <p class="text-muted">
+            {{ current_reports }} of {{ max_reports }} reports used this cycle.
+        </p>
+    {% endif %}
+
+    {% if datasets %}
+        {% for dataset in datasets %}
+            {% if dataset.processed and dataset.processed_uploads %}
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ dataset.name }}</h5>
+                        <p class="card-text">{{ dataset.description|default:"No description provided." }}</p>
+
+                        {% with upload=dataset.processed_uploads.0 %}
+                        <p>
+                            <strong>Version:</strong> v{{ upload.version }} |
+                            <strong>Uploaded by:</strong> {{ upload.uploaded_by.email }} |
+                            <strong>Date:</strong> {{ upload.created_at|date:"Y-m-d" }}
+                        </p>
+
+                        <a href="{% url 'dashboard:analytics:report_detail_view' upload.dataset.id %}" class="btn btn-primary btn-sm">
+                            View Metrics
+                        </a>                        
+                        {% if can_download_pdf %}
+                        <a href="{% url 'dashboard:analytics:download_pdf_report' upload.pk %}" class="btn btn-outline-secondary btn-sm" target="_blank">
+                            Download PDF
+                        </a>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-warning">No processed datasets available.</div>
+    {% endif %}
+</div>
+{% endblock content %}
+

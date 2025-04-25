@@ -26,15 +26,16 @@ def upload_to_data_file(instance, filename):
 def upload_to_metric(instance, filename):
     """
     Sets the upload path for processed metric files.
-
-    Example: uploads/{org_name}/data/{dataupload_title}/metrics/{metric_name}/{filename}
+    Example: uploads/{org_name}/data/{dataset_name}/metrics/{metric_name}/{filename}
     """
-    org_name = instance.datasource.organization.name.lower().replace(" ", "_")
-    dataupload_title = instance.datasource.title.lower().replace(" ", "_")
+    org_name = instance.dataset.organization.name.lower().replace(" ", "_")
+    dataset_name = instance.dataset.name.lower().replace(" ", "_")
     metric_name = instance.name.lower().replace(" ", "_")
 
     # Ensure filename is unique
     base, ext = os.path.splitext(filename)
     new_filename = f"{base}_{instance.id}{ext}" if instance.id else filename
 
-    return f"uploads/{org_name}/data/{dataupload_title}/metrics/{metric_name}/{new_filename}"
+    return (
+        f"uploads/{org_name}/data/{dataset_name}/metrics/{metric_name}/{new_filename}"
+    )

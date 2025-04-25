@@ -25,7 +25,7 @@
                 {% for metric in available_metrics %}
                     <option value="{{ metric.id }}" 
                         {% if metric in dashboard_selection.metrics.all %} selected {% endif %}>
-                        {{ metric.name }} ({{ metric.datasource.title }})
+                        {{ metric.name }} ({{ metric.source_upload.title }}                        )
                     </option>
                 {% endfor %}
             </select>

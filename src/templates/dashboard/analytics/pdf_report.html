@@ -3,7 +3,7 @@
 {% load static custom_filters %}
 <head>
     <meta charset="UTF-8">
-    <title>Report - {{ data_upload.title }}</title>
+    <title>Report - {{ data_upload.dataset.name }}</title>
     <style>
         @page {
             margin: 30px 40px;
@@ -88,7 +88,7 @@
         <img src="{% static 'img/logo-green.svg' %}" alt="ModelMint Logo">
     </div>
 
-    <h1>📊 Report: {{ data_upload.title }}</h1>
+    <h1>📊 Report: {{ data_upload.dataset.name }} (v{{ data_upload.version }})</h1>
     <p><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
     <p><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
     <p><strong>Created At:</strong> {{ data_upload.created_at|date:"Y-m-d H:i" }}</p>
@@ -107,7 +107,7 @@
                 <p>{{ metric.value }}</p>
 
             {% elif metric.type == "plot" and metric.file %}
-                <img src="{{ metric.file.url }}" alt="Plot Image">
+            <img src="{{ metric.presigned_url }}" alt="Plot Image">
 
             {% elif metric.type == "table" and metric.table_data %}
                 <table>
@@ -139,4 +139,5 @@
 
 </body>
 </html>
+
 

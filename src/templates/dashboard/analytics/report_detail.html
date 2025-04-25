@@ -1,28 +1,21 @@
 {% extends "dashboard/base.html" %}
 {% load custom_filters %}
 
-{% block title %} {{ data_upload.title }} - Report Details {% endblock title %}
+{% block title %} {{ data_upload.dataset.name }} - Report Details {% endblock title %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2 class="mb-4">{{ data_upload.title }}</h2>
+    <h2 class="mb-1">{{ data_upload.dataset.name }}</h2>
+    <p class="text-muted mb-4">
+        Version v{{ data_upload.version }} — Uploaded {{ data_upload.created_at|date:"Y-m-d H:i" }}
+    </p>
 
     <!-- ✅ Upload Info Card -->
     <div class="card">
         <div class="card-body">
             <p><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
             <p><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
-            <p><strong>Created At:</strong> {{ data_upload.created_at|date:"Y-m-d H:i" }}</p>
             <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions }}</p>
-
-            <!-- ✅ File Download Link -->
-            <!-- {% if data_upload_presigned_url %}
-            <p><strong>Download File:</strong> 
-                <a href="{{ data_upload_presigned_url }}" class="btn btn-success btn-sm" download>
-                    Download File
-                </a>
-            </p>
-            {% endif %} -->
 
             {% if can_download_pdf %}
                 <a href="{% url 'dashboard:analytics:download_pdf_report' data_upload.id %}" target="_blank" class="btn btn-outline-primary mt-2">
@@ -31,8 +24,6 @@
             {% endif %}
         </div>
     </div>
-
-    
 
     <!-- ✅ Metrics Section -->
     <h3 class="mt-4">Metrics</h3>
@@ -52,19 +43,12 @@
                             {% endif %}
                         </div>
                         <div class="card-body">
-                            <!-- ✅ Single Value -->
                             {% if metric.type == "single_value" %}
                                 <h4 class="font-weight-bold">{{ metric.value }}</h4>
-
-                            <!-- ✅ Text Value (Ensuring Proper Wrapping) -->
                             {% elif metric.type == "text" %}
                                 <p class="text-container">{{ metric.value }}</p>
-
-                            <!-- ✅ Image/Plot -->
                             {% elif metric.type == "plot" and metric.file %}
                                 <img src="{{ metric.presigned_url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 100%;">
-
-                            <!-- ✅ Table Data -->
                             {% elif metric.type == "table" and metric.table_data %}
                                 <div class="table-responsive table-container">
                                     <table id="metric-table-{{ metric.id }}" class="table table-bordered table-sm table-metric nowrap" style="width:100%;">
@@ -86,7 +70,6 @@
                                         </tbody>
                                     </table>
                                 </div>
-
                             {% else %}
                                 <span class="text-muted">No data available</span>
                             {% endif %}
@@ -101,7 +84,6 @@
         </div>
     {% endif %}
 </div>
-
 {% endblock %}
 
 

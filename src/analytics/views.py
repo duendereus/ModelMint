@@ -26,6 +26,7 @@ import uuid
 import mimetypes
 import json
 import logging
+from django.db.models import Prefetch
 
 
 logger = logging.getLogger(__name__)
@@ -385,17 +386,13 @@ def complete_multipart_upload(request):
 
 
 @login_required
-def data_upload_list(request):
+def report_list_view(request):
     user = request.user
-
     organization = (
         user.owned_organization
         if hasattr(user, "owned_organization") and user.owned_organization
         else user.organization_memberships.first().organization
     )
-
-    if not organization:
-        raise PermissionDenied("You are not part of any organization.")
 
     if not can_view_more_reports(organization):
         messages.warning(
@@ -403,146 +400,149 @@ def data_upload_list(request):
             "You've reached the maximum number of processed reports allowed by your current plan.",
         )
 
-    data_uploads = (
-        DataUpload.objects.filter(organization=organization, processed=True)
-        .select_related("organization", "uploaded_by")
-        .order_by("-created_at")
+    datasets = (
+        DataSet.objects.filter(organization=organization)
+        .prefetch_related(
+            Prefetch(
+                "uploads",
+                queryset=DataUpload.objects.filter(used_for_processing=True).order_by(
+                    "-version"
+                ),
+                to_attr="processed_uploads",
+            )
+        )
+        .order_by("name")
     )
 
     limits = get_plan_limits(organization)
     max_reports = limits.get("max_reports") if limits else 0
-    is_unlimited = max_reports == float("inf")  # ✅ Add this flag
-    current_reports = organization.data_uploads.filter(processed=True).count()
+    is_unlimited = max_reports == float("inf")
+    current_reports = DataUpload.objects.filter(
+        organization=organization, used_for_processing=True
+    ).count()
     can_download_pdf = limits.get("allow_pdf_download", False) if limits else False
 
     return render(
         request,
-        "dashboard/analytics/uploads_list.html",
+        "dashboard/analytics/report_list.html",
         {
-            "data_uploads": data_uploads,
+            "datasets": datasets,
             "can_download_pdf": can_download_pdf,
             "max_reports": max_reports,
             "current_reports": current_reports,
-            "is_unlimited": is_unlimited,  # ✅ Include in context
+            "is_unlimited": is_unlimited,
         },
     )
 
 
 @login_required
-def data_upload_detail(request, upload_id):
+def report_detail_view(request, dataset_id):
     """
-    Displays the details of a specific processed DataUpload, including its related Metrics.
+    Shows the latest processed DataUpload for a given DataSet
+    and its associated Metrics.
     """
     user = request.user
+    organization = (
+        user.owned_organization
+        if hasattr(user, "owned_organization") and user.owned_organization
+        else user.organization_memberships.first().organization
+    )
 
-    # Get the DataUpload object (raises 404 if not found)
-    data_upload = get_object_or_404(DataUpload, id=upload_id, processed=True)
+    dataset = get_object_or_404(DataSet, id=dataset_id, organization=organization)
 
-    # Determine the user's organization
-    organization = None
-    if hasattr(user, "owned_organization"):
-        organization = user.owned_organization
-    else:
-        membership = user.organization_memberships.first()
-        if membership:
-            organization = membership.organization
+    # ✅ Find the latest upload that was marked as processed
+    latest_upload = (
+        dataset.uploads.filter(used_for_processing=True)
+        .order_by("-version", "-created_at")
+        .first()
+    )
 
-    # Check if user has access to this DataUpload
-    if not organization or data_upload.organization != organization:
-        raise PermissionDenied("You do not have access to this data upload.")
+    if not latest_upload:
+        raise Http404("No processed data upload available for this dataset.")
 
-    # Fetch related metrics and optimize queries
+    # ✅ Fetch related metrics (now attached to dataset)
     metrics = (
-        Metric.objects.filter(datasource=data_upload)
-        .select_related("table_data")  # Includes TableMetric if exists
+        Metric.objects.filter(dataset=dataset)
+        .select_related("table_data")
         .order_by("position")
     )
 
-    # ✅ Generate pre-signed URLs for all files
+    # ✅ Generate presigned URL
     try:
-        data_upload_presigned_url = data_upload.get_presigned_url()
-    except Exception as e:
+        data_upload_presigned_url = latest_upload.get_presigned_url()
+    except Exception:
         data_upload_presigned_url = None
 
     for metric in metrics:
         metric.presigned_url = metric.get_presigned_url()
 
-    # ✅ Check if the organization is allowed to download PDFs
     can_download_pdf = can_download_pdf_reports(organization)
 
-    context = {
-        "data_upload": data_upload,
-        "data_upload_presigned_url": data_upload_presigned_url,
-        "metrics": metrics,
-        "can_download_pdf": can_download_pdf,  # ✅ Include in template context
-    }
-    return render(request, "dashboard/analytics/upload_detail.html", context)
+    return render(
+        request,
+        "dashboard/analytics/report_detail.html",
+        {
+            "data_upload": latest_upload,  # still used to show title/file/etc.
+            "metrics": metrics,
+            "can_download_pdf": can_download_pdf,
+            "data_upload_presigned_url": data_upload_presigned_url,
+        },
+    )
 
 
 @login_required
 def download_pdf_report(request, upload_id):
     try:
-        # logger.info(f"📝 PDF download requested for upload ID: {upload_id}")
-        data_upload = get_object_or_404(DataUpload, id=upload_id, processed=True)
-        # logger.info(f"✅ DataUpload fetched: {data_upload}")
+        data_upload = get_object_or_404(
+            DataUpload, id=upload_id, used_for_processing=True
+        )
 
-        # Determine the user's organization
-        if (
-            hasattr(request.user, "owned_organization")
-            and request.user.owned_organization
-        ):
-            organization = request.user.owned_organization
-        else:
-            membership = request.user.organization_memberships.first()
-            organization = membership.organization if membership else None
+        user = request.user
+        organization = (
+            user.owned_organization
+            if hasattr(user, "owned_organization") and user.owned_organization
+            else user.organization_memberships.first().organization
+        )
 
-        # logger.info(f"🔍 Organization detected: {organization}")
-
-        # Access control
         if not organization or data_upload.organization != organization:
-            # logger.warning("⛔ Access denied for user to this report.")
             raise PermissionDenied("You do not have access to this report.")
 
-        # Check subscription permission
         if not can_download_pdf_reports(organization):
-            from django.contrib import messages
-
             messages.warning(
                 request,
                 "PDF downloads are only available on Business and Enterprise plans.",
             )
-            # logger.warning("🚫 Organization not allowed to download PDF.")
             return redirect(
-                "dashboard:analytics:data_upload_detail", upload_id=upload_id
+                "dashboard:analytics:report_detail_view",
+                dataset_id=data_upload.dataset.id,
             )
 
-        # Fetch metrics
-        metrics = Metric.objects.filter(datasource=data_upload).select_related(
+        metrics = Metric.objects.filter(dataset=data_upload.dataset).select_related(
             "table_data"
         )
-        # logger.info(f"📊 Metrics found: {metrics.count()}")
 
-        # Render HTML
+        # ✅ Attach presigned URL for plots
+        for metric in metrics:
+            if metric.file:
+                metric.presigned_url = metric.get_presigned_url()
+            else:
+                metric.presigned_url = None
+
         html = render_to_string(
             "dashboard/analytics/pdf_report.html",
             {"data_upload": data_upload, "metrics": metrics},
             request=request,
         )
-        # logger.info("✅ HTML rendered successfully")
 
-        # Generate PDF
         pdf_file = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
-        # logger.info("📄 PDF generated successfully")
 
-        # Return response
         response = HttpResponse(pdf_file, content_type="application/pdf")
         response["Content-Disposition"] = (
             f"inline; filename=Report_{data_upload.id}.pdf"
         )
         return response
 
-    except Exception as e:
-        # logger.exception(f"❌ PDF generation failed for upload ID {upload_id}: {str(e)}")
+    except Exception:
         return HttpResponse(
             "An error occurred while generating the PDF. Please try again later.",
             status=500,

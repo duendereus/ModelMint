@@ -49,11 +49,15 @@ def dashboard_home(request):
 
         if dashboard_selection:
             # ✅ Prefetch table data to avoid missing relations
-            selected_metrics = dashboard_selection.metrics.all().select_related("table_data")
+            selected_metrics = dashboard_selection.metrics.all().select_related(
+                "table_data"
+            )
 
             # ✅ Generate pre-signed URLs using the existing model method
             for metric in selected_metrics:
-                metric.presigned_url = metric.get_presigned_url() if metric.file else None
+                metric.presigned_url = (
+                    metric.get_presigned_url() if metric.file else None
+                )
 
     return render(
         request,
@@ -65,6 +69,7 @@ def dashboard_home(request):
             "organization": organization,
         },
     )
+
 
 @login_required
 def dashboard_customize(request):
@@ -79,7 +84,7 @@ def dashboard_customize(request):
     )
 
     # Get all available metrics from the organization's DataUpload reports
-    available_metrics = Metric.objects.filter(datasource__organization=organization)
+    available_metrics = Metric.objects.filter(dataset__organization=organization)
 
     if request.method == "POST":
         selected_metric_ids = request.POST.getlist(
@@ -100,6 +105,7 @@ def dashboard_customize(request):
             "dashboard_selection": dashboard_selection,
         },
     )
+
 
 @login_required
 def invite_member(request):
@@ -163,6 +169,7 @@ def invite_member(request):
         form = InviteMemberForm()
 
     return render(request, "dashboard/accounts/invite_member.html", {"form": form})
+
 
 @login_required
 def organization_users(request):
