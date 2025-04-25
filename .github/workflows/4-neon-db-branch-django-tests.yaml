@@ -9,12 +9,13 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
     env:
       DEBUG: 0
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
-      NEON_PROD_BRANCH: "main"
-      NEON_GITHUB_BRANCH: "gh-delete"
+      NEON_PROD_BRANCH: "production" # Cambiado de "main" a "production"
+      NEON_GITHUB_BRANCH: "gh-test" # Puedes cambiar este nombre si lo prefieres
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
@@ -35,49 +36,43 @@ jobs:
           node-version: "20.11"
 
       - name: Install Neon CLI
-        run: |
-          npm install -g neonctl
+        run: npm install -g neonctl
 
-      - name: Delete previous branch if exists
+      - name: Delete previous temp branch if it exists
+        continue-on-error: true
         run: |
-          echo "Trying to delete previous branch ${{ env.NEON_GITHUB_BRANCH }}..."
-          if neonctl branches list --project-id "${{ env.NEON_PROJECT_ID }}" | grep -q "${{ env.NEON_GITHUB_BRANCH }}"; then
-            neonctl branches delete "${{ env.NEON_GITHUB_BRANCH }}" --project-id "${{ env.NEON_PROJECT_ID }}"
-          else
-            echo "Branch '${{ env.NEON_GITHUB_BRANCH }}' does not exist. Skipping delete."
-          fi
+          echo "🧹 Deleting previous branch ${{ env.NEON_GITHUB_BRANCH }} if exists..."
+          neonctl branches delete "${{ env.NEON_GITHUB_BRANCH }}" --project-id "${{ env.NEON_PROJECT_ID }}" || true
 
-      - name: Create new GitHub Actions branch
+      - name: Create new GitHub Actions branch from production
         run: |
           neonctl branches create --name "${{ env.NEON_GITHUB_BRANCH }}" --parent "${{ env.NEON_PROD_BRANCH }}" --project-id "${{ env.NEON_PROJECT_ID }}"
 
-      - name: Set DATABASE_URL from new branch
+      - name: Set DATABASE_URL from new Neon branch
         run: |
-          MY_NEON_CONN_STRING=$(neonctl connection-string --branch "${{ env.NEON_GITHUB_BRANCH }}" --project-id "${{ env.NEON_PROJECT_ID }}")
-          echo "DATABASE_URL=$MY_NEON_CONN_STRING" >> $GITHUB_ENV
+          NEW_DB_URL=$(neonctl connection-string --branch "${{ env.NEON_GITHUB_BRANCH }}" --project-id "${{ env.NEON_PROJECT_ID }}")
+          echo "DATABASE_URL=$NEW_DB_URL" >> $GITHUB_ENV
 
       - name: Generate Django Secret Key
         run: |
-          MY_GEN_KEY=$(openssl rand -base64 32)
-          echo "DJANGO_SECRET_KEY=$MY_GEN_KEY" >> $GITHUB_ENV
+          echo "DJANGO_SECRET_KEY=$(openssl rand -base64 32)" >> $GITHUB_ENV
 
-      - name: Install Requirements
+      - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          pip install -r requirements.txt
 
-      - name: Django Migrate Database
+      - name: Run Django Migrations
         working-directory: ./src
-        run: |
-          python manage.py migrate
+        run: python manage.py migrate
 
       - name: Run Django Tests
         working-directory: ./src
-        run: |
-          python manage.py test
+        run: python manage.py test
 
-      - name: Clean Up Step (Delete Temp Branch)
+      - name: Clean up Neon branch
+        if: always()
         continue-on-error: true
         run: |
-          echo "Cleaning up temporary branch..."
+          echo "🧹 Deleting temp Neon branch ${{ env.NEON_GITHUB_BRANCH }}..."
           neonctl branches delete "${{ env.NEON_GITHUB_BRANCH }}" --project-id "${{ env.NEON_PROJECT_ID }}"
