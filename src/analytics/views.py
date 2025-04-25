@@ -12,7 +12,7 @@ from subscriptions.utils import (
 )
 import boto3
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 
@@ -35,11 +35,14 @@ logger = logging.getLogger(__name__)
 @login_required
 def upload_data(request):
     user = request.user
-    organization = (
-        user.owned_organization
-        if hasattr(user, "owned_organization") and user.owned_organization
-        else user.organization_memberships.first().organization
-    )
+    organization = getattr(user, "owned_organization", None)
+    if not organization:
+        membership = user.organization_memberships.first()
+        organization = membership.organization if membership else None
+
+    if not organization:
+        messages.error(request, "You must belong to an organization to upload data.")
+        return redirect("dashboard:dashboard_home")
 
     limits = get_plan_limits(organization)
     if limits is None:
@@ -388,11 +391,20 @@ def complete_multipart_upload(request):
 @login_required
 def report_list_view(request):
     user = request.user
+
     organization = (
         user.owned_organization
         if hasattr(user, "owned_organization") and user.owned_organization
-        else user.organization_memberships.first().organization
+        else (
+            user.organization_memberships.first().organization
+            if user.organization_memberships.exists()
+            else None
+        )
     )
+
+    if not organization:
+        messages.warning(request, "You must belong to an organization to view reports.")
+        return redirect("dashboard:dashboard_home")  # o donde tú prefieras
 
     if not can_view_more_reports(organization):
         messages.warning(
@@ -442,15 +454,25 @@ def report_detail_view(request, dataset_id):
     and its associated Metrics.
     """
     user = request.user
+
     organization = (
         user.owned_organization
         if hasattr(user, "owned_organization") and user.owned_organization
-        else user.organization_memberships.first().organization
+        else (
+            user.organization_memberships.first().organization
+            if user.organization_memberships.exists()
+            else None
+        )
     )
+
+    if not organization:
+        messages.warning(
+            request, "You must belong to an organization to view this report."
+        )
+        return redirect("dashboard:dashboard_home")  # o donde prefieras
 
     dataset = get_object_or_404(DataSet, id=dataset_id, organization=organization)
 
-    # ✅ Find the latest upload that was marked as processed
     latest_upload = (
         dataset.uploads.filter(used_for_processing=True)
         .order_by("-version", "-created_at")
@@ -460,14 +482,12 @@ def report_detail_view(request, dataset_id):
     if not latest_upload:
         raise Http404("No processed data upload available for this dataset.")
 
-    # ✅ Fetch related metrics (now attached to dataset)
     metrics = (
         Metric.objects.filter(dataset=dataset)
         .select_related("table_data")
         .order_by("position")
     )
 
-    # ✅ Generate presigned URL
     try:
         data_upload_presigned_url = latest_upload.get_presigned_url()
     except Exception:
@@ -482,7 +502,7 @@ def report_detail_view(request, dataset_id):
         request,
         "dashboard/analytics/report_detail.html",
         {
-            "data_upload": latest_upload,  # still used to show title/file/etc.
+            "data_upload": latest_upload,
             "metrics": metrics,
             "can_download_pdf": can_download_pdf,
             "data_upload_presigned_url": data_upload_presigned_url,
