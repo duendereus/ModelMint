@@ -1,31 +1,44 @@
 {% load static %}
 <section class="banner banner-one">
-    <div class="circle-shape" data-parallax='{"y" : 230}'><img src="{% static 'img/banner/circle-shape.png' %}" alt="circle"></div>
+    <div class="circle-shape" data-parallax='{"y" : 230}'>
+        <img src="{% static 'img/banner/circle-shape.png' %}" alt="circle">
+    </div>
+
     <div class="container">
         <div class="banner-content-wrap">
             <div class="row align-items-center">
                 <div class="col-lg-6">
                     <div class="banner-content">
                         <h1 class="banner-title wow pixFadeUp" data-wow-delay="0.3s">
-                            Turn Your <span>Data </span> into <span>Insights</span>, Predictions & AI-Powered <span>Solutions</span>
+                            Transform Raw <span>Spreadsheets</span> into <span>Insights</span> & Decision-Ready <span>Reports</span>
                         </h1>
 
                         <p class="description wow pixFadeUp" data-wow-delay="0.5s">
-                            Unlimited Data Science & ML – No Limits, No Hassles.
+                            From cluttered CSVs to stunning dashboards — all with your team’s real goals in mind.
                         </p>
 
-                        <a href="#" class="pxs-btn banner-btn wow pixFadeUp" data-wow-delay="0.6s">Start leveraging your data now!</a>
-                    </div><!-- /.banner-content -->
-                </div><!-- /.col-lg-6 -->
+                        <a href="{% url 'accounts:register' %}" class="pxs-btn banner-btn wow pixFadeUp" data-wow-delay="0.6s">
+                            Start uploading your data today
+                        </a>
+                    </div>
+                </div>
 
-                <div class="col-lg-6">
-                    <div class="promo-mockup wow pixFadeLeft">
-                        <img src="{% static 'img/banner/macbook.png' %}" alt="mpckup">
-                    </div><!-- /.promo-mockup -->
-                </div><!-- /.col-lg-6 -->
-            </div><!-- /.row -->
-        </div><!-- /.banner-content-wrap -->
-    </div><!-- /.container -->
+                <div class="col-lg-6 d-flex justify-content-center align-items-center">
+                    <div class="promo-mockup" style="
+                        max-width: 750px;
+                        width: 100%;
+                        background-color: white;
+                        border-radius: 12px;
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.07);
+                        padding: 16px;
+                        transition: transform 0.3s ease;
+                    ">
+                        <img src="{% static 'img/banner/before-after.png' %}" alt="before-after graphic" style="width: 100%; border-radius: 8px;">
+                    </div>
+                </div>                
+            </div>
+        </div>
+    </div>
 
     <div class="bg-shape">
         <img src="{% static 'img/banner/shape-bg.png' %}" alt="">
