@@ -6004,6 +6004,25 @@ select {
   a:hover {
   color: #2bba64;
 }
+.saaspik-icon-box-wrapper.style-two .saaspik-icon-box-icon {
+  margin-bottom: 30px;
+  height: 120px; /* Tamaño uniforme para todas las cajas */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.saaspik-icon-box-wrapper.style-two .saaspik-icon-box-icon img {
+  max-width: 100px;
+  max-height: 100px;
+  width: auto;
+  height: auto;
+  transition: transform 0.3s ease-in-out; /* para un pequeño efecto al pasar el mouse */
+}
+
+.saaspik-icon-box-wrapper.style-two .saaspik-icon-box-icon img:hover {
+  transform: scale(1.05); /* agranda ligeramente al hacer hover */
+}
 .saaspik-icon-box-wrapper.style-three {
   border-radius: 6px;
   background-color: rgb(255, 255, 255);

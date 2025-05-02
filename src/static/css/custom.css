@@ -38,3 +38,14 @@
     position: relative;
     z-index: 1000;
 }
+
+/* Quitar números automáticos en los botones del FAQ */
+.faq .btn-link::before,
+.faq .btn-link::after {
+    content: none !important;
+}
+
+/* .faq button.btn.btn-link {
+    list-style-type: none;
+    counter-increment: none;
+} */
