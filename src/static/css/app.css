@@ -947,12 +947,12 @@ section {
   position: relative;
 }
 .list-items li:before {
-  content: "N";
-  font-family: eleganticons;
+  content: "→";  /* Flecha bonita */
   position: absolute;
   left: 0;
   top: 0;
   color: #2bba64;
+  font-family: inherit; /* Usa la misma fuente que el texto */
 }
 .list-items.color-two li:before {
   color: #7052fb;
