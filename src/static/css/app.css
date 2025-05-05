@@ -10290,11 +10290,11 @@ select {
   top: 0;
 }
 .pricing-table .price-feture li.have:before {
-  content: "N";
+  content: "→";
   color: #1acb44;
 }
 .pricing-table .price-feture li.not:before {
-  content: "M";
+  content: "→";
   color: #fa7878;
 }
 .pricing-table.color-two .pricing-header .price {
@@ -10410,7 +10410,7 @@ select {
   color: #2c234d;
 }
 .pricing-table.style-three .price-feture li:before {
-  content: "N";
+  content: "→";
   font-family: eleganticons;
   left: 0;
   position: absolute;

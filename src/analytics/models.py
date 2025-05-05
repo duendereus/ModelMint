@@ -64,7 +64,17 @@ class DataUpload(models.Model):
     title = models.CharField(
         max_length=255, help_text="A short title describing the data upload."
     )
-    file = models.CharField(max_length=1024, help_text="S3 key for the uploaded file")
+    file = models.CharField(
+        max_length=1024,
+        help_text="S3 key for the uploaded file",
+        blank=True,
+        null=True,
+    )
+    drive_link = models.URLField(
+        blank=True,
+        null=True,
+        help_text="If provided, the team will download the data from this link.",
+    )
     job_instructions = models.TextField(
         blank=False,
         help_text="Detailed instructions on what needs to be done with the data.",
@@ -146,6 +156,10 @@ class DataUpload(models.Model):
             raise ValidationError(
                 "Only the organization owner or members can upload data."
             )
+
+        # ✅ Nueva cláusula: requiere al menos file o drive_link
+        if not self.file and not self.drive_link:
+            raise ValidationError("You must provide either a file or a drive link.")
 
     def save(self, *args, **kwargs):
         self.clean()

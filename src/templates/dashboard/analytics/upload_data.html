@@ -44,6 +44,15 @@
                     <input type="text" name="title" id="id_title" class="form-control" required>
                 </div>
             
+                
+                <p><a href="#" id="use-drive-link">Is your data already stored in a drive? Click here.</a></p>
+
+                <!-- Drive Link input -->
+                <div class="mb-3" id="drive-link-group" style="display: none;">
+                    <label for="id_drive_link" class="form-label">Drive Link (share access with <span style="color: white; background-color: #2bba64; font-size: larger;">x@mi_dominio.com</span>)</label>
+                    <input type="url" name="drive_link" id="id_drive_link" class="form-control">
+                </div>
+
                 <!-- File Upload -->
                 <div class="mb-3">
                     <label for="id_file" class="form-label">Upload File (.csv or .xlsx)</label>

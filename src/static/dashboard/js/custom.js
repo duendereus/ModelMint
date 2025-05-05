@@ -131,5 +131,28 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 
+let driveLinkMode = false;
+
+document.getElementById("use-drive-link").addEventListener("click", function(event) {
+    event.preventDefault();
+
+    if (!driveLinkMode) {
+        // Activar modo Drive Link
+        document.getElementById("id_file").disabled = true;
+        document.getElementById("id_file").value = null;  // Limpia archivo si había
+        document.getElementById("drive-link-group").style.display = "block";
+        this.textContent = "Switch back to file upload";
+        driveLinkMode = true;
+    } else {
+        // Revertir a modo File Upload
+        document.getElementById("id_file").disabled = false;
+        document.getElementById("drive-link-group").style.display = "none";
+        document.getElementById("id_drive_link").value = "";  // Limpia link si había
+        this.textContent = "Is your data already stored in a drive? Click here.";
+        driveLinkMode = false;
+    }
+});
+
+
 
 

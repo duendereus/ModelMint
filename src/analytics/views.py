@@ -141,9 +141,10 @@ def confirm_upload(request):
         title = request.POST.get("title")
         job_instructions = request.POST.get("job_instructions")
         file_key = request.POST.get("file_key")
+        drive_link = request.POST.get("drive_link")
         operation = request.POST.get("operation", "create")
 
-        if not title or not file_key or not operation:
+        if not title or (not file_key and not drive_link) or not operation:
             logger.warning("⚠️ Missing basic required fields")
             return JsonResponse({"error": "Missing basic required fields."}, status=400)
 
@@ -197,7 +198,8 @@ def confirm_upload(request):
             job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
-            file=file_key,
+            file=file_key if file_key else None,
+            drive_link=drive_link if drive_link else None,
             status="uploaded",
             dataset=dataset,
             operation=operation,
@@ -294,6 +296,7 @@ def complete_multipart_upload(request):
         data = json.loads(request.body)
         upload_id = data.get("uploadId")
         key = data.get("key")
+        drive_link = data.get("drive_link")
         parts = data.get("parts")
         title = data.get("title")
         job_instructions = data.get("job_instructions")
@@ -371,7 +374,8 @@ def complete_multipart_upload(request):
             job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
-            file=key,
+            file=key if key else None,
+            drive_link=drive_link if drive_link else None,
             status="uploaded",
             dataset=dataset,
             operation=operation,
