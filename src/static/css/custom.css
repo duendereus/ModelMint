@@ -49,3 +49,35 @@
     list-style-type: none;
     counter-increment: none;
 } */
+
+.revolutionize .section-title p {
+    font-size: 18px;
+    color: #4a4a4a;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+#pix-tabs-content .content {
+    position: relative;
+}
+
+#pix-tabs-content .tab-description {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 400px;
+}
+
+#pix-tabs-content .tab-description h3 {
+    font-size: 22px;
+    color: #2b2350;
+}
+
+#pix-tabs-content .tab-description p {
+    font-size: 16px;
+    color: #4a4a4a;
+    margin-top: 10px;
+}
