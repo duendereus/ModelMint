@@ -21,3 +21,7 @@ document.addEventListener("DOMContentLoaded", function() {
         firstNav.classList.add("active");
     }
 });
+
+if (window.innerWidth > 768) {
+    new WOW().init();
+}

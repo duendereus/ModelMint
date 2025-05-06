@@ -82,6 +82,22 @@
     margin-top: 10px;
 }
 
+@media (max-width: 1000px) {
+    #pix-tabs-content .tab-description {
+        position: static;
+        background: rgba(255, 255, 255, 0.95);
+        margin-top: 10px;
+        max-width: 100%;
+        border-radius: 8px;
+    }
+    #pix-tabs-content .content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+
 .image-two-inner img {
     max-width: 320px;
     max-height: 280px;
@@ -91,3 +107,15 @@
     z-index: 2;
     margin-top: 20px; /* separarla un poco si lo deseas */
 }
+
+.banner.banner-one {
+    /* height: auto !important; */
+    overflow-y: hidden !important;
+}
+
+
+
+
+
+
+  
