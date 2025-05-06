@@ -1,0 +1,121 @@
+.notification-container {
+    position: fixed;
+    top: 25px;  /* Adjusted from 10% */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50%; /* Adjust width based on your design */
+    z-index: 9999; /* Ensure it stays on top */
+}
+
+.show-notification {
+    padding: 15px;
+    border-radius: 5px;
+    text-align: center;
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.alert-danger {
+    background-color: #f8d7da !important; /* Light red background */
+    color: #721c24 !important; /* Dark red text */
+    border: 1px solid #f5c6cb !important;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+
+/* Close button styling */
+.show-notification .close {
+    color: #212421;
+    opacity: 0.7;
+}
+
+/* Ensure it does not affect navbar expansion */
+.navbar {
+    position: relative;
+    z-index: 1000;
+}
+
+/* Quitar números automáticos en los botones del FAQ */
+.faq .btn-link::before,
+.faq .btn-link::after {
+    content: none !important;
+}
+
+/* .faq button.btn.btn-link {
+    list-style-type: none;
+    counter-increment: none;
+} */
+
+.revolutionize .section-title p {
+    font-size: 18px;
+    color: #4a4a4a;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+#pix-tabs-content .content {
+    position: relative;
+}
+
+#pix-tabs-content .tab-description {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 400px;
+}
+
+#pix-tabs-content .tab-description h3 {
+    font-size: 22px;
+    color: #2b2350;
+}
+
+#pix-tabs-content .tab-description p {
+    font-size: 16px;
+    color: #4a4a4a;
+    margin-top: 10px;
+}
+
+@media (max-width: 1000px) {
+    #pix-tabs-content .tab-description {
+        position: static;
+        background: rgba(255, 255, 255, 0.95);
+        margin-top: 10px;
+        max-width: 100%;
+        border-radius: 8px;
+    }
+    #pix-tabs-content .content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+
+.image-two-inner img {
+    max-width: 320px;
+    max-height: 280px;
+    width: 100%;
+    height: auto;
+    position: relative;
+    z-index: 2;
+    margin-top: 20px; /* separarla un poco si lo deseas */
+}
+
+.banner.banner-one {
+    /* height: auto !important; */
+    overflow-y: hidden !important;
+}
+
+
+
+
+
+
+  

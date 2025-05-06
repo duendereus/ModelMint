@@ -215,9 +215,10 @@ STORAGES = {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
+
 
 # ✅ AWS S3 Configuration
 AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
@@ -238,6 +239,7 @@ MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 # ✅ Static file config (WhiteNoise)
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
 
 # ✅ No need for MEDIA_ROOT in S3
 # MEDIA_ROOT is only relevant when using FileSystemStorage
