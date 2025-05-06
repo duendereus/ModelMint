@@ -69,10 +69,10 @@
                                  data-image="{{ metric.presigned_url }}">
 
                         {% elif metric.type == "single_value" %}
-                            <p class="display-4">{{ metric.value }}</p>
+                            <p class="display-4">{{ metric.value|safe }}</p>
 
                         {% elif metric.type == "text" %}
-                            <p>{{ metric.value }}</p>
+                            <p>{{ metric.value|safe }}</p>
 
                         {% elif metric.presigned_url %}
                             <p><a href="{{ metric.presigned_url }}" target="_blank" class="btn btn-primary">Download File</a></p>

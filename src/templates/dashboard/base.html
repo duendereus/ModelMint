@@ -25,7 +25,7 @@
         <!-- Style Css -->
         <link href="{% static 'dashboard/css/style.min.css' %}" class="theme-opt" rel="stylesheet" type="text/css" />
         <link href="{% static 'dashboard/css/custom.css' %}" class="theme-opt" rel="stylesheet" type="text/css" />
-
+     
     </head>
 
     <body>
@@ -77,6 +77,11 @@
         <!-- page-wrapper -->
         
         <!-- javascript -->
+        <script src="{% static 'ckeditor/ckeditor.js' %}"></script>
+        <script>
+            CKEDITOR.replace('id_job_instructions');
+        </script>
+
         <script src="{% static 'dashboard/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
         <script src="{% static 'dashboard/libs/feather-icons/feather.min.js' %}"></script>
         <script src="{% static 'dashboard/libs/simplebar/simplebar.min.js' %}"></script>
@@ -95,6 +100,9 @@
         <script src="{% static 'dashboard/js/app.js' %}"></script>
         <script src="{% static 'dashboard/js/custom.js' %}"></script>
         <script src="{% static 'dashboard/js/uploader.js' %}"></script>
+
+
+
 
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css">
 

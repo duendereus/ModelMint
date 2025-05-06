@@ -2,6 +2,8 @@ from django.contrib import admin
 from .models import DataSet, DataUpload, Metric, TableMetric
 from django.utils.html import format_html
 from django.contrib import messages
+from django import forms
+from ckeditor.widgets import CKEditorWidget
 
 
 @admin.register(DataSet)
@@ -17,8 +19,19 @@ class DataSetAdmin(admin.ModelAdmin):
     autocomplete_fields = ["organization", "created_by"]
 
 
+class DataUploadAdminForm(forms.ModelForm):
+    class Meta:
+        model = DataUpload
+        fields = "__all__"
+        widgets = {
+            "job_instructions": CKEditorWidget(),
+            "processing_notes": CKEditorWidget(),
+        }
+
+
 @admin.register(DataUpload)
 class DataUploadAdmin(admin.ModelAdmin):
+    form = DataUploadAdminForm
     list_display = (
         "title",
         "organization",
@@ -30,47 +43,6 @@ class DataUploadAdmin(admin.ModelAdmin):
         "used_for_processing",
         "status",
     )
-    list_filter = (
-        "used_for_processing",
-        "created_at",
-        "status",
-        "operation",
-        "dataset",
-    )
-
-    readonly_fields = ("version", "created_at", "updated_at")
-
-    fieldsets = (
-        (
-            "Upload Info",
-            {
-                "fields": (
-                    "title",
-                    "organization",
-                    "uploaded_by",
-                    "dataset",
-                    "operation",
-                    "file",
-                    "job_instructions",
-                )
-            },
-        ),
-        (
-            "Processing Status",
-            {"fields": ("used_for_processing", "processing_notes")},
-        ),
-        ("Upload Status", {"fields": ("status",)}),
-        (
-            "Version & Timestamps",
-            {"fields": ()},
-        ),  # ❌ Quitar editable (se muestra como readonly)
-    )
-
-    def has_change_permission(self, request, obj=None):
-        """Allow changing only if this upload was not yet used to process metrics."""
-        if obj and obj.used_for_processing:
-            return False
-        return super().has_change_permission(request, obj)
 
 
 class TableMetricInline(admin.TabularInline):
@@ -91,8 +63,18 @@ class TableMetricInline(admin.TabularInline):
     short_data.short_description = "Data Preview"  # Admin column name
 
 
+class MetricAdminForm(forms.ModelForm):
+    class Meta:
+        model = Metric
+        fields = "__all__"
+        widgets = {
+            "value": CKEditorWidget(attrs={"class": "wide-ckeditor"}),
+        }
+
+
 @admin.register(Metric)
 class MetricAdmin(admin.ModelAdmin):
+    form = MetricAdminForm
     list_display = (
         "name",
         "dataset",
@@ -131,3 +113,6 @@ class MetricAdmin(admin.ModelAdmin):
         obj.save()
         if hasattr(obj, "_warning_message"):
             self.message_user(request, obj._warning_message, level=messages.WARNING)
+
+    class Media:
+        css = {"all": ("admin/custom_admin.css",)}

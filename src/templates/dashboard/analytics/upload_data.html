@@ -64,8 +64,10 @@
                 <!-- Job Instructions -->
                 <div class="mb-3">
                     <label for="id_job_instructions" class="form-label">Job Instructions</label>
-                    <textarea name="job_instructions" id="id_job_instructions" class="form-control"></textarea>
+                    <textarea id="id_job_instructions" name="job_instructions">{{ job_instructions }}</textarea>
                 </div>
+                
+                
             
                 <!-- Dataset Dropdown (append/replace only) -->
                 <div class="mb-3" id="dataset-dropdown-group" style="display: none;">

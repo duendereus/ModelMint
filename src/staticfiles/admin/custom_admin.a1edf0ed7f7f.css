@@ -1,0 +1,29 @@
+/* CKEditor interno */
+.cke_contents, .cke_wysiwyg_frame, .cke_inner {
+    width: 100% !important;
+}
+
+.cke {
+    width: 100% !important;
+    max-width: 1200px;
+}
+
+/* Widget */
+.wide-ckeditor {
+    width: 95% !important;
+    max-width: 1400px;
+}
+
+/* Forzar la fila del campo value */
+.form-row.field-value {
+    width: 95% !important;
+    max-width: 1400px !important;
+}
+
+.form-row.field-value {
+    flex: none !important;
+    width: 95% !important;
+    max-width: none !important;
+    min-width: 1200px !important;
+    display: block !important;
+}

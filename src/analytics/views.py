@@ -66,6 +66,7 @@ def upload_data(request):
             "uploads_remaining": max(0, max_uploads - uploads_used),
             "max_uploads": max_uploads,
             "datasets": datasets,  # ✅ Include for the dropdown
+            "job_instructions": "",
         },
     )
 

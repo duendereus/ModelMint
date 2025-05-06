@@ -92,7 +92,7 @@
     <p><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
     <p><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
     <p><strong>Created At:</strong> {{ data_upload.created_at|date:"Y-m-d H:i" }}</p>
-    <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions }}</p>
+    <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions|safe }}</p>
 
     <h2>📈 Metrics</h2>
 
@@ -101,10 +101,10 @@
             <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
 
             {% if metric.type == "single_value" %}
-                <p style="font-size: 16px;"><strong>{{ metric.value }}</strong></p>
+                <p style="font-size: 16px;"><strong>{{ metric.value|safe }}</strong></p>
 
             {% elif metric.type == "text" %}
-                <p>{{ metric.value }}</p>
+                <p>{{ metric.value|safe }}</p>
 
             {% elif metric.type == "plot" and metric.file %}
             <img src="{{ metric.presigned_url }}" alt="Plot Image">

@@ -15,7 +15,7 @@
         <div class="card-body">
             <p><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
             <p><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
-            <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions }}</p>
+            <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions|safe }}</p>
 
             {% if can_download_pdf %}
                 <a href="{% url 'dashboard:analytics:download_pdf_report' data_upload.id %}" target="_blank" class="btn btn-outline-primary mt-2">
@@ -44,9 +44,9 @@
                         </div>
                         <div class="card-body">
                             {% if metric.type == "single_value" %}
-                                <h4 class="font-weight-bold">{{ metric.value }}</h4>
+                                <h4 class="font-weight-bold">{{ metric.value|safe }}</h4>
                             {% elif metric.type == "text" %}
-                                <p class="text-container">{{ metric.value }}</p>
+                                <p class="text-container">{{ metric.value|safe }}</p>
                             {% elif metric.type == "plot" and metric.file %}
                                 <img src="{{ metric.presigned_url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 100%;">
                             {% elif metric.type == "table" and metric.table_data %}

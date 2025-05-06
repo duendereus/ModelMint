@@ -1,0 +1,139 @@
+/* Message Container */
+.alerts-container {
+    position: fixed;
+    top: 120px;
+    right: 20px;
+    z-index: 1050;
+    width: 350px;
+}
+
+/* Alert Styling */
+.alert {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-weight: 500;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    transform: translateY(-20px);
+    opacity: 0;
+}
+
+/* Success Message */
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border-left: 5px solid #28a745;
+}
+
+/* Error Message */
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left: 5px solid #dc3545;
+}
+
+/* Warning Message */
+.alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border-left: 5px solid #ffc107;
+}
+
+/* Info Message */
+.alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border-left: 5px solid #17a2b8;
+}
+
+/* Close Button */
+.alert .close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    font-weight: bold;
+    color: inherit;
+    cursor: pointer;
+}
+
+.alert .close:hover {
+    opacity: 0.7;
+}
+
+/* Animation */
+.show-notification {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+}
+
+/* ✅ Ensure the DataTable remains inside the card */
+.table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
+/* ✅ Prevents the table from overflowing the card */
+.table-metric {
+    width: 100%;
+    min-width: 1000px; /* Adjust based on data */
+    white-space: nowrap; /* Prevents text wrapping */
+}
+
+/* ✅ Forces DataTables wrapper to stay inside the card */
+.dataTables_wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+}
+
+/* ✅ Ensures the metric text wraps properly */
+.text-container {
+    max-width: 100%;
+    word-break: break-word;
+    white-space: normal;
+}
+
+/* ✅ Ensures tables have a scrollbar inside their card */
+.table-container {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* ✅ Prevents table columns from stretching outside */
+.table-metric {
+    width: 100%;
+    min-width: 1000px; /* Adjust based on data */
+    white-space: nowrap;
+}
+
+/* ✅ Ensures DataTable remains inside the card */
+.dataTables_wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+}
+
+/* ✅ Prevents text overflow */
+.table-metric td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ✅ Fixes card layout to avoid overflow issues */
+.card {
+    overflow: hidden;
+}
+
+input[readonly] {
+    background-color: #ddf0c6 !important; /* Light gray background */
+    color: black !important; /* Darker gray text */
+    opacity: 0.7; /* Reduce opacity */
+    cursor: not-allowed; /* Show disabled cursor */
+    border: 1px solid #addbac; /* Keep border styling */
+}

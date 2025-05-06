@@ -86,6 +86,7 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     "django_celery_beat",
+    "ckeditor",
 ]
 
 LOCAL_APPS = [
@@ -328,4 +329,19 @@ LOGGING = {
         "handlers": ["console"],
         "level": "INFO",
     },
+}
+
+CKEDITOR_CONFIGS = {
+    "default": {
+        "toolbar": "Custom",
+        "toolbar_Custom": [
+            ["Bold", "Italic", "Underline"],
+            ["NumberedList", "BulletedList"],
+            ["Link", "Unlink"],
+            ["CodeSnippet", "Source"],
+            ["RemoveFormat"],
+        ],
+        "height": 300,
+        "width": "100%",
+    }
 }
