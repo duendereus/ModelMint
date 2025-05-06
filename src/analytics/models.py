@@ -199,7 +199,9 @@ class Metric(models.Model):
 
     type = models.CharField(max_length=20, choices=METRIC_TYPES)
     name = models.CharField(max_length=255, help_text="Name of the metric")
-    file = models.FileField(upload_to=upload_to_metric, blank=True, null=True)
+    file = models.FileField(
+        upload_to=upload_to_metric, blank=True, null=True, max_length=512
+    )
     value = models.TextField(blank=True, null=True)
     position = models.PositiveIntegerField(default=0)
 

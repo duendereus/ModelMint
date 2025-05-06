@@ -14,7 +14,7 @@
 
         <div id="pix-tabs" class="wow pixFadeUp" data-wow-delay="0.6s">
             <ul id="pix-tabs-nav">
-                <li><a href="#tab1">1. Upload Your Data</a></li>
+                <li class="active"><a href="#tab1">1. Upload Your Data</a></li>
                 <li><a href="#tab2">2. We Process & Analyze</a></li>
                 <li><a href="#tab3">3. Get Reports & Share</a></li>
                 <li><a href="#tab4">4. Update & Scale</a></li>
@@ -23,8 +23,8 @@
             <div id="pix-tabs-content">
 
                 <!-- STEP 1 -->
-                <div id="tab1" class="content">
-                    <img src="{% static 'img/revolutionize/1.jpg' %}" alt="Upload Data">
+                <div id="tab1" class="content active">
+                    <img src="{% static 'img/revolutionize/1.png' %}" alt="Upload Data">
                     <div class="tab-description">
                         <h3>Upload Your Data</h3>
                         <p>
@@ -37,7 +37,7 @@
 
                 <!-- STEP 2 -->
                 <div id="tab2" class="content">
-                    <img src="{% static 'img/revolutionize/2.jpg' %}" alt="Processing">
+                    <img src="{% static 'img/revolutionize/2.png' %}" alt="Processing">
                     <div class="tab-description">
                         <h3>We Process & Analyze</h3>
                         <p>
@@ -50,7 +50,10 @@
 
                 <!-- STEP 3 -->
                 <div id="tab3" class="content">
-                    <img src="{% static 'img/revolutionize/3.jpg' %}" alt="Reports">
+                    <video autoplay muted loop playsinline style="max-width: 100%; border-radius: 10px;">
+                        <source src="{% static 'img/revolutionize/report_demo.mp4' %}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>                    
                     <div class="tab-description">
                         <h3>Get Custom Reports & Share</h3>
                         <p>
@@ -63,7 +66,7 @@
 
                 <!-- STEP 4 -->
                 <div id="tab4" class="content">
-                    <img src="{% static 'img/revolutionize/4.jpg' %}" alt="Update & Scale">
+                    <img src="{% static 'img/revolutionize/4.png' %}" alt="Update & Scale">
                     <div class="tab-description">
                         <h3>Update & Scale</h3>
                         <p>
@@ -78,4 +81,3 @@
         </div> <!-- Tabs -->
     </div><!-- /.container -->
 </section>
-

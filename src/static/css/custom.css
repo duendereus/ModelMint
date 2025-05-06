@@ -81,3 +81,13 @@
     color: #4a4a4a;
     margin-top: 10px;
 }
+
+.image-two-inner img {
+    max-width: 320px;
+    max-height: 280px;
+    width: 100%;
+    height: auto;
+    position: relative;
+    z-index: 2;
+    margin-top: 20px; /* separarla un poco si lo deseas */
+}
