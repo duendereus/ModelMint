@@ -137,3 +137,7 @@ input[readonly] {
     cursor: not-allowed; /* Show disabled cursor */
     border: 1px solid #addbac; /* Keep border styling */
 }
+
+.ck-word-count {
+    display: none !important;
+}
