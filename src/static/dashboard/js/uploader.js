@@ -22,6 +22,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const title = titleInput.value.trim();
         const instructions = instructionsInput.value.trim();
 
+
+
+
         if (!title || (!file && !driveLink)) {
             alert("⚠️ Please provide a title and either select a file or paste a drive link.");
             console.log("⚠️ Missing file or drive link or title");

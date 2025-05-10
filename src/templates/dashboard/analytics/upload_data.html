@@ -4,6 +4,7 @@
 
 {% block content %}
 <div class="container mt-4">
+    {{ form.media }}
     <h2 class="mb-4">Upload Your Data</h2>
 
     {% if uploads_remaining == 0 %}
@@ -62,12 +63,12 @@
                 </div>
             
                 <!-- Job Instructions -->
+                <!-- Reemplaza todo el bloque de Job Instructions por: -->
                 <div class="mb-3">
-                    <label for="id_job_instructions" class="form-label">Job Instructions</label>
-                    <textarea id="id_job_instructions" name="job_instructions">{{ job_instructions }}</textarea>
+                    <label class="form-label" for="{{ form.job_instructions.id_for_label }}">Job Instructions</label>
+                    {{ form.job_instructions }}
                 </div>
-                
-                
+
             
                 <!-- Dataset Dropdown (append/replace only) -->
                 <div class="mb-3" id="dataset-dropdown-group" style="display: none;">

@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.utils.timezone import now
 from .models import DataSet, DataUpload, Metric
+from .forms import DataUploadForm
 from subscriptions.utils import (
     get_plan_limits,
     can_upload_data,
@@ -55,18 +56,18 @@ def upload_data(request):
         created_at__gte=start_of_month
     ).count()
 
-    # ✅ ADD THIS
     datasets = DataSet.objects.filter(organization=organization).order_by("name")
+    form = DataUploadForm()
 
     return render(
         request,
         "dashboard/analytics/upload_data.html",
         {
+            "form": form,
             "uploads_used": uploads_used,
             "uploads_remaining": max(0, max_uploads - uploads_used),
             "max_uploads": max_uploads,
-            "datasets": datasets,  # ✅ Include for the dropdown
-            "job_instructions": "",
+            "datasets": datasets,
         },
     )
 
