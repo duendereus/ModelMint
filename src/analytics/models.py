@@ -5,6 +5,7 @@ from django.conf import settings
 from .utils import upload_to_metric
 from accounts.models import Organization, OrganizationMembership
 import boto3
+from django_ckeditor_5.fields import CKEditor5Field
 
 User = get_user_model()
 
@@ -75,7 +76,13 @@ class DataUpload(models.Model):
         null=True,
         help_text="If provided, the team will download the data from this link.",
     )
-    job_instructions = models.TextField(
+    # job_instructions = models.TextField(
+    #     blank=False,
+    #     help_text="Detailed instructions on what needs to be done with the data.",
+    # )
+    job_instructions = CKEditor5Field(
+        "Instructions",
+        config_name="extends",
         blank=False,
         help_text="Detailed instructions on what needs to be done with the data.",
     )
