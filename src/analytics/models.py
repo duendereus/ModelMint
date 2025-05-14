@@ -205,7 +205,7 @@ class Metric(models.Model):
     file = models.FileField(
         upload_to=upload_to_metric, blank=True, null=True, max_length=512
     )
-    value = CKEditor5Field(blank=True, null=True)
+    value = CKEditor5Field(blank=True, null=True)  # config_name="extends"
     position = models.PositiveIntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
