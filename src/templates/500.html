@@ -1,17 +1,36 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
 
-{% block title %}
-Error 500
-{% endblock %}
+{% block title %}500 Server Error{% endblock title %}
 
 {% block content %}
-<div class="page">
-    <div class="main-error-wrapper page page-h">
-        <h1 class="text-white">500<span class="tx-20">Server Error</span></h1>
-        <h2 class="text-white">Something broke on our side.</h2>
-        <h6 class="tx-white-6">Sorry about that! We’ve been notified and are working to fix it ASAP.</h6>
+<section class="page-banner-contact" style="background-color: #2bba64; color: white;">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="page-title-wrapper">
+                    <div class="page-title-inner">
+                        <h1 class="page-title">500 – Internal Server Error</h1>
+                        <p>
+                            Our server hit a bump.  
+                            We’ve been notified and are working on it. Please try again later.
+                            <br><br>
+                            <a href="{% url 'home' %}" class="pix-btn" style="margin-top: 10px;">
+                                <span class="btn-text">Back to Homepage</span>
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 text-center">
+                <div class="animate-element-contact">
+                    <img src="{% static 'img/animated/500-illustration.svg' %}" alt="500 Illustration" class="wow pixFadeUp" data-wow-duration="1.5s" style="max-width: 100%;">
+                </div>
+            </div>
+        </div>
     </div>
-</div>
-{% endblock %}
+</section>
+{% endblock content %}
+
 

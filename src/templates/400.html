@@ -1,19 +1,35 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
 
-{% block title %}
-Error 400
-{% endblock %}
+{% block title %}400 Bad Request{% endblock title %}
 
 {% block content %}
-<div class="container" style="background-color: green !important;">
-    <div class="page">
-        <div class="main-error-wrapper page page-h">
-            <h1 class="text-white">400<span class="tx-20">Bad Request</span></h1>
-            <h2 class="text-white">Oops! Something went wrong with your request.</h2>
-            <h6 class="tx-white-6">Looks like the request can't be processed. Try again or contact support if the problem continues.</h6>
+<section class="page-banner-contact" style="background-color: #2bba64; color: white;">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="page-title-wrapper">
+                    <div class="page-title-inner">
+                        <h1 class="page-title">400 – Bad Request</h1>
+                        <p>
+                            Hmm... Something went wrong with your request.  
+                            It might be malformed or incomplete. Try again or contact support.
+                            <br><br>
+                            <a href="{% url 'home' %}" class="pix-btn" style="margin-top: 10px;">
+                                <span class="btn-text">Back to Homepage</span>
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 text-center">
+                <div class="animate-element-contact">
+                    <img src="{% static 'img/animated/400-illustration.svg' %}" alt="400 Illustration" class="wow pixFadeUp" data-wow-duration="1.5s" style="max-width: 100%;">
+                </div>
+            </div>
         </div>
     </div>
-</div>
-{% endblock %}
+</section>
+{% endblock content %}
 
