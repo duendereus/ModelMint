@@ -1,8 +1,10 @@
+{% load static %}
 <footer id="footer">
     <div class="container">
         <div class="site-info">
             <div class="copyright">
                 <p>© {% now "Y" %} <a href="{% url 'home' %}">ModelMint</a></p>
+                <img src="{% static 'img/logo-white.png' %}" width="50" height="50">
             </div>
         </div><!-- /.site-info -->
     </div><!-- /.container -->
