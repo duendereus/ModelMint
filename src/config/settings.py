@@ -22,18 +22,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # Email config
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = config("EMAIL_HOST", cast=str, default="smtp.gmail.com")
-EMAIL_PORT = config("EMAIL_PORT", cast=str, default="587")  # Recommended
-EMAIL_HOST_USER = config("EMAIL_HOST_USER", cast=str, default=None)
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", cast=str, default=None)
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", cast=str, default=None)
-EMAIL_USE_TLS = config(
-    "EMAIL_USE_TLS", cast=bool, default=True
-)  # Use EMAIL_PORT 587 for TLS
-EMAIL_USE_SSL = config(
-    "EMAIL_USE_SSL", cast=bool, default=False
-)  # Use MAIL_PORT 465 for SSL
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_HOST = config("EMAIL_HOST", cast=str, default="smtp.gmail.com")
+# EMAIL_PORT = config("EMAIL_PORT", cast=str, default="587")  # Recommended
+# EMAIL_HOST_USER = config("EMAIL_HOST_USER", cast=str, default=None)
+# DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", cast=str, default=None)
+# EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", cast=str, default=None)
+# EMAIL_USE_TLS = config(
+#     "EMAIL_USE_TLS", cast=bool, default=True
+# )  # Use EMAIL_PORT 587 for TLS
+# EMAIL_USE_SSL = config(
+#     "EMAIL_USE_SSL", cast=bool, default=False
+# )  # Use MAIL_PORT 465 for SSL
+
+# ANYMAIL CONFIGS
+# Email backend para Anymail
+EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
+
+# Tu dominio verificado en Mailgun
+ANYMAIL = {
+    "MAILGUN_API_KEY": config("MAILGUN_API_KEY"),
+    "MAILGUN_SENDER_DOMAIN": "mg.modelmint.co",
+}
+
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="hello@mg.modelmint.co")
 
 
 ADMIN_USER_NAME = config("ADMIN_USER_NAME", default="Admin user")
@@ -87,6 +99,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "django_celery_beat",
     "django_ckeditor_5",
+    "anymail",
 ]
 
 LOCAL_APPS = [
