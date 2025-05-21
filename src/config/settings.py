@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 # EMAIL_HOST = config("EMAIL_HOST", cast=str, default="smtp.gmail.com")
 # EMAIL_PORT = config("EMAIL_PORT", cast=str, default="587")  # Recommended
-# EMAIL_HOST_USER = config("EMAIL_HOST_USER", cast=str, default=None)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", cast=str, default=None)
 # DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", cast=str, default=None)
 # EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", cast=str, default=None)
 # EMAIL_USE_TLS = config(

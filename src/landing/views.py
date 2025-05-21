@@ -20,7 +20,7 @@ def contact(request):
             }
 
             # Send email to admin
-            admin_email = settings.DEFAULT_FROM_EMAIL
+            admin_email = settings.EMAIL_HOST_USER
             send_notification(
                 mail_subject="New Contact Form Submission",
                 mail_template="contact/emails/contact_email.html",
