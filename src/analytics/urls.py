@@ -39,4 +39,9 @@ urlpatterns = [
     ),
     path("get-datasets/", views.get_available_datasets, name="get_datasets"),
     path("staff/datasets/", views.staff_dataset_list_view, name="staff_dataset_list"),
+    path(
+        "staff/datasets/<int:dataset_id>/mark-processed/",
+        views.mark_dataset_as_processed,
+        name="mark_dataset_as_processed",
+    ),
 ]

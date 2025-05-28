@@ -666,3 +666,14 @@ def staff_dataset_list_view(request):
         "dashboard/admin/staff_dataset_list.html",
         {"organizations": organizations},
     )
+
+
+@staff_required
+@require_POST
+def mark_dataset_as_processed(request, dataset_id):
+    dataset = get_object_or_404(DataSet, id=dataset_id)
+    dataset.processed = True
+    dataset.save()
+    return JsonResponse(
+        {"success": True, "message": f"Dataset '{dataset.name}' marked as processed."}
+    )

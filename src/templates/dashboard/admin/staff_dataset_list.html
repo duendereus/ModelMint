@@ -2,6 +2,9 @@
 {% block title %} All Datasets {% endblock title %}
 
 {% block content %}
+<!-- CSRF token for JS usage -->
+<form id="csrf-token-form" style="display: none;">{% csrf_token %}</form>
+
 <div class="container mt-4">
     <h2 class="mb-4">Datasets by Organization</h2>
 
@@ -9,14 +12,12 @@
         <div class="card mb-3">
             <div class="card-header text-white d-flex justify-content-between align-items-center {{ org.subscription_color }}">
                 <div>
-                    <div>
-                        {{ org.name }}
-                        <span class="badge bg-light text-dark ms-2">{{ org.subscription_label }}</span>
-                        <span class="{{ org.status_class }} ms-1">
-                            <i class="mdi {{ org.status_icon }}"></i>
-                            {{ org.subscription_status|capfirst }}
-                        </span>
-                    </div>
+                    {{ org.name }}
+                    <span class="badge bg-light text-dark ms-2">{{ org.subscription_label }}</span>
+                    <span class="{{ org.status_class }} ms-1">
+                        <i class="mdi {{ org.status_icon }}"></i>
+                        {{ org.subscription_status|capfirst }}
+                    </span>
                 </div>
                 <button class="btn btn-sm btn-light toggle-datasets" data-org-id="{{ org.id }}">
                     <i class="mdi mdi-menu"></i>
@@ -44,23 +45,32 @@
                                         <span class="badge bg-primary me-2">
                                             {{ ds.uploads.count }} uploads
                                         </span>
-                                        <a href="#" class="btn btn-outline-success btn-sm">
-                                            Process
-                                        </a>
+                                        {% if not ds.processed %}
+                                            <button class="btn btn-outline-success btn-sm mark-dataset-processed-btn"
+                                                    data-dataset-id="{{ ds.id }}"
+                                                    data-dataset-name="{{ ds.name }}">
+                                                <i class="mdi mdi-check-circle-outline"></i> Mark as Processed
+                                            </button>
+                                        {% endif %}
                                     </div>
                                 </div>
                                 {% if ds.uploads %}
                                     <div class="mt-2">
                                         <ul class="list-unstyled ms-3">
                                             {% for upload in ds.uploads.all %}
-                                            <li class="text-muted">
-                                                • v{{ upload.version }} by {{ upload.uploaded_by.email }} | {{ upload.created_at|date:"Y-m-d" }}
-                                                {% if upload.used_for_processing %}
-                                                    <span class="badge bg-info text-white ms-2">Used</span>
-                                                {% endif %}
-                                                <br>
-                                                <small class="ms-4 text-muted"><i class="mdi mdi-file-document"></i> {{ upload.title }}</small>
-                                            </li>
+                                                <li class="text-muted">
+                                                    • v{{ upload.version }} by {{ upload.uploaded_by.email }} | {{ upload.created_at|date:"Y-m-d" }}
+                                                    {% if upload.used_for_processing %}
+                                                        <span class="badge bg-info text-white ms-2">Used</span>
+                                                    {% endif %}
+                                                    <br>
+                                                    <small class="ms-4 text-muted">
+                                                        <i class="mdi mdi-file-document"></i> {{ upload.title }}
+                                                    </small>
+                                                    <a href="#" class="btn btn-outline-primary btn-sm ms-2">
+                                                        Process
+                                                    </a>
+                                                </li>
                                             {% endfor %}
                                         </ul>
                                     </div>
@@ -82,17 +92,45 @@
 {% block extra_scripts %}
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        const buttons = document.querySelectorAll(".toggle-datasets");
-
-        buttons.forEach((btn) => {
+        // Toggle visibility
+        document.querySelectorAll(".toggle-datasets").forEach((btn) => {
             btn.addEventListener("click", function () {
                 const orgId = btn.getAttribute("data-org-id");
                 const container = document.getElementById("datasets-org-" + orgId);
-                if (container.style.display === "none") {
-                    container.style.display = "block";
-                } else {
-                    container.style.display = "none";
-                }
+                container.style.display = container.style.display === "none" ? "block" : "none";
+            });
+        });
+
+        // Mark dataset as processed
+        document.querySelectorAll(".mark-dataset-processed-btn").forEach((btn) => {
+            btn.addEventListener("click", function () {
+                const datasetId = btn.dataset.datasetId;
+                const datasetName = btn.dataset.datasetName;
+
+                if (!confirm(`You will mark the dataset "${datasetName}" as processed. Are you sure?`)) return;
+
+                const csrfToken = document.querySelector("#csrf-token-form input[name='csrfmiddlewaretoken']").value;
+
+                fetch(`/dashboard/analytics/staff/datasets/${datasetId}/mark-processed/`, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "Content-Type": "application/json",
+                    },
+                })
+                .then((res) => res.json())
+                .then((data) => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert("❌ Error: " + (data.error || "Unexpected issue"));
+                    }
+                })
+                .catch((err) => {
+                    console.error("Request failed", err);
+                    alert("❌ Request failed. See console.");
+                });
             });
         });
     });
