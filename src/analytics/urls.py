@@ -38,4 +38,5 @@ urlpatterns = [
         name="download_pdf_report",
     ),
     path("get-datasets/", views.get_available_datasets, name="get_datasets"),
+    path("staff/datasets/", views.staff_dataset_list_view, name="staff_dataset_list"),
 ]

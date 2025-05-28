@@ -59,7 +59,27 @@
                     </ul>
                 </div>
             </li>
-        </ul>        
+        </ul> 
+        
+        {% if request.user.is_staff %}
+        <ul class="sidebar-menu">
+            <li class="sidebar-dropdown">
+                <a href="javascript:void(0)">
+                    <i class="ti ti-database-export"></i> Admin Tools
+                </a>
+                <div class="sidebar-submenu">
+                    <ul>
+                        <li>
+                            <a href="{% url 'dashboard:analytics:staff_dataset_list' %}">
+                                All Datasets (Staff)
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        {% endif %}
+
     </div>
 </nav>
 <!-- sidebar-wrapper  -->

@@ -112,6 +112,7 @@ class DataUpload(models.Model):
         default="pending",
         help_text="Track the background upload status",
     )
+    removed = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-created_at", "organization", "dataset", "-version"]

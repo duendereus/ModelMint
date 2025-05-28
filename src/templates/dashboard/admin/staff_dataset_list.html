@@ -1,0 +1,100 @@
+{% extends "dashboard/base.html" %}
+{% block title %} All Datasets {% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Datasets by Organization</h2>
+
+    {% for org in organizations %}
+        <div class="card mb-3">
+            <div class="card-header text-white d-flex justify-content-between align-items-center {{ org.subscription_color }}">
+                <div>
+                    <div>
+                        {{ org.name }}
+                        <span class="badge bg-light text-dark ms-2">{{ org.subscription_label }}</span>
+                        <span class="{{ org.status_class }} ms-1">
+                            <i class="mdi {{ org.status_icon }}"></i>
+                            {{ org.subscription_status|capfirst }}
+                        </span>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-light toggle-datasets" data-org-id="{{ org.id }}">
+                    <i class="mdi mdi-menu"></i>
+                </button>
+            </div>
+            <div class="card-body datasets-container" id="datasets-org-{{ org.id }}" style="display: none;">
+                {% if org.annotated_datasets %}
+                    <ul class="list-group">
+                        {% for ds in org.annotated_datasets %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ ds.name }}</strong>
+                                        {% if ds.processed %}
+                                            <span class="badge bg-success ms-1">Processed</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark ms-1">Pending</span>
+                                        {% endif %}
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ ds.description|default:"No description." }}
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-primary me-2">
+                                            {{ ds.uploads.count }} uploads
+                                        </span>
+                                        <a href="#" class="btn btn-outline-success btn-sm">
+                                            Process
+                                        </a>
+                                    </div>
+                                </div>
+                                {% if ds.uploads %}
+                                    <div class="mt-2">
+                                        <ul class="list-unstyled ms-3">
+                                            {% for upload in ds.uploads.all %}
+                                            <li class="text-muted">
+                                                • v{{ upload.version }} by {{ upload.uploaded_by.email }} | {{ upload.created_at|date:"Y-m-d" }}
+                                                {% if upload.used_for_processing %}
+                                                    <span class="badge bg-info text-white ms-2">Used</span>
+                                                {% endif %}
+                                                <br>
+                                                <small class="ms-4 text-muted"><i class="mdi mdi-file-document"></i> {{ upload.title }}</small>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">No datasets found.</p>
+                {% endif %}
+            </div>
+        </div>
+    {% empty %}
+        <div class="alert alert-warning">No organizations found.</div>
+    {% endfor %}
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const buttons = document.querySelectorAll(".toggle-datasets");
+
+        buttons.forEach((btn) => {
+            btn.addEventListener("click", function () {
+                const orgId = btn.getAttribute("data-org-id");
+                const container = document.getElementById("datasets-org-" + orgId);
+                if (container.style.display === "none") {
+                    container.style.display = "block";
+                } else {
+                    container.style.display = "none";
+                }
+            });
+        });
+    });
+</script>
+{% endblock extra_scripts %}

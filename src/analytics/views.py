@@ -27,7 +27,9 @@ import uuid
 import mimetypes
 import json
 import logging
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
+from config.decorators import staff_required
+from accounts.models import Organization
 
 
 logger = logging.getLogger(__name__)
@@ -192,7 +194,7 @@ def confirm_upload(request):
             )
 
             if operation == "replace":
-                dataset.uploads.all().delete()
+                dataset.uploads.update(removed=True)
 
         # Create the DataUpload (version is auto-handled in save())
         DataUpload.objects.create(
@@ -368,7 +370,7 @@ def complete_multipart_upload(request):
             )
 
             if operation == "replace":
-                dataset.uploads.all().delete()
+                dataset.uploads.update(removed=True)
 
         # Save the upload
         DataUpload.objects.create(
@@ -488,8 +490,14 @@ def report_detail_view(request, dataset_id):
     if not latest_upload:
         raise Http404("No processed data upload available for this dataset.")
 
+    # metrics = (
+    #     Metric.objects.filter(dataset=dataset)
+    #     .select_related("table_data")
+    #     .order_by("position")
+    # )
     metrics = (
         Metric.objects.filter(dataset=dataset)
+        .filter(Q(source_upload=latest_upload) | Q(source_upload__isnull=True))
         .select_related("table_data")
         .order_by("position")
     )
@@ -595,3 +603,66 @@ def get_available_datasets(request):
     )
 
     return JsonResponse({"datasets": list(datasets)})
+
+
+@staff_required
+def staff_dataset_list_view(request):
+    """
+    Shows all datasets grouped by organization for staff users.
+    """
+    organizations = Organization.objects.prefetch_related(
+        Prefetch(
+            "datasets",
+            queryset=DataSet.objects.prefetch_related("uploads").order_by("name"),
+            to_attr="annotated_datasets",
+        )
+    ).order_by("name")
+
+    for org in organizations:
+        sub_obj = getattr(org, "subscription", None)  # Safe access
+        if sub_obj and sub_obj.subscription:
+            plan_name = sub_obj.subscription.name.lower()
+            org.subscription_label = sub_obj.subscription.name
+            org.subscription_status = sub_obj.status or "unknown"
+
+            if "enterprise" in plan_name:
+                org.subscription_color = "bg-success"
+            elif "business" in plan_name:
+                org.subscription_color = "bg-primary"
+            elif "starter" in plan_name:
+                org.subscription_color = "bg-secondary"
+            else:
+                org.subscription_color = "bg-dark"
+
+            # Status visual
+            if sub_obj.status == "active":
+                org.status_class = "badge bg-success"
+                org.status_icon = "mdi-check-circle"
+            elif sub_obj.status == "trialing":
+                org.status_class = "badge bg-info text-dark"
+                org.status_icon = "mdi-timer-sand"
+            elif sub_obj.status == "past_due":
+                org.status_class = "badge bg-warning text-dark"
+                org.status_icon = "mdi-alert-circle"
+            elif sub_obj.status == "canceled":
+                org.status_class = "badge bg-danger"
+                org.status_icon = "mdi-close-circle"
+            elif sub_obj.status == "paused":
+                org.status_class = "badge bg-secondary"
+                org.status_icon = "mdi-pause-circle"
+            else:
+                org.status_class = "badge bg-dark"
+                org.status_icon = "mdi-help-circle"
+
+        else:
+            org.subscription_label = "No Plan"
+            org.subscription_color = "bg-dark"
+            org.subscription_status = "NA"
+            org.status_class = "badge bg-dark"
+            org.status_icon = "mdi-help-circle"
+
+    return render(
+        request,
+        "dashboard/admin/staff_dataset_list.html",
+        {"organizations": organizations},
+    )
