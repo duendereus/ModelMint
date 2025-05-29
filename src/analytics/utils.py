@@ -34,3 +34,21 @@ def upload_to_metric(instance, filename):
     return (
         f"uploads/{org_name}/data/{dataset_name}/metrics/{metric_name}/{new_filename}"
     )
+
+
+def validate_jupyter_extension(value):
+    """
+    Ensures the uploaded file has a .html extension (Jupyter Notebook export).
+    """
+    ext = os.path.splitext(value.name)[1].lower()
+    if ext != ".html":
+        raise ValidationError("Only .html files exported from Jupyter are allowed.")
+
+
+def upload_to_jupyter_report(instance, filename):
+    """
+    Stores the Jupyter HTML notebook in:
+    uploads/{org_name}/data/jupyter/{filename}
+    """
+    org_name = instance.dataset.organization.name.lower().replace(" ", "_")
+    return f"uploads/{org_name}/data/jupyter/{filename}"

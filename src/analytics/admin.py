@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DataSet, DataUpload, Metric, TableMetric
+from .models import DataSet, DataUpload, Metric, TableMetric, JupyterReport
 from django.utils.html import format_html
 from django.contrib import messages
 
@@ -37,6 +37,12 @@ class DataUploadAdmin(admin.ModelAdmin):
         "operation",
         "dataset",
     )
+    search_fields = (
+        "title",
+        "dataset__name",
+        "organization__name",
+        "uploaded_by__email",
+    )
 
     readonly_fields = ("version", "created_at", "updated_at")
 
@@ -63,11 +69,10 @@ class DataUploadAdmin(admin.ModelAdmin):
         (
             "Version & Timestamps",
             {"fields": ()},
-        ),  # ❌ Quitar editable (se muestra como readonly)
+        ),
     )
 
     def has_change_permission(self, request, obj=None):
-        """Allow changing only if this upload was not yet used to process metrics."""
         if obj and obj.used_for_processing:
             return False
         return super().has_change_permission(request, obj)
@@ -131,3 +136,21 @@ class MetricAdmin(admin.ModelAdmin):
         obj.save()
         if hasattr(obj, "_warning_message"):
             self.message_user(request, obj._warning_message, level=messages.WARNING)
+
+
+@admin.register(JupyterReport)
+class JupyterReportAdmin(admin.ModelAdmin):
+    list_display = ("dataset", "upload", "uploaded_at", "file_link")
+    list_filter = ("uploaded_at", "dataset__organization")
+    search_fields = ("dataset__name", "upload__title", "dataset__organization__name")
+    readonly_fields = ("uploaded_at", "file_link")
+    autocomplete_fields = ["dataset", "upload"]
+
+    def file_link(self, obj):
+        if obj.file:
+            return format_html(
+                "<a href='{}' target='_blank'>📄 View Report</a>", obj.file.url
+            )
+        return "No file"
+
+    file_link.short_description = "Notebook File"

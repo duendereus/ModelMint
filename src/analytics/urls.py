@@ -44,4 +44,9 @@ urlpatterns = [
         views.mark_dataset_as_processed,
         name="mark_dataset_as_processed",
     ),
+    path(
+        "staff/uploads/<int:upload_id>/process/",
+        views.staff_process_upload_view,
+        name="staff_process_upload",
+    ),
 ]

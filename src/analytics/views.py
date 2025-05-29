@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.utils.timezone import now
-from .models import DataSet, DataUpload, Metric
+from .models import DataSet, DataUpload, Metric, JupyterReport
 from .forms import DataUploadForm
 from subscriptions.utils import (
     get_plan_limits,
@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse, Http404
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
 try:
     from weasyprint import HTML
@@ -30,6 +31,7 @@ import logging
 from django.db.models import Prefetch, Q
 from config.decorators import staff_required
 from accounts.models import Organization
+import os
 
 
 logger = logging.getLogger(__name__)
@@ -676,4 +678,58 @@ def mark_dataset_as_processed(request, dataset_id):
     dataset.save()
     return JsonResponse(
         {"success": True, "message": f"Dataset '{dataset.name}' marked as processed."}
+    )
+
+
+@staff_required
+@require_http_methods(["GET", "POST"])
+def staff_process_upload_view(request, upload_id):
+    upload = get_object_or_404(
+        DataUpload.objects.select_related("dataset__organization"), id=upload_id
+    )
+    dataset = upload.dataset
+
+    if request.method == "POST":
+        html_file = request.FILES.get("jupyter_html")
+        files = request.FILES.getlist("files")
+
+        if not html_file:
+            messages.error(request, "Jupyter HTML file is required.")
+            return redirect(request.path)
+
+        # 📘 Guardar el archivo HTML como JupyterReport
+        JupyterReport.objects.create(
+            dataset=dataset,
+            upload=upload,
+            file=html_file,
+        )
+
+        # 📊 Registrar cada archivo como una métrica tipo "table"
+        VALID_TABLE_EXTENSIONS = [".csv", ".xls", ".xlsx"]
+
+        for f in files:
+            ext = os.path.splitext(f.name)[1].lower()
+            if ext not in VALID_TABLE_EXTENSIONS:
+                messages.warning(request, f"⚠️ Skipped unsupported file: {f.name}")
+                continue
+
+            Metric.objects.create(
+                dataset=dataset,
+                source_upload=upload,
+                type="table",
+                name=os.path.splitext(f.name)[0],
+                file=f,
+            )
+            # ✅ La señal post_save se encarga de procesar y crear TableMetric automáticamente
+
+        # 🚀 Lanzar la tarea en segundo plano (cuando esté lista)
+        # process_uploaded_report.delay(upload.id)
+
+        messages.success(request, "Files uploaded and processing started.")
+        return redirect("dashboard:analytics:staff_dataset_list")
+
+    return render(
+        request,
+        "dashboard/admin/staff_process_upload.html",
+        {"upload": upload, "dataset": dataset},
     )

@@ -2,7 +2,11 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from .utils import upload_to_metric
+from .utils import (
+    upload_to_metric,
+    validate_jupyter_extension,
+    upload_to_jupyter_report,
+)
 from accounts.models import Organization, OrganizationMembership
 import boto3
 from django_ckeditor_5.fields import CKEditor5Field
@@ -283,3 +287,18 @@ class TableMetric(models.Model):
 
     def __str__(self):
         return f"Table Data for {self.metric.name}"
+
+
+class JupyterReport(models.Model):
+    dataset = models.ForeignKey("DataSet", on_delete=models.CASCADE)
+    upload = models.ForeignKey(
+        "DataUpload", on_delete=models.CASCADE, null=True, blank=True
+    )
+    file = models.FileField(
+        upload_to=upload_to_jupyter_report,
+        validators=[validate_jupyter_extension],
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"JupyterReport for {self.dataset.name} (v{self.upload.version})"

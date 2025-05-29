@@ -67,7 +67,7 @@
                                                     <small class="ms-4 text-muted">
                                                         <i class="mdi mdi-file-document"></i> {{ upload.title }}
                                                     </small>
-                                                    <a href="#" class="btn btn-outline-primary btn-sm ms-2">
+                                                    <a href="{% url 'dashboard:analytics:staff_process_upload' upload.id %}" class="btn btn-outline-primary btn-sm ms-2">
                                                         Process
                                                     </a>
                                                 </li>
