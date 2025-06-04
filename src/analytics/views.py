@@ -5,6 +5,7 @@ from django.core.exceptions import PermissionDenied
 from django.utils.timezone import now
 from .models import DataSet, DataUpload, Metric, JupyterReport
 from .forms import DataUploadForm
+from .tasks import process_metrics_task
 from subscriptions.utils import (
     get_plan_limits,
     can_upload_data,
@@ -28,11 +29,11 @@ import uuid
 import mimetypes
 import json
 import logging
+import os
 from django.db.models import Prefetch, Q
 from config.decorators import staff_required
 from accounts.models import Organization
-import os
-from analytics.utils.process_jupyter_metrics import process_jupyter_metrics
+from django.core.files.storage import default_storage
 
 
 logger = logging.getLogger(__name__)
@@ -686,7 +687,8 @@ def mark_dataset_as_processed(request, dataset_id):
 @require_http_methods(["GET", "POST"])
 def staff_process_upload_view(request, upload_id):
     upload = get_object_or_404(
-        DataUpload.objects.select_related("dataset__organization"), id=upload_id
+        DataUpload.objects.select_related("dataset__organization"),
+        id=upload_id,
     )
     dataset = upload.dataset
 
@@ -698,19 +700,16 @@ def staff_process_upload_view(request, upload_id):
             messages.error(request, "Jupyter HTML file is required.")
             return redirect(request.path)
 
-        # 📘 Guardar el archivo HTML como JupyterReport
+        # 📘 Guardar HTML como JupyterReport (ya usa S3 o local según config)
         report = JupyterReport.objects.create(
             dataset=dataset,
             upload=upload,
             file=html_file,
         )
 
-        # ✅ Procesar el contenido del HTML para extraer métricas
-        with report.file.open("r") as f:
-            metric_count = process_jupyter_metrics(f, dataset, upload)
-
-        # 📊 Registrar archivos complementarios como métricas tipo "table"
+        # 📂 Guardar archivos complementarios temporalmente
         VALID_TABLE_EXTENSIONS = {".csv", ".xls", ".xlsx"}
+        complementary_info = []
 
         for f in files:
             ext = os.path.splitext(f.name)[1].lower()
@@ -718,18 +717,23 @@ def staff_process_upload_view(request, upload_id):
                 messages.warning(request, f"⚠️ Skipped unsupported file: {f.name}")
                 continue
 
-            Metric.objects.create(
-                dataset=dataset,
-                source_upload=upload,
-                type="table",
-                name=os.path.splitext(f.name)[0],
-                file=f,
+            safe_name = f"{uuid.uuid4().hex}_{f.name.replace(' ', '_')}"
+            stored_path = default_storage.save(f"metrics_temp/{safe_name}", f)
+
+            complementary_info.append(
+                {"stored_path": stored_path, "original_name": f.name}
             )
-            # 📌 Signal post_save handles TableMetric creation
+
+        # 🚀 Lanza tarea de Celery
+        process_metrics_task.delay(
+            upload_id=upload.id,
+            report_path=report.file.name,
+            file_entries=complementary_info,
+        )
 
         messages.success(
             request,
-            f"✅ {metric_count} metrics parsed from Jupyter HTML and {len(files)} file(s) uploaded.",
+            "📤 Upload received. Processing will complete in background.",
         )
         return redirect("dashboard:analytics:staff_dataset_list")
 

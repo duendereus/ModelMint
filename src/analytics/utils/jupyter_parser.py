@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup, Comment
 import re
 import unicodedata
+import os
 
 
 def clean_text(text):
@@ -50,6 +51,14 @@ def find_plt_title_in_code(start):
             if match:
                 return clean_text(match.group(1))
     return None
+
+
+def clean_metric_name(fname):
+    name = os.path.splitext(os.path.basename(fname))[0]
+    # Remove UUID prefix if present
+    if re.match(r"^[a-f0-9]{32}_", name):
+        name = "_".join(name.split("_")[1:])
+    return name.replace("_", " ").title()
 
 
 def parse_jupyter_html(content):
