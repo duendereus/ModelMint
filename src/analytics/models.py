@@ -2,7 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from .utils import (
+from .utils.utils import (
     upload_to_metric,
     validate_jupyter_extension,
     upload_to_jupyter_report,
@@ -224,19 +224,20 @@ class Metric(models.Model):
         return f"{self.name} ({self.get_type_display()}) - {self.dataset.name}"
 
     def save(self, *args, **kwargs):
-        if self.position is None:
-            self.position = 0
-
-        conflict = (
-            Metric.objects.filter(dataset=self.dataset, position=self.position)
+        if (
+            self.position is None
+            or Metric.objects.filter(dataset=self.dataset, position=self.position)
             .exclude(id=self.id)
-            .first()
-        )
-        if conflict:
-            message = f"⚠️ Metric position {self.position} is already taken"
-            message += " within this dataset. Please select a different position."
-            self._warning_message = message
-            return
+            .exists()
+        ):
+            # Asignar la siguiente posición libre
+            max_position = (
+                Metric.objects.filter(dataset=self.dataset).aggregate(
+                    models.Max("position")
+                )["position__max"]
+                or 0
+            )
+            self.position = max_position + 1
 
         super().save(*args, **kwargs)
 

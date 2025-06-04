@@ -7,13 +7,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('analytics', '0002_dataupload_drive_link_alter_dataupload_file'),
+        ("analytics", "0002_dataupload_drive_link_alter_dataupload_file"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='metric',
-            name='file',
-            field=models.FileField(blank=True, max_length=512, null=True, upload_to=analytics.utils.upload_to_metric),
+            model_name="metric",
+            name="file",
+            field=models.FileField(
+                blank=True,
+                max_length=512,
+                null=True,
+                upload_to=analytics.utils.utils.upload_to_metric,
+            ),
         ),
     ]

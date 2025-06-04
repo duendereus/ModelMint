@@ -8,18 +8,46 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('analytics', '0006_dataupload_removed'),
+        ("analytics", "0006_dataupload_removed"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='JupyterReport',
+            name="JupyterReport",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('file', models.FileField(upload_to=analytics.utils.upload_to_jupyter_report, validators=[analytics.utils.validate_jupyter_extension])),
-                ('uploaded_at', models.DateTimeField(auto_now_add=True)),
-                ('dataset', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='analytics.dataset')),
-                ('upload', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='analytics.dataupload')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "file",
+                    models.FileField(
+                        upload_to=analytics.utils.utils.upload_to_jupyter_report,
+                        validators=[analytics.utils.utils.validate_jupyter_extension],
+                    ),
+                ),
+                ("uploaded_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "dataset",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="analytics.dataset",
+                    ),
+                ),
+                (
+                    "upload",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="analytics.dataupload",
+                    ),
+                ),
             ],
         ),
     ]

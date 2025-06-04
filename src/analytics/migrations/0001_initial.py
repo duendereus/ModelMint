@@ -11,77 +11,250 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('accounts', '0005_alter_userprofile_name'),
+        ("accounts", "0005_alter_userprofile_name"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='DataSet',
+            name="DataSet",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(help_text="Name of the dataset (e.g. 'Monthly Sales')", max_length=255)),
-                ('description', models.TextField(blank=True, help_text='Optional description of the dataset')),
-                ('processed', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('created_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='created_datasets', to=settings.AUTH_USER_MODEL)),
-                ('organization', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='datasets', to='accounts.organization')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="Name of the dataset (e.g. 'Monthly Sales')",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "description",
+                    models.TextField(
+                        blank=True, help_text="Optional description of the dataset"
+                    ),
+                ),
+                ("processed", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="created_datasets",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="datasets",
+                        to="accounts.organization",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['organization', 'name'],
-                'unique_together': {('organization', 'name')},
+                "ordering": ["organization", "name"],
+                "unique_together": {("organization", "name")},
             },
         ),
         migrations.CreateModel(
-            name='DataUpload',
+            name="DataUpload",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(help_text='A short title describing the data upload.', max_length=255)),
-                ('file', models.CharField(help_text='S3 key for the uploaded file', max_length=1024)),
-                ('job_instructions', models.TextField(help_text='Detailed instructions on what needs to be done with the data.')),
-                ('operation', models.CharField(choices=[('create', 'Create New Dataset'), ('append', 'Append to Existing Dataset'), ('replace', 'Replace Dataset')], default='create', help_text='Create, append, or replace the dataset.', max_length=10)),
-                ('version', models.PositiveIntegerField(default=1, help_text='Version of this upload within the dataset.')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('used_for_processing', models.BooleanField(default=False)),
-                ('processing_notes', models.TextField(blank=True, null=True)),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('uploading', 'Uploading'), ('uploaded', 'Uploaded'), ('failed', 'Failed')], default='pending', help_text='Track the background upload status', max_length=20)),
-                ('dataset', models.ForeignKey(blank=True, help_text='Group uploads by versioned datasets.', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='uploads', to='analytics.dataset')),
-                ('organization', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='data_uploads', to='accounts.organization')),
-                ('uploaded_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='uploads', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(
+                        help_text="A short title describing the data upload.",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "file",
+                    models.CharField(
+                        help_text="S3 key for the uploaded file", max_length=1024
+                    ),
+                ),
+                (
+                    "job_instructions",
+                    models.TextField(
+                        help_text="Detailed instructions on what needs to be done with the data."
+                    ),
+                ),
+                (
+                    "operation",
+                    models.CharField(
+                        choices=[
+                            ("create", "Create New Dataset"),
+                            ("append", "Append to Existing Dataset"),
+                            ("replace", "Replace Dataset"),
+                        ],
+                        default="create",
+                        help_text="Create, append, or replace the dataset.",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "version",
+                    models.PositiveIntegerField(
+                        default=1,
+                        help_text="Version of this upload within the dataset.",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("used_for_processing", models.BooleanField(default=False)),
+                ("processing_notes", models.TextField(blank=True, null=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("uploading", "Uploading"),
+                            ("uploaded", "Uploaded"),
+                            ("failed", "Failed"),
+                        ],
+                        default="pending",
+                        help_text="Track the background upload status",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "dataset",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Group uploads by versioned datasets.",
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="uploads",
+                        to="analytics.dataset",
+                    ),
+                ),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="data_uploads",
+                        to="accounts.organization",
+                    ),
+                ),
+                (
+                    "uploaded_by",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="uploads",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at', 'organization', 'dataset', '-version'],
+                "ordering": ["-created_at", "organization", "dataset", "-version"],
             },
         ),
         migrations.CreateModel(
-            name='Metric',
+            name="Metric",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('table', 'Table'), ('plot', 'Plot'), ('single_value', 'Single Value'), ('text', 'Text')], max_length=20)),
-                ('name', models.CharField(help_text='Name of the metric', max_length=255)),
-                ('file', models.FileField(blank=True, null=True, upload_to=analytics.utils.upload_to_metric)),
-                ('value', models.TextField(blank=True, null=True)),
-                ('position', models.PositiveIntegerField(default=0)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('dataset', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='metrics', to='analytics.dataset')),
-                ('source_upload', models.ForeignKey(blank=True, help_text='Original DataUpload used to generate this metric (for tracking only).', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='generated_metrics', to='analytics.dataupload')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("table", "Table"),
+                            ("plot", "Plot"),
+                            ("single_value", "Single Value"),
+                            ("text", "Text"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(help_text="Name of the metric", max_length=255),
+                ),
+                (
+                    "file",
+                    models.FileField(
+                        blank=True,
+                        null=True,
+                        upload_to=analytics.utils.utils.upload_to_metric,
+                    ),
+                ),
+                ("value", models.TextField(blank=True, null=True)),
+                ("position", models.PositiveIntegerField(default=0)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "dataset",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="metrics",
+                        to="analytics.dataset",
+                    ),
+                ),
+                (
+                    "source_upload",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Original DataUpload used to generate this metric (for tracking only).",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="generated_metrics",
+                        to="analytics.dataupload",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['dataset__organization', 'dataset', '-created_at'],
-                'unique_together': {('dataset', 'position')},
+                "ordering": ["dataset__organization", "dataset", "-created_at"],
+                "unique_together": {("dataset", "position")},
             },
         ),
         migrations.CreateModel(
-            name='TableMetric',
+            name="TableMetric",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('columns', models.JSONField(help_text='Column names of the table')),
-                ('data', models.JSONField(help_text='Row data stored as JSON')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('metric', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='table_data', to='analytics.metric')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("columns", models.JSONField(help_text="Column names of the table")),
+                ("data", models.JSONField(help_text="Row data stored as JSON")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "metric",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="table_data",
+                        to="analytics.metric",
+                    ),
+                ),
             ],
         ),
     ]

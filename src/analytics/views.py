@@ -32,6 +32,7 @@ from django.db.models import Prefetch, Q
 from config.decorators import staff_required
 from accounts.models import Organization
 import os
+from analytics.utils.process_jupyter_metrics import process_jupyter_metrics
 
 
 logger = logging.getLogger(__name__)
@@ -698,14 +699,18 @@ def staff_process_upload_view(request, upload_id):
             return redirect(request.path)
 
         # 📘 Guardar el archivo HTML como JupyterReport
-        JupyterReport.objects.create(
+        report = JupyterReport.objects.create(
             dataset=dataset,
             upload=upload,
             file=html_file,
         )
 
-        # 📊 Registrar cada archivo como una métrica tipo "table"
-        VALID_TABLE_EXTENSIONS = [".csv", ".xls", ".xlsx"]
+        # ✅ Procesar el contenido del HTML para extraer métricas
+        with report.file.open("r") as f:
+            metric_count = process_jupyter_metrics(f, dataset, upload)
+
+        # 📊 Registrar archivos complementarios como métricas tipo "table"
+        VALID_TABLE_EXTENSIONS = {".csv", ".xls", ".xlsx"}
 
         for f in files:
             ext = os.path.splitext(f.name)[1].lower()
@@ -720,12 +725,12 @@ def staff_process_upload_view(request, upload_id):
                 name=os.path.splitext(f.name)[0],
                 file=f,
             )
-            # ✅ La señal post_save se encarga de procesar y crear TableMetric automáticamente
+            # 📌 Signal post_save handles TableMetric creation
 
-        # 🚀 Lanzar la tarea en segundo plano (cuando esté lista)
-        # process_uploaded_report.delay(upload.id)
-
-        messages.success(request, "Files uploaded and processing started.")
+        messages.success(
+            request,
+            f"✅ {metric_count} metrics parsed from Jupyter HTML and {len(files)} file(s) uploaded.",
+        )
         return redirect("dashboard:analytics:staff_dataset_list")
 
     return render(

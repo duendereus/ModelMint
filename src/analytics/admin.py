@@ -101,11 +101,11 @@ class MetricAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "dataset",
-        "source_upload",
+        # "source_upload",
         "type",
         "position",
         "created_at",
-        "preview_data",
+        # "preview_data",
     )
     list_filter = ("type", "dataset__organization")
     search_fields = ("name", "dataset__name", "dataset__organization__name")
