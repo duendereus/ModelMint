@@ -10,3 +10,23 @@ def get_item(dictionary, key):
     Example usage in template: {{ my_dict|get_item:"my_key" }}
     """
     return dictionary.get(key, "")
+
+
+@register.filter
+def group_plot_metrics(metrics):
+    grouped = []
+    current_group = []
+
+    for metric in metrics:
+        if metric.type == "plot":
+            current_group.append(metric)
+        else:
+            if current_group:
+                grouped.append(current_group)
+                current_group = []
+            grouped.append([metric])
+
+    if current_group:
+        grouped.append(current_group)
+
+    return grouped

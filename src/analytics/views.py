@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -6,6 +7,7 @@ from django.utils.timezone import now
 from .models import DataSet, DataUpload, Metric, JupyterReport
 from .forms import DataUploadForm
 from .tasks import process_metrics_task
+from .services import mark_as_processed
 from subscriptions.utils import (
     get_plan_limits,
     can_upload_data,
@@ -500,7 +502,7 @@ def report_detail_view(request, dataset_id):
     #     .order_by("position")
     # )
     metrics = (
-        Metric.objects.filter(dataset=dataset)
+        Metric.objects.filter(dataset=dataset, is_preview=False)
         .filter(Q(source_upload=latest_upload) | Q(source_upload__isnull=True))
         .select_related("table_data")
         .order_by("position")
@@ -741,4 +743,85 @@ def staff_process_upload_view(request, upload_id):
         request,
         "dashboard/admin/staff_process_upload.html",
         {"upload": upload, "dataset": dataset},
+    )
+
+
+@staff_required
+@require_http_methods(["GET", "POST"])
+def staff_preview_report_view(request, upload_id):
+    upload = get_object_or_404(
+        DataUpload.objects.select_related("dataset"), id=upload_id
+    )
+    dataset = upload.dataset
+
+    # ✅ Asegúrate de que sea el último upload del dataset
+    last_upload = (
+        DataUpload.objects.filter(dataset=dataset, removed=False)
+        .order_by("-version", "-created_at")
+        .first()
+    )
+
+    if last_upload.id != upload.id:
+        return JsonResponse(
+            {"success": False, "error": "Only the latest upload can be previewed."},
+            status=403,
+        )
+
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            ordered_ids = data.get("ordered_ids", [])
+            removed_ids = data.get("removed_ids", [])
+
+            if not ordered_ids:
+                return JsonResponse(
+                    {"success": False, "error": "Missing metric order."}, status=400
+                )
+
+            # ✅ Elimina primero para liberar posiciones
+            if removed_ids:
+                Metric.objects.filter(id__in=removed_ids, dataset=dataset).delete()
+
+            # ✅ Reasigna posiciones con lógica de save()
+            for index, metric_id in enumerate(ordered_ids):
+                metric = Metric.objects.get(id=metric_id, dataset=dataset)
+                metric.position = index  # fuerza asignación secuencial
+                metric.save()  # respeta validación existente
+
+            # ✅ Marcar como publicado
+            from analytics.services import mark_as_processed
+
+            mark_as_processed(upload)
+
+            Metric.objects.filter(source_upload=upload).update(is_preview=False)
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "redirect_url": reverse("dashboard:analytics:staff_dataset_list"),
+                }
+            )
+
+        except Exception as e:
+            logger.exception("Error publishing report")
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    # GET view: solo métricas del upload actual y en preview
+    metrics = (
+        Metric.objects.filter(source_upload=upload)
+        .order_by("position")
+        .select_related("table_data")
+    )
+
+    for m in metrics:
+        m.presigned_url = m.get_presigned_url()
+
+    return render(
+        request,
+        "dashboard/admin/staff_preview_report.html",
+        {
+            "upload": upload,
+            "dataset": dataset,
+            "metrics": metrics,
+        },
     )

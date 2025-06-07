@@ -105,6 +105,7 @@ class MetricAdmin(admin.ModelAdmin):
         "type",
         "position",
         "created_at",
+        "is_preview",
         # "preview_data",
     )
     list_filter = ("type", "dataset__organization")

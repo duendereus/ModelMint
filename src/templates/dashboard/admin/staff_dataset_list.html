@@ -70,6 +70,10 @@
                                                     <a href="{% url 'dashboard:analytics:staff_process_upload' upload.id %}" class="btn btn-outline-primary btn-sm ms-2">
                                                         Process
                                                     </a>
+                                                    
+                                                    <a href="{% url 'dashboard:analytics:staff_preview_report_view' upload.id %}" class="btn btn-outline-secondary btn-sm ms-1">
+                                                        Preview
+                                                    </a>
                                                 </li>
                                             {% endfor %}
                                         </ul>

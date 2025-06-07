@@ -49,4 +49,9 @@ urlpatterns = [
         views.staff_process_upload_view,
         name="staff_process_upload",
     ),
+    path(
+        "staff/uploads/<int:upload_id>/preview/",
+        views.staff_preview_report_view,
+        name="staff_preview_report_view",
+    ),
 ]

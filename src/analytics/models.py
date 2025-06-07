@@ -212,6 +212,10 @@ class Metric(models.Model):
     )
     value = CKEditor5Field(blank=True, null=True)  # config_name="extends"
     position = models.PositiveIntegerField(default=0)
+    is_preview = models.BooleanField(
+        default=True,
+        help_text="True if the metric is in preview mode and not yet visible to the user.",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

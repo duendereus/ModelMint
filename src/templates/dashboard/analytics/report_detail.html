@@ -30,53 +30,47 @@
 
     {% if metrics %}
         <div class="row">
-            {% for metric in metrics %}
+        {% for group in metrics|group_plot_metrics %}
+            {% if group|length == 1 %}
+            {% with metric=group.0 %}
+                {% if metric.type == "table" or metric.type == "text" %}
+                <!-- 🧩 Full-width for table/text -->
                 <div class="col-md-12 mb-4">
-                    <div class="card">
-                        <div class="card-header">
-                            {% if metric.presigned_url %}
-                                <h5 class="mb-0">
-                                    <a href="{{ metric.presigned_url }}" target="_blank">{{ metric.name }}</a>
-                                </h5>
-                            {% else %}
-                                <h5 class="mb-0">{{ metric.name }}</h5>
-                            {% endif %}
-                        </div>
-                        <div class="card-body">
-                            {% if metric.type == "single_value" %}
-                                <h4 class="font-weight-bold">{{ metric.value|safe }}</h4>
-                            {% elif metric.type == "text" %}
-                                <p class="text-container">{{ metric.value|safe }}</p>
-                            {% elif metric.type == "plot" and metric.file %}
-                                <img src="{{ metric.presigned_url }}" alt="{{ metric.name }}" class="img-fluid" style="max-width: 100%;">
-                            {% elif metric.type == "table" and metric.table_data %}
-                                <div class="table-responsive table-container">
-                                    <table id="metric-table-{{ metric.id }}" class="table table-bordered table-sm table-metric nowrap" style="width:100%;">
-                                        <thead>
-                                            <tr>
-                                                {% for col in metric.table_data.columns %}
-                                                    <th>{{ col }}</th>
-                                                {% endfor %}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for row in metric.table_data.data %}
-                                            <tr>
-                                                {% for col in metric.table_data.columns %}
-                                                    <td>{{ row|get_item:col }}</td>
-                                                {% endfor %}
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            {% else %}
-                                <span class="text-muted">No data available</span>
-                            {% endif %}
-                        </div>
-                    </div>
+                    {% include "dashboard/analytics/metric_card.html" with metric=metric %}
                 </div>
-            {% endfor %}
+                {% elif metric.type == "plot" %}
+                <!-- 🧩 Single plot, half width -->
+                <div class="col-md-6 mb-4">
+                    {% include "dashboard/analytics/metric_card.html" with metric=metric %}
+                </div>
+                {% else %}
+                <!-- 🧩 Other metric types, half width -->
+                <div class="col-md-6 mb-4">
+                    {% include "dashboard/analytics/metric_card.html" with metric=metric %}
+                </div>
+                {% endif %}
+            {% endwith %}
+            {% else %}
+            <!-- 🎠 Carousel for grouped plots -->
+            <div class="col-md-12 mb-4">
+                <div id="carousel-{{ forloop.counter }}" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    {% for metric in group %}
+                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                        {% include "dashboard/analytics/metric_card.html" with metric=metric %}
+                    </div>
+                    {% endfor %}
+                </div>
+                <button class="carousel-control-prev" type="button" data-bs-target="#carousel-{{ forloop.counter }}" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon"></span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#carousel-{{ forloop.counter }}" data-bs-slide="next">
+                    <span class="carousel-control-next-icon"></span>
+                </button>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
         </div>
     {% else %}
         <div class="alert alert-warning mt-3">
@@ -85,5 +79,4 @@
     {% endif %}
 </div>
 {% endblock %}
-
 

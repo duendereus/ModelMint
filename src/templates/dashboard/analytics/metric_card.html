@@ -1,0 +1,42 @@
+{% load custom_filters %}
+<div class="card h-100">
+  <div class="card-header bg-light">
+    <h5 class="mb-0 text-dark fw-bold">{{ metric.name }}</h5>
+  </div>
+  <div class="card-body">
+    {% if metric.type == "plot" and metric.presigned_url %}
+      <img src="{{ metric.presigned_url }}" alt="{{ metric.name }}" class="img-fluid rounded">
+    
+    {% elif metric.type == "single_value" %}
+      <p class="display-5 fw-semibold text-center">{{ metric.value|safe }}</p>
+
+    {% elif metric.type == "text" %}
+      <div class="text-muted" style="white-space: pre-line;">{{ metric.value|safe }}</div>
+
+    {% elif metric.type == "table" and metric.table_data %}
+      <div class="table-responsive table-container">
+        <table id="metric-table-{{ metric.id }}" class="table table-bordered table-sm table-metric nowrap" style="width:100%;">
+          <thead>
+            <tr>
+              {% for col in metric.table_data.columns %}
+                <th>{{ col }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in metric.table_data.data %}
+              <tr>
+                {% for col in metric.table_data.columns %}
+                  <td>{{ row|get_item:col }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    {% else %}
+      <span class="text-muted">No data available.</span>
+    {% endif %}
+  </div>
+</div>
