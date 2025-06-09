@@ -5,78 +5,101 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2 class="mb-1">{{ data_upload.dataset.name }}</h2>
-    <p class="text-muted mb-4">
-        Version v{{ data_upload.version }} — Uploaded {{ data_upload.created_at|date:"Y-m-d H:i" }}
-    </p>
+  <h2 class="mb-1">{{ data_upload.dataset.name }}</h2>
+  <p class="text-muted mb-4">
+    Version v{{ data_upload.version }} — Uploaded {{ data_upload.created_at|date:"Y-m-d H:i" }}
+  </p>
 
-    <!-- ✅ Upload Info Card -->
-    <div class="card">
-        <div class="card-body">
-            <p><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
-            <p><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
-            <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions|safe }}</p>
+  <!-- ✅ Upload Info Card -->
+  <div class="card">
+    <div class="card-body">
+      <p><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
+      <p><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
+      <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions|safe }}</p>
 
-            {% if can_download_pdf %}
-                <a href="{% url 'dashboard:analytics:download_pdf_report' data_upload.id %}" target="_blank" class="btn btn-outline-primary mt-2">
-                    📄 Download PDF Report
-                </a>
-            {% endif %}
-        </div>
+      {% if can_download_pdf %}
+        <a href="{% url 'dashboard:analytics:download_pdf_report' data_upload.id %}" target="_blank" class="btn btn-outline-primary mt-2">
+          📄 Download PDF Report
+        </a>
+      {% endif %}
     </div>
+  </div>
 
-    <!-- ✅ Metrics Section -->
-    <h3 class="mt-4">Metrics</h3>
+  <!-- ✅ Metrics Section -->
+  <h3 class="mt-4">Metrics</h3>
 
-    {% if metrics %}
-        <div class="row">
-        {% for group in metrics|group_plot_metrics %}
-            {% if group|length == 1 %}
-            {% with metric=group.0 %}
-                {% if metric.type == "table" or metric.type == "text" %}
-                <!-- 🧩 Full-width for table/text -->
-                <div class="col-md-12 mb-4">
-                    {% include "dashboard/analytics/metric_card.html" with metric=metric %}
-                </div>
-                {% elif metric.type == "plot" %}
-                <!-- 🧩 Single plot, half width -->
-                <div class="col-md-6 mb-4">
-                    {% include "dashboard/analytics/metric_card.html" with metric=metric %}
-                </div>
-                {% else %}
-                <!-- 🧩 Other metric types, half width -->
-                <div class="col-md-6 mb-4">
-                    {% include "dashboard/analytics/metric_card.html" with metric=metric %}
-                </div>
-                {% endif %}
-            {% endwith %}
+  {% if metrics %}
+    <div class="row">
+      {% for group in metrics|group_plot_metrics %}
+        {% if group|length == 1 %}
+          {% with metric=group.0 %}
+            {% if metric.type == "table" or metric.type == "text" %}
+              <div class="col-md-12 mb-4">
+                {% include "dashboard/analytics/includes/metric_card.html" with metric=metric %}
+              </div>
+            {% elif metric.type == "plot" %}
+              <div class="col-md-6 mb-4">
+                {% include "dashboard/analytics/includes/metric_card.html" with metric=metric %}
+              </div>
             {% else %}
-            <!-- 🎠 Carousel for grouped plots -->
-            <div class="col-md-12 mb-4">
-                <div id="carousel-{{ forloop.counter }}" class="carousel slide" data-bs-ride="carousel">
-                <div class="carousel-inner">
-                    {% for metric in group %}
-                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                        {% include "dashboard/analytics/metric_card.html" with metric=metric %}
-                    </div>
-                    {% endfor %}
-                </div>
-                <button class="carousel-control-prev" type="button" data-bs-target="#carousel-{{ forloop.counter }}" data-bs-slide="prev">
-                    <span class="carousel-control-prev-icon"></span>
+              <div class="col-md-6 mb-4">
+                {% include "dashboard/analytics/includes/metric_card.html" with metric=metric %}
+              </div>
+            {% endif %}
+          {% endwith %}
+        {% else %}
+          <!-- 🎠 Carousel for grouped plots -->
+        <div class="col-md-12 mb-4">
+        <!-- {% if group|length > 1 %}
+            <div class="text-muted text-center small mb-2">
+            <i class="mdi mdi-arrow-left-right"></i> Use arrows to navigate
+            </div>
+        {% endif %} -->
+
+        <div id="carousel-{{ forloop.counter }}" class="carousel slide {% if group|length == 1 %}no-controls{% endif %}" data-bs-ride="carousel">
+            
+            {% if group|length > 1 %}
+            <div class="carousel-indicators">
+                {% for metric in group %}
+                <button type="button" data-bs-target="#carousel-{{ forloop.parentloop.counter }}"
+                        data-bs-slide-to="{{ forloop.counter0 }}"
+                        class="{% if forloop.first %}active{% endif %}"
+                        aria-current="{% if forloop.first %}true{% endif %}"
+                        aria-label="Slide {{ forloop.counter }}">
                 </button>
-                <button class="carousel-control-next" type="button" data-bs-target="#carousel-{{ forloop.counter }}" data-bs-slide="next">
-                    <span class="carousel-control-next-icon"></span>
-                </button>
-                </div>
+                {% endfor %}
             </div>
             {% endif %}
-        {% endfor %}
+
+            <div class="carousel-inner">
+            {% for metric in group %}
+                <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                {% include "dashboard/analytics/includes/metric_card.html" with metric=metric %}
+                </div>
+            {% endfor %}
+            </div>
+
+            {% if group|length > 1 %}
+            <button class="carousel-control-prev" type="button" data-bs-target="#carousel-{{ forloop.counter }}" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon bg-white rounded-circle shadow-sm" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#carousel-{{ forloop.counter }}" data-bs-slide="next">
+                <span class="carousel-control-next-icon bg-white rounded-circle shadow-sm" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+            {% endif %}
         </div>
-    {% else %}
-        <div class="alert alert-warning mt-3">
-            No metrics available for this report.
         </div>
-    {% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-warning mt-3">
+      No metrics available for this report.
+    </div>
+  {% endif %}
 </div>
 {% endblock %}
+
 

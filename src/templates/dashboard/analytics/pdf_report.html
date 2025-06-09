@@ -5,8 +5,9 @@
     <meta charset="UTF-8">
     <title>Report - {{ data_upload.dataset.name }}</title>
     <style>
+        /* Footer general excepto portada */
         @page {
-            margin: 30px 40px;
+            margin: 40px;
             @bottom-center {
                 content: "ModelMint • Page " counter(page) " of " counter(pages);
                 font-size: 10px;
@@ -14,40 +15,82 @@
             }
         }
 
+        /* Portada sin márgenes ni pie de página */
+        @page:first {
+            margin: 0;
+            @bottom-center {
+                content: none;
+            }
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: "Helvetica", "Arial", sans-serif;
             font-size: 12px;
+            margin: 0;
         }
 
-        .header-bar {
-            height: 8px;
-            background-color: #2bba64;
-            margin-bottom: 16px;
-        }
-
-        .logo {
+        /* ✅ Watermark (si se vuelve a activar) */
+        .watermark {
+            position: fixed;
+            top: 35%;
+            left: 0;
+            width: 100%;
             text-align: center;
+            opacity: 0.06;
+            font-size: 100px;
+            z-index: -1;
+        }
+
+        /* ✅ Portada que cubre y centra todo */
+        .cover-page {
+            width: 210mm;
+            height: 297mm;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            page-break-after: always;
+        }
+
+        .cover-content {
+            max-width: 80%;
+        }
+
+        .cover-logo {
+            height: 60px;
             margin-bottom: 20px;
         }
 
-        .logo img {
-            height: 50px;
+        .cover-title {
+            font-size: 28px;
+            margin-bottom: 10px;
         }
 
-        h1 {
-            font-size: 20px;
-            margin-bottom: 8px;
+        .cover-meta {
+            font-size: 14px;
+            margin: 4px 0;
         }
 
+        /* Secciones posteriores */
         h2 {
             font-size: 16px;
-            margin-top: 24px;
-            margin-bottom: 12px;
+            margin-top: 30px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 6px;
         }
 
         .metric {
-            margin-bottom: 20px;
+            margin-bottom: 28px;
             page-break-inside: avoid;
+        }
+
+        .metric-name {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 6px;
         }
 
         table {
@@ -57,15 +100,18 @@
         }
 
         th, td {
-            border: 1px solid #999;
+            border: 1px solid #aaa;
             padding: 6px;
             font-size: 11px;
+            text-align: left;
         }
 
         img {
             max-width: 100%;
             height: auto;
             margin-top: 10px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         .muted {
@@ -73,71 +119,83 @@
             font-style: italic;
         }
 
-        .metric-name {
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 4px;
+        .report-meta {
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .report-meta p {
+            margin: 2px 0;
         }
     </style>
 </head>
 <body>
 
-    <div class="header-bar"></div>
-
-    <div class="logo">
-        <img src="{% static 'img/logo-green.svg' %}" alt="ModelMint Logo">
+<!-- ✅ Portada -->
+<div class="cover-page">
+    <div class="cover-content">
+        <img src="{% static 'img/logo-green.svg' %}" alt="ModelMint Logo" class="cover-logo">
+        <div class="cover-title">📊 Report: {{ data_upload.dataset.name }} (v{{ data_upload.version }})</div>
+        <p class="cover-meta"><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
+        <p class="cover-meta"><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
+        <p class="cover-meta"><strong>Created At:</strong> {{ data_upload.created_at|date:"Y-m-d H:i" }}</p>
     </div>
+</div>
 
-    <h1>📊 Report: {{ data_upload.dataset.name }} (v{{ data_upload.version }})</h1>
-    <p><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
-    <p><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
-    <p><strong>Created At:</strong> {{ data_upload.created_at|date:"Y-m-d H:i" }}</p>
-    <p><strong>Job Instructions:</strong> {{ data_upload.job_instructions|safe }}</p>
+<!-- ✅ Marca de agua a partir de aquí -->
+<!-- <div class="watermark">ModelMint</div> -->
 
-    <h2>📈 Metrics</h2>
+<!-- ✅ Contenido -->
+<div class="report-meta">
+    <h2>📋 Job Instructions</h2>
+    <p>{{ data_upload.job_instructions|safe }}</p>
+</div>
 
-    {% for metric in metrics %}
-        <div class="metric">
-            <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
+<h2>📈 Metrics</h2>
 
-            {% if metric.type == "single_value" %}
-                <p style="font-size: 16px;"><strong>{{ metric.value|safe }}</strong></p>
+{% for metric in metrics %}
+    <div class="metric">
+        <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
 
-            {% elif metric.type == "text" %}
-                <p>{{ metric.value|safe }}</p>
-
-            {% elif metric.type == "plot" and metric.file %}
-            <img src="{{ metric.presigned_url }}" alt="Plot Image">
-
-            {% elif metric.type == "table" and metric.table_data %}
-                <table>
-                    <thead>
+        {% if metric.type == "single_value" %}
+            <p style="font-size: 16px;"><strong>{{ metric.value|safe }}</strong></p>
+        {% elif metric.type == "text" %}
+            <p>{{ metric.value|safe }}</p>
+        {% elif metric.type == "plot" %}
+            {% if metric.base64_image %}
+                <img src="{{ metric.base64_image }}" alt="Plot Image">
+            {% elif metric.presigned_url %}
+                <img src="{{ metric.presigned_url }}" alt="Plot Image">
+            {% else %}
+                <p class="muted">Plot not available.</p>
+            {% endif %}
+        {% elif metric.type == "table" and metric.table_data %}
+            <table>
+                <thead>
+                    <tr>
+                        {% for col in metric.table_data.columns %}
+                            <th>{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in metric.table_data.data %}
                         <tr>
                             {% for col in metric.table_data.columns %}
-                                <th>{{ col }}</th>
+                                <td>{{ row|get_item:col }}</td>
                             {% endfor %}
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in metric.table_data.data %}
-                            <tr>
-                                {% for col in metric.table_data.columns %}
-                                    <td>{{ row|get_item:col }}</td>
-                                {% endfor %}
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-
-            {% else %}
-                <p class="muted">No data available for this metric.</p>
-            {% endif %}
-        </div>
-    {% empty %}
-        <p class="muted">No metrics available for this report.</p>
-    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="muted">No data available for this metric.</p>
+        {% endif %}
+    </div>
+{% empty %}
+    <p class="muted">No metrics available for this report.</p>
+{% endfor %}
 
 </body>
 </html>
-
 

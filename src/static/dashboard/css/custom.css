@@ -141,3 +141,10 @@ input[readonly] {
 .ck-word-count {
     display: none !important;
 }
+
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+  background-color: #28a745 !important;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+}

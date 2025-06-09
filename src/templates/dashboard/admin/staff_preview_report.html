@@ -3,31 +3,40 @@
 {% block title %}Preview Report{% endblock title %}
 
 {% block content %}
-<div class="card shadow border-0">
-  <div class="card-header bg-white border-bottom py-3">
-    <h5 class="mb-0">🧪 Preview Report for <strong>{{ dataset.name }}</strong></h5>
-    <p class="text-muted small mb-0">Upload v{{ upload.version }} by {{ upload.uploaded_by.email }}</p>
-  </div>
-  <div class="card-body">
-    <form method="post" id="publish-form">
-      {% csrf_token %}
+<div class="container mt-4">
+  <h2 class="mb-1">🧪 Preview Report for <strong>{{ dataset.name }}</strong></h2>
+  <p class="text-muted mb-4">Upload v{{ upload.version }} by {{ upload.uploaded_by.email }}</p>
 
-      <!-- 🔃 Draggable Metric Blocks -->
-      <div id="metric-list" class="row g-3">
-        {% for metric in metrics %}
-          <div class="col-md-6 metric-item" data-id="{{ metric.id }}">
-            <div class="card border position-relative">
-              <div class="card-body">
-                <h6 class="card-title">{{ metric.name }}</h6>
-                {% if metric.type == 'plot' and metric.presigned_url %}
-                  <img src="{{ metric.presigned_url }}" class="img-fluid rounded" alt="{{ metric.name }}">
-                {% elif metric.type == 'single_value' %}
-                  <p class="fs-2">{{ metric.value }}</p>
-                {% elif metric.type == 'text' %}
-                  <div class="text-muted">{{ metric.value|safe }}</div>
-                {% elif metric.type == 'table' and metric.table_data %}
+  <!-- ✅ Upload Info Card -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <p><strong>Organization:</strong> {{ dataset.organization.name }}</p>
+      <p><strong>Uploaded By:</strong> {{ upload.uploaded_by.email }}</p>
+    </div>
+  </div>
+
+  <form method="post" id="publish-form">
+    {% csrf_token %}
+
+    {% if metrics %}
+    <div class="row" id="metric-list">
+      {% for metric in metrics %}
+        <div class="{% if metric.type == 'table' or metric.type == 'text' %}col-md-12{% else %}col-md-6{% endif %} mb-4 metric-item" data-id="{{ metric.id }}">
+          <div class="card h-100 border position-relative">
+            <div class="card-body">
+              <h6 class="card-title">{{ metric.name }}</h6>
+              {% if metric.type == 'plot' and metric.presigned_url %}
+                <img src="{{ metric.presigned_url }}" class="img-fluid rounded" alt="{{ metric.name }}">
+              {% elif metric.type == 'single_value' %}
+                <p class="fs-2">{{ metric.value }}</p>
+              {% elif metric.type == 'text' %}
+                <div class="text-muted">{{ metric.value|safe }}</div>
+              {% elif metric.type == 'table' and metric.table_data %}
+                <div class="table-responsive">
                   <table class="table table-sm table-bordered mt-2">
-                    <thead><tr>{% for col in metric.table_data.columns %}<th>{{ col }}</th>{% endfor %}</tr></thead>
+                    <thead>
+                      <tr>{% for col in metric.table_data.columns %}<th>{{ col }}</th>{% endfor %}</tr>
+                    </thead>
                     <tbody>
                       {% for row in metric.table_data.data|slice:":3" %}
                         <tr>{% for val in row.values %}<td>{{ val }}</td>{% endfor %}</tr>
@@ -35,33 +44,37 @@
                     </tbody>
                   </table>
                   <small class="text-muted">Showing first 3 rows</small>
-                {% endif %}
-              </div>
-                <div class="position-absolute top-0 end-0 p-2 d-flex gap-1 align-items-center">
-                    {% if not metric.is_preview %}
-                        <span class="badge bg-success" title="Already published">
-                        <i class="mdi mdi-check-bold"></i>
-                        </span>
-                    {% endif %}
-                    <button type="button" class="btn btn-sm btn-outline-danger delete-metric" title="Delete this metric">
-                        <i class="mdi mdi-close-circle-outline"></i>
-                    </button>
-                    <span class="cursor-move btn btn-sm btn-outline-secondary" title="Drag to reorder">
-                        <i class="mdi mdi-drag"></i>
-                    </span>
                 </div>
+              {% endif %}
+            </div>
+            <!-- Controls -->
+            <div class="position-absolute top-0 end-0 p-2 d-flex gap-1 align-items-center">
+              {% if not metric.is_preview %}
+                <span class="badge bg-success" title="Already published">
+                  <i class="mdi mdi-check-bold"></i>
+                </span>
+              {% endif %}
+              <button type="button" class="btn btn-sm btn-outline-danger delete-metric" title="Delete this metric">
+                <i class="mdi mdi-close-circle-outline"></i>
+              </button>
+              <span class="cursor-move btn btn-sm btn-outline-secondary" title="Drag to reorder">
+                <i class="mdi mdi-drag"></i>
+              </span>
             </div>
           </div>
-        {% empty %}
-          <p class="text-muted">No metrics found for this upload.</p>
-        {% endfor %}
-      </div>
+        </div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <div class="alert alert-warning mt-3">No metrics found for this upload.</div>
+    {% endif %}
 
-      <div class="mt-4">
-        <button type="submit" class="btn btn-success w-100">✅ Confirm & Publish Report</button>
-      </div>
-    </form>
-  </div>
+    <div class="mt-4">
+      <button type="submit" class="btn btn-success w-100" id="publish-btn">
+        ✅ Confirm & Publish Report
+      </button>
+    </div>
+  </form>
 </div>
 {% endblock content %}
 
@@ -69,3 +82,4 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <script src="{% static 'dashboard/js/staff_preview.js' %}"></script>
 {% endblock extra_scripts %}
+

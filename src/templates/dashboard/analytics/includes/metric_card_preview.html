@@ -1,0 +1,39 @@
+<div class="card border position-relative">
+  <div class="card-body">
+    <h6 class="card-title">{{ metric.name }}</h6>
+    {% if metric.type == 'plot' and metric.presigned_url %}
+      <img src="{{ metric.presigned_url }}" class="img-fluid rounded" alt="{{ metric.name }}">
+    {% elif metric.type == 'single_value' %}
+      <p class="fs-2">{{ metric.value }}</p>
+    {% elif metric.type == 'text' %}
+      <div class="text-muted">{{ metric.value|safe }}</div>
+    {% elif metric.type == 'table' and metric.table_data %}
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered mt-2">
+          <thead>
+            <tr>{% for col in metric.table_data.columns %}<th>{{ col }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for row in metric.table_data.data|slice:":3" %}
+              <tr>{% for val in row.values %}<td>{{ val }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <small class="text-muted">Showing first 3 rows</small>
+      </div>
+    {% endif %}
+  </div>
+  <div class="position-absolute top-0 end-0 p-2 d-flex gap-1 align-items-center">
+    {% if not metric.is_preview %}
+      <span class="badge bg-success" title="Already published">
+        <i class="mdi mdi-check-bold"></i>
+      </span>
+    {% endif %}
+    <button type="button" class="btn btn-sm btn-outline-danger delete-metric" title="Delete this metric">
+      <i class="mdi mdi-close-circle-outline"></i>
+    </button>
+    <span class="cursor-move btn btn-sm btn-outline-secondary" title="Drag to reorder">
+      <i class="mdi mdi-drag"></i>
+    </span>
+  </div>
+</div>
