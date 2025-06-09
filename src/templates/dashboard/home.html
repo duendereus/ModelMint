@@ -5,86 +5,104 @@
 
 {% block content %}
 {% include "dashboard/includes/modal.html" %}
+
 <div class="container mt-4">
-    <div class="d-flex align-items-center justify-content-between">
-        <div>
-            <h6 class="text-muted mb-1">Welcome back, {{ request.user.username }}!</h6>
-            {% if organization %}
-                <h5 class="mb-3">Organization: {{ organization.name }}</h5>
-            {% endif %}
-        </div>
-
-        {% if is_owner %}
-            <div>
-                <a href="{% url 'dashboard:customize_dashboard' %}" class="btn btn-success">
-                    Customize Dashboard
-                </a>
-            </div>
-        {% endif %}
+  <div class="d-flex align-items-center justify-content-between">
+    <div>
+      <h6 class="text-muted mb-1">Welcome back, {{ request.user.username }}!</h6>
+      {% if organization %}
+        <h5 class="mb-3">Organization: {{ organization.name }}</h5>
+      {% endif %}
     </div>
 
-    <!-- If no metrics are selected, display a message -->
-    {% if not selected_metrics %}
-        <div class="alert alert-warning mt-3">
-            No metrics have been selected for the dashboard.
-            {% if is_owner %}
-                <a href="{% url 'dashboard:customize_dashboard' %}">Click here</a> to select metrics.
-            {% endif %}
-        </div>
+    {% if is_owner %}
+      <div>
+        <a href="{% url 'dashboard:customize_dashboard' %}" class="btn btn-success">
+          Customize Dashboard
+        </a>
+      </div>
     {% endif %}
+  </div>
 
-    <!-- Display selected metrics -->
-    <div class="row">
-        {% for metric in selected_metrics %}
-            <div class="{% if metric.type == 'table' %}col-md-12{% else %}col-md-6{% endif %} mb-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ metric.name }} ({{ metric.get_type_display }})</h5>
-
-                        {% if metric.type == "table" and metric.table_data %}
-                            <div class="table-responsive">
-                                <table id="metric-table-{{ metric.id }}" class="table table-bordered table-sm table-metric nowrap" style="width:100%;">
-                                    <thead>
-                                        <tr>
-                                            {% for col in metric.table_data.columns %}
-                                                <th>{{ col }}</th>
-                                            {% endfor %}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for row in metric.table_data.data %}
-                                            <tr>
-                                                {% for col in metric.table_data.columns %}
-                                                    <td>{{ row|get_item:col }}</td>
-                                                {% endfor %}
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {% elif metric.type == "plot" and metric.presigned_url %}
-                            <img src="{{ metric.presigned_url }}" alt="{{ metric.name }}" class="img-fluid plot-thumbnail" 
-                                 style="max-width: 100%; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#plotModal" 
-                                 data-image="{{ metric.presigned_url }}">
-
-                        {% elif metric.type == "single_value" %}
-                            <p class="display-4">{{ metric.value|safe }}</p>
-
-                        {% elif metric.type == "text" %}
-                            <p>{{ metric.value|safe }}</p>
-
-                        {% elif metric.presigned_url %}
-                            <p><a href="{{ metric.presigned_url }}" target="_blank" class="btn btn-primary">Download File</a></p>
-
-                        {% else %}
-                            <span class="text-muted">No data available</span>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        {% endfor %}
+  {% if not selected_metrics %}
+    <div class="alert alert-warning mt-3">
+      No metrics have been selected for the dashboard.
+      {% if is_owner %}
+        <a href="{% url 'dashboard:customize_dashboard' %}">Click here</a> to select metrics.
+      {% endif %}
     </div>
+  {% endif %}
+
+  {% regroup selected_metrics by data_upload as grouped_uploads %}
+
+  {% for upload_group in grouped_uploads %}
+    {% with data_upload=upload_group.grouper metrics=upload_group.list %}
+    <div class="mt-5">
+      <h4 class="mb-1">
+        {{ data_upload.dataset.name }} 
+        <small class="text-muted">v{{ data_upload.version }}</small>
+        {% if can_download_pdf %}
+          <a href="{% url 'dashboard:analytics:download_pdf_report' data_upload.id %}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">
+            📄 PDF
+          </a>
+        {% endif %}
+      </h4>
+      <p class="text-muted mb-3">
+        Uploaded {{ data_upload.created_at|date:"Y-m-d H:i" }}
+      </p>
+
+      <div class="row">
+        {% for group in metrics|group_plot_metrics %}
+          {% if group|length == 1 %}
+            {% with metric=group.0 %}
+              <div class="{% if metric.type == 'table' or metric.type == 'text' %}col-md-12{% else %}col-md-6{% endif %} mb-4">
+                {% include "dashboard/analytics/includes/metric_card.html" with metric=metric %}
+              </div>
+            {% endwith %}
+          {% else %}
+            <div class="col-md-12 mb-4">
+              <div id="carousel-{{ forloop.counter }}" class="carousel slide" data-bs-ride="carousel">
+                {% if group|length > 1 %}
+                <div class="carousel-indicators">
+                  {% for metric in group %}
+                  <button type="button" data-bs-target="#carousel-{{ forloop.parentloop.counter }}"
+                          data-bs-slide-to="{{ forloop.counter0 }}"
+                          class="{% if forloop.first %}active{% endif %}"
+                          aria-current="{% if forloop.first %}true{% endif %}"
+                          aria-label="Slide {{ forloop.counter }}">
+                  </button>
+                  {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="carousel-inner">
+                  {% for metric in group %}
+                  <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                    {% include "dashboard/analytics/includes/metric_card.html" with metric=metric %}
+                  </div>
+                  {% endfor %}
+                </div>
+
+                {% if group|length > 1 %}
+                <button class="carousel-control-prev" type="button" data-bs-target="#carousel-{{ forloop.counter }}" data-bs-slide="prev">
+                  <span class="carousel-control-prev-icon bg-white rounded-circle shadow-sm" aria-hidden="true"></span>
+                  <span class="visually-hidden">Previous</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#carousel-{{ forloop.counter }}" data-bs-slide="next">
+                  <span class="carousel-control-next-icon bg-white rounded-circle shadow-sm" aria-hidden="true"></span>
+                  <span class="visually-hidden">Next</span>
+                </button>
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endwith %}
+  {% endfor %}
 </div>
 {% endblock content %}
+
+
 

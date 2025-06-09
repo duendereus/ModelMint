@@ -84,7 +84,9 @@ def dashboard_customize(request):
     )
 
     # Get all available metrics from the organization's DataUpload reports
-    available_metrics = Metric.objects.filter(dataset__organization=organization)
+    available_metrics = Metric.objects.filter(
+        dataset__organization=organization, is_preview=False
+    )
 
     if request.method == "POST":
         selected_metric_ids = request.POST.getlist(
