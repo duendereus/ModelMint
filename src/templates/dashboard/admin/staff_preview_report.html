@@ -24,13 +24,30 @@
         <div class="{% if metric.type == 'table' or metric.type == 'text' %}col-md-12{% else %}col-md-6{% endif %} mb-4 metric-item" data-id="{{ metric.id }}">
           <div class="card h-100 border position-relative">
             <div class="card-body">
-              <h6 class="card-title">{{ metric.name }}</h6>
+              <!-- Editable title -->
+              <h6 class="card-title">
+                {% if metric.is_preview %}
+                  <input type="text" class="form-control form-control-sm editable-title mb-2"
+                         value="{{ metric.name }}" data-id="{{ metric.id }}" data-original="{{ metric.name }}" />
+                {% else %}
+                  {{ metric.name }}
+                {% endif %}
+              </h6>
+
+              <!-- Editable content -->
               {% if metric.type == 'plot' and metric.presigned_url %}
                 <img src="{{ metric.presigned_url }}" class="img-fluid rounded" alt="{{ metric.name }}">
-              {% elif metric.type == 'single_value' %}
-                <p class="fs-2">{{ metric.value }}</p>
+
+              {% elif metric.type in "text single_value" and metric.is_preview %}
+                <textarea class="form-control form-control-sm editable-value ckeditor-field"
+                          data-id="{{ metric.id }}">{{ metric.value|safe }}</textarea>
+
               {% elif metric.type == 'text' %}
                 <div class="text-muted">{{ metric.value|safe }}</div>
+
+              {% elif metric.type == 'single_value' %}
+                <p class="fs-2">{{ metric.value|safe }}</p>
+
               {% elif metric.type == 'table' and metric.table_data %}
                 <div class="table-responsive">
                   <table class="table table-sm table-bordered mt-2">
@@ -47,6 +64,7 @@
                 </div>
               {% endif %}
             </div>
+
             <!-- Controls -->
             <div class="position-absolute top-0 end-0 p-2 d-flex gap-1 align-items-center">
               {% if not metric.is_preview %}
@@ -81,5 +99,8 @@
 {% block extra_scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <script src="{% static 'dashboard/js/staff_preview.js' %}"></script>
+<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
 {% endblock extra_scripts %}
+
+
 

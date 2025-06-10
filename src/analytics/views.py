@@ -773,7 +773,6 @@ def staff_preview_report_view(request, upload_id):
     )
     dataset = upload.dataset
 
-    # ✅ Asegúrate de que sea el último upload del dataset
     last_upload = (
         DataUpload.objects.filter(dataset=dataset, removed=False)
         .order_by("-version", "-created_at")
@@ -791,27 +790,44 @@ def staff_preview_report_view(request, upload_id):
             data = json.loads(request.body)
             ordered_ids = data.get("ordered_ids", [])
             removed_ids = data.get("removed_ids", [])
+            edited_titles = data.get("edited_titles", {})
+            edited_values = data.get("edited_values", {})
 
             if not ordered_ids:
                 return JsonResponse(
                     {"success": False, "error": "Missing metric order."}, status=400
                 )
 
-            # ✅ Elimina primero para liberar posiciones
             if removed_ids:
                 Metric.objects.filter(id__in=removed_ids, dataset=dataset).delete()
 
-            # ✅ Reasigna posiciones con lógica de save()
-            for index, metric_id in enumerate(ordered_ids):
-                metric = Metric.objects.get(id=metric_id, dataset=dataset)
-                metric.position = index  # fuerza asignación secuencial
-                metric.save()  # respeta validación existente
+            # Primero aplica cambios de título y valor (sin tocar posición aún)
+            for metric_id in set(edited_titles.keys()) | set(edited_values.keys()):
+                try:
+                    metric = Metric.objects.get(id=metric_id, dataset=dataset)
+                    if metric.is_preview:
+                        if metric_id in edited_titles:
+                            metric.name = edited_titles[metric_id].strip()
+                        if metric_id in edited_values and metric.type in [
+                            "text",
+                            "single_value",
+                        ]:
+                            metric.value = edited_values[metric_id].strip()
+                        # ❗️ No tocar position aquí
+                        metric.save()
+                except Metric.DoesNotExist:
+                    continue
 
-            # ✅ Marcar como publicado
-            from analytics.services import mark_as_processed
+            # Luego aplica las posiciones para todos los métricas en orden
+            for index, metric_id in enumerate(ordered_ids):
+                try:
+                    metric = Metric.objects.get(id=metric_id, dataset=dataset)
+                    # ✅ Forzar posición manualmente sin activar lógica de autoasignación
+                    Metric.objects.filter(id=metric.id).update(position=index)
+                except Metric.DoesNotExist:
+                    continue
 
             mark_as_processed(upload)
-
             Metric.objects.filter(source_upload=upload).update(is_preview=False)
 
             return JsonResponse(
@@ -825,7 +841,7 @@ def staff_preview_report_view(request, upload_id):
             logger.exception("Error publishing report")
             return JsonResponse({"success": False, "error": str(e)}, status=500)
 
-    # GET view: solo métricas del upload actual y en preview
+    # GET
     metrics = (
         Metric.objects.filter(source_upload=upload)
         .order_by("position")
