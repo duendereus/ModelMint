@@ -798,10 +798,18 @@ def staff_preview_report_view(request, upload_id):
                     {"success": False, "error": "Missing metric order."}, status=400
                 )
 
+            # 1. Elimina las métricas borradas
             if removed_ids:
                 Metric.objects.filter(id__in=removed_ids, dataset=dataset).delete()
 
-            # Primero aplica cambios de título y valor (sin tocar posición aún)
+            # 2. Cambia posición a valores temporales altos para evitar colisiones
+            TEMP_OFFSET = 10000
+            for i, metric_id in enumerate(ordered_ids):
+                Metric.objects.filter(id=metric_id, dataset=dataset).update(
+                    position=TEMP_OFFSET + i
+                )
+
+            # 3. Aplica cambios de título/valor
             for metric_id in set(edited_titles.keys()) | set(edited_values.keys()):
                 try:
                     metric = Metric.objects.get(id=metric_id, dataset=dataset)
@@ -813,20 +821,17 @@ def staff_preview_report_view(request, upload_id):
                             "single_value",
                         ]:
                             metric.value = edited_values[metric_id].strip()
-                        # ❗️ No tocar position aquí
                         metric.save()
                 except Metric.DoesNotExist:
                     continue
 
-            # Luego aplica las posiciones para todos los métricas en orden
-            for index, metric_id in enumerate(ordered_ids):
-                try:
-                    metric = Metric.objects.get(id=metric_id, dataset=dataset)
-                    # ✅ Forzar posición manualmente sin activar lógica de autoasignación
-                    Metric.objects.filter(id=metric.id).update(position=index)
-                except Metric.DoesNotExist:
-                    continue
+            # 4. Reasigna posiciones finales
+            for final_position, metric_id in enumerate(ordered_ids):
+                Metric.objects.filter(id=metric_id, dataset=dataset).update(
+                    position=final_position
+                )
 
+            # 5. Finaliza procesamiento
             mark_as_processed(upload)
             Metric.objects.filter(source_upload=upload).update(is_preview=False)
 
