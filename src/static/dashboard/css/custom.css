@@ -218,3 +218,41 @@ input[readonly] {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.metric-text-snippet {
+  max-height: 80px;
+  overflow: hidden;
+  font-size: 0.875rem;
+  color: #333;
+  position: relative;
+  padding-right: 0.5rem;
+  line-height: 1.2;
+}
+
+.metric-text-snippet::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 1.5rem;
+  width: 100%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0), white);
+}
+
+.metric-single-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background-color: #2ecc71;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  max-height: 100px;
+  overflow: hidden;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: bold;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

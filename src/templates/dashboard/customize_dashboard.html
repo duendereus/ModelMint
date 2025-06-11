@@ -50,10 +50,12 @@
                                             {% endwith %}
 
                                         {% elif metric.type == "single_value" %}
-                                            <span class="badge bg-success" style="font-size: 1rem;">{{ metric.value }}</span>
+                                            <div class="metric-single-value">{{ metric.value|safe }}</div>
+
 
                                         {% elif metric.type == "text" %}
-                                            <div class="text-snippet">{{ metric.value|truncatechars:50 }}</div>
+                                          <div class="metric-text-snippet">{{ metric.value|safe }}</div>
+
 
                                         {% elif metric.type == "table" and metric.table_data %}
                                             <table>
