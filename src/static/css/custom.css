@@ -113,6 +113,15 @@
     overflow-y: hidden !important;
 }
 
+.footer-brand {
+    display: flex;
+    align-items: flex-end; /* Alinea parte inferior */
+    gap: 10px;
+}
+
+/* .footer-brand p {
+    margin-bottom: 2px; 
+} */
 
 
 

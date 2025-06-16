@@ -38,19 +38,6 @@
   {% for upload_group in grouped_uploads %}
     {% with data_upload=upload_group.grouper metrics=upload_group.list %}
     <div class="mt-5">
-      <h4 class="mb-1">
-        {{ data_upload.dataset.name }} 
-        <small class="text-muted">v{{ data_upload.version }}</small>
-        {% if can_download_pdf %}
-          <a href="{% url 'dashboard:analytics:download_pdf_report' data_upload.id %}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">
-            📄 PDF
-          </a>
-        {% endif %}
-      </h4>
-      <p class="text-muted mb-3">
-        Uploaded {{ data_upload.created_at|date:"Y-m-d H:i" }}
-      </p>
-
       <div class="row">
         {% for group in metrics|group_plot_metrics %}
           {% if group|length == 1 %}
