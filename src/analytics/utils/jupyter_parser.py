@@ -5,12 +5,9 @@ import os
 
 
 def clean_text(text):
-    """
-    Removes invisible/control characters and common HTML artifacts like ¶.
-    """
     return (
         "".join(c for c in text if unicodedata.category(c)[0] != "C")
-        .replace("¶", "")  # ← elimina el símbolo pilcrow
+        .replace("¶", "")
         .strip()
     )
 
@@ -33,7 +30,11 @@ def parse_mint_comment(comment):
     for part in raw_parts[1:]:
         if "=" in part:
             key, val = part.split("=", 1)
-            metadata[key.strip().lower()] = clean_text(val.strip())
+            key = key.strip().lower()
+            val = clean_text(val.strip())
+            metadata[key] = val
+            if key == "title":
+                metadata["titles"] = [clean_text(t) for t in val.split(";")]
     return metadata
 
 
@@ -44,10 +45,19 @@ def find_next_header_text(start):
     return None
 
 
-def find_plt_title_in_code(start):
-    for sibling in start.next_siblings:
-        if getattr(sibling, "name", None) == "pre":
-            match = re.search(r'plt\.title\(["\'](.+?)["\']\)', sibling.get_text())
+def find_plt_title_near_element(el):
+    for sibling in el.next_siblings:
+        if getattr(sibling, "name", None) in ["pre", "code"]:
+            match = re.search(
+                r'plt\.title\(\s*[\'"](.+?)[\'"]\s*\)', sibling.get_text()
+            )
+            if match:
+                return clean_text(match.group(1))
+    for sibling in el.previous_siblings:
+        if getattr(sibling, "name", None) in ["pre", "code"]:
+            match = re.search(
+                r'plt\.title\(\s*[\'"](.+?)[\'"]\s*\)', sibling.get_text()
+            )
             if match:
                 return clean_text(match.group(1))
     return None
@@ -55,7 +65,6 @@ def find_plt_title_in_code(start):
 
 def clean_metric_name(fname):
     name = os.path.splitext(os.path.basename(fname))[0]
-    # Remove UUID prefix if present
     if re.match(r"^[a-f0-9]{32}_", name):
         name = "_".join(name.split("_")[1:])
     return name.replace("_", " ").title()
@@ -65,6 +74,7 @@ def parse_jupyter_html(content):
     soup = BeautifulSoup(content, "html.parser")
     results = []
     current_metadata = None
+    used_imgs = set()
 
     for el in soup.descendants:
         if isinstance(el, Comment):
@@ -79,56 +89,93 @@ def parse_jupyter_html(content):
             and el.name in ["p", "pre", "div", "img", "h1", "h2", "h3"]
         ):
             mtype = current_metadata["type"]
-            title = clean_text(current_metadata.get("title", "")) or None
-            value = clean_text(current_metadata.get("value", "")) or None
+            titles = current_metadata.get("titles", [])
+            value_raw = clean_text(current_metadata.get("value", "")) or None
+            values = [clean_text(v) for v in value_raw.split(";")] if value_raw else []
 
-            if not title:
-                if mtype == "chart":
-                    title = (
-                        find_plt_title_in_code(current_metadata["anchor"])
+            # CHART ─────────────────────────────────────
+            if mtype == "chart":
+                title = (
+                    titles.pop(0)
+                    if titles
+                    else (
+                        find_plt_title_near_element(current_metadata["anchor"])
                         or find_next_header_text(current_metadata["anchor"])
                         or "Chart"
                     )
-                else:
-                    title = (
-                        find_next_header_text(current_metadata["anchor"])
-                        or mtype.title()
-                    )
-                title = clean_text(title)
-                current_metadata["title"] = title
+                )
+                current_metadata["titles"] = titles
 
-            if mtype == "kpi":
-                if value:
-                    results.append(
-                        {"type": "kpi", "title": title, "value": clean_text(value)}
+                if el.name == "img":
+                    src = el.get("src", "")
+                    if src.startswith("data:image") and src not in used_imgs:
+                        results.append(
+                            {
+                                "type": "chart",
+                                "title": clean_text(title),
+                                "image_base64": src,
+                            }
+                        )
+                        used_imgs.add(src)
+                        if not titles:
+                            current_metadata = None
+
+            # KPI ─────────────────────────────────────
+            elif mtype == "kpi":
+                if titles and values and len(titles) == len(values):
+                    for t, v in zip(titles, values):
+                        results.append({"type": "kpi", "title": t, "value": v})
+                    current_metadata = None
+                elif value_raw:
+                    title = (
+                        titles[0]
+                        if titles
+                        else (
+                            find_next_header_text(current_metadata["anchor"]) or "KPI"
+                        )
                     )
+                    results.append({"type": "kpi", "title": title, "value": value_raw})
                     current_metadata = None
                 else:
                     extracted = clean_text(el.get_text())
-                    if extracted and re.search(r"\$?[\d,]+(\.\d+)?", extracted):
+                    if extracted and re.search(r"^[\d,\.%$]+$", extracted):
+                        title = (
+                            titles[0]
+                            if titles
+                            else (
+                                find_next_header_text(current_metadata["anchor"])
+                                or "KPI"
+                            )
+                        )
                         results.append(
                             {"type": "kpi", "title": title, "value": extracted}
                         )
                         current_metadata = None
 
-            elif mtype == "chart" and el.name == "img":
-                src = el.get("src", "")
-                if src.startswith("data:image"):
-                    results.append(
-                        {"type": "chart", "title": title, "image_base64": src}
-                    )
+            # TEXT ─────────────────────────────────────
+            elif mtype == "text":
+                title = (
+                    titles[0]
+                    if titles
+                    else (find_next_header_text(current_metadata["anchor"]) or "Text")
+                )
+                text = clean_text(value_raw or el.get_text())
+                if text and text != ",":
+                    results.append({"type": "text", "title": title, "text": text})
                     current_metadata = None
 
-            elif mtype == "text":
-                if value:
-                    results.append(
-                        {"type": "text", "title": title, "text": clean_text(value)}
-                    )
-                    current_metadata = None
-                else:
-                    text = clean_text(el.get_text())
-                    if text and text != ",":
-                        results.append({"type": "text", "title": title, "text": text})
-                        current_metadata = None
+    # 🖼️ Post-procesamiento: <img> sin comentario
+    for img in soup.find_all("img"):
+        src = img.get("src", "")
+        if src.startswith("data:image") and src not in used_imgs:
+            title = (
+                find_plt_title_near_element(img)
+                or find_next_header_text(img)
+                or "Untitled Chart"
+            )
+            results.append(
+                {"type": "chart", "title": clean_text(title), "image_base64": src}
+            )
+            used_imgs.add(src)
 
     return results
