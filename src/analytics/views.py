@@ -559,13 +559,23 @@ def download_pdf_report(request, upload_id):
                 dataset_id=data_upload.dataset.id,
             )
 
+        # ✅ Convert logo to base64 for embedding
+        logo_base64 = None
+        logo_path = os.path.join(settings.BASE_DIR, "static", "img", "logo-green.png")
+        try:
+            with open(logo_path, "rb") as logo_file:
+                encoded_logo = base64.b64encode(logo_file.read()).decode()
+                logo_base64 = f"data:image/png;base64,{encoded_logo}"
+        except Exception:
+            logo_base64 = None
+
+        # ✅ Process metrics
         metrics = (
             Metric.objects.filter(dataset=data_upload.dataset, is_preview=False)
             .select_related("table_data")
             .order_by("position")
         )
 
-        # ✅ Attach base64 (or fallback URL) for plots
         for metric in metrics:
             metric.presigned_url = None
             metric.base64_image = None
@@ -573,7 +583,7 @@ def download_pdf_report(request, upload_id):
             if metric.type == "plot" and metric.file:
                 try:
                     presigned_url = metric.get_presigned_url(expires_in=60)
-                    metric.presigned_url = presigned_url  # Save it anyway
+                    metric.presigned_url = presigned_url
                     response = requests.get(presigned_url)
                     response.raise_for_status()
 
@@ -583,13 +593,15 @@ def download_pdf_report(request, upload_id):
 
                     metric.base64_image = f"data:image/{ext};base64,{encoded}"
                 except Exception:
-                    # 👇 Use presigned URL if base64 embedding fails
-                    metric.base64_image = None  # Explicit
-                    # presigned_url already set
+                    metric.base64_image = None
 
         html = render_to_string(
             "dashboard/analytics/pdf_report.html",
-            {"data_upload": data_upload, "metrics": metrics},
+            {
+                "data_upload": data_upload,
+                "metrics": metrics,
+                "logo_base64": logo_base64,
+            },
             request=request,
         )
 

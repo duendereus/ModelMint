@@ -132,15 +132,30 @@
 <body>
 
 <!-- ✅ Portada -->
+{% load static %}
 <div class="cover-page">
     <div class="cover-content">
-        <img src="https://modelmint.co/static/img/logo-green.9b9c7fe9aead.png" alt="ModelMint Logo" class="cover-logo">
-        <div class="cover-title">📊 Report: {{ data_upload.dataset.name }} (v{{ data_upload.version }})</div>
+        
+        {% if logo_base64 %}
+            <a href="https://modelmint.co" target="_blank">
+                <img src="{{ logo_base64 }}" alt="ModelMint Logo" class="cover-logo">
+            </a>
+        {% else %}
+            <div class="cover-logo" style="font-size: 12px; color: #888;">
+                ModelMint
+            </div>
+        {% endif %}
+
+
+        <div class="cover-title">
+            📊 Report: {{ data_upload.dataset.name }} (v{{ data_upload.version }})
+        </div>
         <p class="cover-meta"><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
         <p class="cover-meta"><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
         <p class="cover-meta"><strong>Created At:</strong> {{ data_upload.created_at|date:"Y-m-d H:i" }}</p>
     </div>
 </div>
+
 
 <!-- ✅ Marca de agua a partir de aquí -->
 <!-- <div class="watermark">ModelMint</div> -->
