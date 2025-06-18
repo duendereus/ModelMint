@@ -108,7 +108,7 @@ class MetricAdmin(admin.ModelAdmin):
         "is_preview",
         # "preview_data",
     )
-    list_filter = ("type", "dataset__organization")
+    list_filter = ("type", "dataset__organization", "is_preview")
     search_fields = ("name", "dataset__name", "dataset__organization__name")
     ordering = ["dataset__organization", "dataset", "-created_at"]
     list_editable = ("position",)
