@@ -15,13 +15,17 @@ def clean_text_basic(text):
 
 
 def clean_text_rich(text):
-    return (
+    cleaned = (
         "".join(c for c in text if unicodedata.category(c)[0] != "C")
         .replace("\u2029", "\n")
         .replace("\xa0", " ")
         .replace("¶", "\n")
         .strip()
     )
+    if "¶" in text or "\u2029" in text:
+        print(f"[DEBUG clean_text_rich] Original: {repr(text)}")
+        print(f"[DEBUG clean_text_rich] Cleaned: {repr(cleaned)}")
+    return cleaned
 
 
 def infer_metric_type(label):
@@ -60,20 +64,26 @@ def find_plt_title_upwards_only(el):
         titles = []
         for pattern in patterns:
             matches = re.findall(pattern, text)
+            if matches:
+                print(f"[DEBUG title match] Pattern: {pattern} -> {matches}")
             titles.extend([clean_text_rich(m) for m in matches])
         return titles
 
     visited = set()
     node = el
-    for _ in range(10):
+    for depth in range(10):
         if not node or node in visited:
             break
         visited.add(node)
         if hasattr(node, "get_text"):
+            snippet = node.get_text()[:200].replace("\n", " ").strip()
+            print(f"[DEBUG walk_up] Depth: {depth}, Text: {snippet}")
             found = extract_title(node.get_text())
             if found:
+                print(f"[DEBUG title found] {found[0]}")
                 return found[0]
         node = node.parent
+    print("[DEBUG title fallback] No title found upwards")
     return None
 
 
@@ -110,6 +120,10 @@ def parse_jupyter_html(content):
         if current_metadata and current_metadata["type"] == "text" and accumulated_html:
             text_block = "\n".join(accumulated_html).strip()
             text_block = re.sub(r"\n{2,}", "\n", text_block)
+            print(
+                f"[DEBUG flush_text] Title: {current_metadata.get('titles', ['Text'])[0]}"
+            )
+            print(f"[DEBUG flush_text] Text block starts with: {text_block[:100]!r}")
             results.append(
                 {
                     "type": "text",
@@ -127,6 +141,7 @@ def parse_jupyter_html(content):
             flush_text()
             metadata = parse_mint_comment(el)
             if metadata:
+                print(f"[DEBUG comment] Parsed metadata: {metadata}")
                 metadata["anchor"] = el
                 current_metadata = metadata
         elif is_input_prompt(el):
@@ -160,6 +175,11 @@ def parse_jupyter_html(content):
                     if first_child and first_child.name in ["ul", "ol"]:
                         continue
                 html = el.decode_contents().strip()
+                html = re.sub(
+                    r"<a[^>]+anchor-link[^>]*>.*?</a>", "<br/><br/>", html
+                )  # 🔥 Limpiar ¶ y anchors
+                if "anchor-link" in html or "¶" in html:
+                    print(f"[DEBUG anchor-clean] Raw HTML with anchor: {html[:120]!r}")
                 if html:
                     accumulated_html.append(html)
 
@@ -175,6 +195,7 @@ def parse_jupyter_html(content):
                 current_metadata["titles"] = titles
                 src = el.get("src", "")
                 if src.startswith("data:image") and src not in used_imgs:
+                    print(f"[DEBUG chart] Using title: {title}")
                     results.append(
                         {
                             "type": "chart",
@@ -213,6 +234,9 @@ def parse_jupyter_html(content):
         src = img.get("src", "")
         if src.startswith("data:image") and src not in used_imgs:
             title = find_plt_title_upwards_only(img) or "Untitled Chart"
+            print(
+                f"[DEBUG fallback chart] Found image without metadata, title: {title}"
+            )
             results.append(
                 {
                     "type": "chart",
