@@ -57,6 +57,7 @@ class DataUploadAdmin(admin.ModelAdmin):
                     "dataset",
                     "operation",
                     "file",
+                    "drive_link",
                     "job_instructions",
                 )
             },
