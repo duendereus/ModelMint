@@ -4,10 +4,11 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.utils.timezone import now
-from .models import DataSet, DataUpload, Metric, JupyterReport
-from .forms import DataUploadForm
+from .models import DataSet, DataUpload, Report, Metric, JupyterReport
+from .forms import DataUploadForm, ReportRequestForm
 from .tasks import process_metrics_task
 from .services import mark_as_processed
+from analytics.utils.utils import get_user_organization
 from subscriptions.utils import (
     get_plan_limits,
     can_upload_data,
@@ -16,7 +17,7 @@ from subscriptions.utils import (
 )
 import boto3
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse, Http404
+from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -46,10 +47,7 @@ logger = logging.getLogger(__name__)
 @login_required
 def upload_data(request):
     user = request.user
-    organization = getattr(user, "owned_organization", None)
-    if not organization:
-        membership = user.organization_memberships.first()
-        organization = membership.organization if membership else None
+    organization = get_user_organization(user)
 
     if not organization:
         messages.error(request, "You must belong to an organization to upload data.")
@@ -83,6 +81,71 @@ def upload_data(request):
 
 
 @login_required
+def request_report_view(request):
+    user = request.user
+    organization = get_user_organization(user)
+
+    if not organization:
+        messages.error(
+            request, "You must belong to an organization to request a report."
+        )
+        return redirect("dashboard:dashboard_home")
+
+    # ❗️Verifica que tenga datasets disponibles
+    datasets = DataSet.objects.filter(organization=organization)
+    if not datasets.exists():
+        messages.warning(request, "You must first upload data to create a report.")
+        return redirect("dashboard:analytics:upload_data")
+
+    # ✅ Verifica límites del plan
+    limits = get_plan_limits(organization)
+    if limits is None:
+        messages.warning(
+            request, "You need an active subscription to request a report."
+        )
+        return redirect("subscriptions:pricing")
+
+    max_reports = limits.get("max_reports", 3)
+    processed_reports_count = Report.objects.filter(
+        dataset__organization=organization, processed=True
+    ).count()
+
+    if processed_reports_count >= max_reports:
+        messages.warning(
+            request,
+            f"You've reached the report limit ({max_reports}) for your current plan. Upgrade to generate more reports.",
+        )
+        return redirect("dashboard:dashboard_home")
+
+    if request.method == "POST":
+        form = ReportRequestForm(request.POST)
+        if form.is_valid():
+            report = form.save(commit=False)
+            report.created_by = user
+            report.save()
+            messages.success(request, "✅ Report request submitted.")
+            return redirect("dashboard:dashboard_home")
+    else:
+        form = ReportRequestForm()
+
+    return render(
+        request,
+        "dashboard/analytics/request_report.html",
+        {
+            "form": form,
+            "max_reports": max_reports if max_reports != float("inf") else None,
+            "processed_reports_count": processed_reports_count,
+            "reports_remaining": (
+                max_reports - processed_reports_count
+                if max_reports != float("inf")
+                else None
+            ),
+            "unlimited_reports": max_reports == float("inf"),
+        },
+    )
+
+
+@login_required
 @require_POST
 def generate_presigned_post(request):
     logger.info("🔧 generate_presigned_post: Request received")
@@ -97,11 +160,7 @@ def generate_presigned_post(request):
     mime_type = mime_type or "application/octet-stream"
 
     user = request.user
-    organization = (
-        user.owned_organization
-        if hasattr(user, "owned_organization") and user.owned_organization
-        else user.organization_memberships.first().organization
-    )
+    organization = get_user_organization(user)
     org_slug = organization.name.lower().replace(" ", "_")
     key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name.replace(' ', '_')}"
 
@@ -150,8 +209,6 @@ def confirm_upload(request):
     logger.info("📥 confirm_upload: Metadata received")
 
     try:
-        title = request.POST.get("title")
-        job_instructions = request.POST.get("job_instructions")
         file_key = request.POST.get("file_key")
         drive_link = request.POST.get("drive_link")
         operation = request.POST.get("operation", "create")
@@ -173,11 +230,7 @@ def confirm_upload(request):
                 return JsonResponse({"error": "Missing dataset ID."}, status=400)
 
         user = request.user
-        organization = (
-            user.owned_organization
-            if hasattr(user, "owned_organization") and user.owned_organization
-            else user.organization_memberships.first().organization
-        )
+        organization = get_user_organization(user)
 
         if not can_upload_data(organization):
             logger.warning(f"⛔ Upload limit reached for {organization.name}")
@@ -185,7 +238,7 @@ def confirm_upload(request):
                 request, "Upload limit reached for your current subscription plan."
             )
             return JsonResponse(
-                {"redirect_url": "/dashboard/analytics/upload/"}, status=403
+                {"redirect_url": reverse("dashboard:analytics:upload_data")}, status=403
             )
 
         # Handle dataset
@@ -206,8 +259,6 @@ def confirm_upload(request):
 
         # Create the DataUpload (version is auto-handled in save())
         DataUpload.objects.create(
-            title=title,
-            job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
             file=file_key if file_key else None,
@@ -218,13 +269,18 @@ def confirm_upload(request):
         )
 
         logger.info(f"✅ Upload metadata saved and file marked as uploaded: {file_key}")
-        return JsonResponse({"success": True})
+        return JsonResponse(
+            {
+                "success": True,
+                "redirect_url": reverse("dashboard:analytics:request_report"),
+            }
+        )
 
     except Exception as e:
         logger.exception("❌ Error in confirm_upload")
         messages.error(request, "Something went wrong while confirming the upload.")
         return JsonResponse(
-            {"redirect_url": "/dashboard/analytics/upload/"}, status=500
+            {"redirect_url": reverse("dashboard:analytics:upload_data")}, status=500
         )
 
 
@@ -239,11 +295,7 @@ def initiate_multipart_upload(request):
         return JsonResponse({"error": "Missing file_name"}, status=400)
 
     user = request.user
-    organization = (
-        user.owned_organization
-        if hasattr(user, "owned_organization") and user.owned_organization
-        else user.organization_memberships.first().organization
-    )
+    organization = get_user_organization(user)
     org_slug = organization.name.lower().replace(" ", "_")
     key = f"uploads/{org_slug}/data/{uuid.uuid4()}_{file_name.replace(' ', '_')}"
 
@@ -310,23 +362,17 @@ def complete_multipart_upload(request):
         key = data.get("key")
         drive_link = data.get("drive_link")
         parts = data.get("parts")
-        title = data.get("title")
-        job_instructions = data.get("job_instructions")
         dataset_name = data.get("dataset_name")
         operation = data.get("operation", "create")
 
         if not upload_id or not key or not parts or not title or not dataset_name:
             messages.error(request, "Missing required fields.")
             return JsonResponse(
-                {"redirect_url": "/dashboard/analytics/upload/"}, status=400
+                {"redirect_url": reverse("dashboard:analytics:upload_data")}, status=400
             )
 
         user = request.user
-        organization = (
-            user.owned_organization
-            if hasattr(user, "owned_organization") and user.owned_organization
-            else user.organization_memberships.first().organization
-        )
+        organization = get_user_organization(user)
 
         if not can_upload_data(organization):
             logger.warning(
@@ -336,7 +382,7 @@ def complete_multipart_upload(request):
                 request, "Upload limit reached for your current subscription plan."
             )
             return JsonResponse(
-                {"redirect_url": "/dashboard/analytics/upload/"}, status=403
+                {"redirect_url": reverse("dashboard:analytics:upload_data")}, status=403
             )
 
         # Finalize the multipart upload with S3
@@ -382,8 +428,6 @@ def complete_multipart_upload(request):
 
         # Save the upload
         DataUpload.objects.create(
-            title=title,
-            job_instructions=job_instructions,
             uploaded_by=user,
             organization=organization,
             file=key if key else None,
@@ -394,13 +438,18 @@ def complete_multipart_upload(request):
         )
 
         logger.info("✅ Multipart upload completed and saved.")
-        return JsonResponse({"success": True})
+        return JsonResponse(
+            {
+                "success": True,
+                "redirect_url": reverse("dashboard:analytics:request_report"),
+            }
+        )
 
     except Exception as e:
         logger.exception("❌ Error during multipart upload completion")
         messages.error(request, "Error finalizing the upload.")
         return JsonResponse(
-            {"redirect_url": "/dashboard/analytics/upload/"}, status=500
+            {"redirect_url": reverse("dashboard:analytics:upload_data")}, status=500
         )
 
 
@@ -408,45 +457,32 @@ def complete_multipart_upload(request):
 def report_list_view(request):
     user = request.user
 
-    organization = (
-        user.owned_organization
-        if hasattr(user, "owned_organization") and user.owned_organization
-        else (
-            user.organization_memberships.first().organization
-            if user.organization_memberships.exists()
-            else None
-        )
-    )
+    organization = get_user_organization(user)
 
     if not organization:
         messages.warning(request, "You must belong to an organization to view reports.")
-        return redirect("dashboard:dashboard_home")  # o donde tú prefieras
+        return redirect("dashboard:dashboard_home")
 
     if not can_view_more_reports(organization):
         messages.warning(
             request,
-            "You've reached the maximum number of processed reports allowed by your current plan.",
+            (
+                "You've reached the maximum number of processed "
+                "reports allowed by your current plan."
+            ),
         )
 
     datasets = (
         DataSet.objects.filter(organization=organization)
-        .prefetch_related(
-            Prefetch(
-                "uploads",
-                queryset=DataUpload.objects.filter(used_for_processing=True).order_by(
-                    "-version"
-                ),
-                to_attr="processed_uploads",
-            )
-        )
+        .prefetch_related("reports__upload")
         .order_by("name")
     )
 
     limits = get_plan_limits(organization)
     max_reports = limits.get("max_reports") if limits else 0
     is_unlimited = max_reports == float("inf")
-    current_reports = DataUpload.objects.filter(
-        organization=organization, used_for_processing=True
+    current_reports = Report.objects.filter(
+        dataset__organization=organization, processed=True
     ).count()
     can_download_pdf = limits.get("allow_pdf_download", False) if limits else False
 
@@ -455,65 +491,50 @@ def report_list_view(request):
         "dashboard/analytics/report_list.html",
         {
             "datasets": datasets,
-            "can_download_pdf": can_download_pdf,
-            "max_reports": max_reports,
-            "current_reports": current_reports,
             "is_unlimited": is_unlimited,
+            "current_reports": current_reports,
+            "max_reports": max_reports,
+            "can_download_pdf": can_download_pdf,
         },
     )
 
 
 @login_required
-def report_detail_view(request, dataset_id):
+def report_detail_view(request, report_id):
     """
-    Shows the latest processed DataUpload for a given DataSet
-    and its associated Metrics.
+    Shows the details of a processed Report and its associated Metrics.
     """
     user = request.user
-
-    organization = (
-        user.owned_organization
-        if hasattr(user, "owned_organization") and user.owned_organization
-        else (
-            user.organization_memberships.first().organization
-            if user.organization_memberships.exists()
-            else None
-        )
-    )
+    organization = get_user_organization(user)
 
     if not organization:
         messages.warning(
             request, "You must belong to an organization to view this report."
         )
-        return redirect("dashboard:dashboard_home")  # o donde prefieras
+        return redirect("dashboard:dashboard_home")
 
-    dataset = get_object_or_404(DataSet, id=dataset_id, organization=organization)
-
-    latest_upload = (
-        dataset.uploads.filter(used_for_processing=True)
-        .order_by("-version", "-created_at")
-        .first()
+    report = get_object_or_404(
+        Report.objects.select_related("dataset", "upload").prefetch_related(
+            "metrics__table_data"
+        ),
+        id=report_id,
+        processed=True,
+        dataset__organization=organization,
     )
 
-    if not latest_upload:
-        raise Http404("No processed data upload available for this dataset.")
+    data_upload = report.upload
+    try:
+        data_upload_presigned_url = (
+            data_upload.get_presigned_url() if data_upload else None
+        )
+    except Exception:
+        data_upload_presigned_url = None
 
-    # metrics = (
-    #     Metric.objects.filter(dataset=dataset)
-    #     .select_related("table_data")
-    #     .order_by("position")
-    # )
     metrics = (
-        Metric.objects.filter(dataset=dataset, is_preview=False)
-        .filter(Q(source_upload=latest_upload) | Q(source_upload__isnull=True))
+        report.metrics.filter(is_preview=False)
         .select_related("table_data")
         .order_by("position")
     )
-
-    try:
-        data_upload_presigned_url = latest_upload.get_presigned_url()
-    except Exception:
-        data_upload_presigned_url = None
 
     for metric in metrics:
         metric.presigned_url = metric.get_presigned_url()
@@ -524,7 +545,8 @@ def report_detail_view(request, dataset_id):
         request,
         "dashboard/analytics/report_detail.html",
         {
-            "data_upload": latest_upload,
+            "data_upload": data_upload,
+            "report": report,
             "metrics": metrics,
             "can_download_pdf": can_download_pdf,
             "data_upload_presigned_url": data_upload_presigned_url,
@@ -533,20 +555,16 @@ def report_detail_view(request, dataset_id):
 
 
 @login_required
-def download_pdf_report(request, upload_id):
+def download_pdf_report(request, report_id):
     try:
-        data_upload = get_object_or_404(
-            DataUpload, id=upload_id, used_for_processing=True
-        )
+        report = get_object_or_404(Report, id=report_id, processed=True)
+        dataset = report.dataset
+        upload = report.upload
 
         user = request.user
-        organization = (
-            user.owned_organization
-            if hasattr(user, "owned_organization") and user.owned_organization
-            else user.organization_memberships.first().organization
-        )
+        organization = get_user_organization(user)
 
-        if not organization or data_upload.organization != organization:
+        if not organization or dataset.organization != organization:
             raise PermissionDenied("You do not have access to this report.")
 
         if not can_download_pdf_reports(organization):
@@ -556,10 +574,10 @@ def download_pdf_report(request, upload_id):
             )
             return redirect(
                 "dashboard:analytics:report_detail_view",
-                dataset_id=data_upload.dataset.id,
+                report_id=report.id,
             )
 
-        # ✅ Convert logo to base64 for embedding
+        # ✅ Convertir logo a base64
         logo_base64 = None
         logo_path = os.path.join(settings.BASE_DIR, "static", "img", "logo-green.png")
         try:
@@ -569,9 +587,9 @@ def download_pdf_report(request, upload_id):
         except Exception:
             logo_base64 = None
 
-        # ✅ Process metrics
+        # ✅ Obtener métricas del Report
         metrics = (
-            Metric.objects.filter(dataset=data_upload.dataset, is_preview=False)
+            report.metrics.filter(is_preview=False)
             .select_related("table_data")
             .order_by("position")
         )
@@ -590,15 +608,16 @@ def download_pdf_report(request, upload_id):
                     encoded = base64.b64encode(response.content).decode()
                     ext = metric.file.name.split(".")[-1].lower()
                     ext = "png" if ext not in ["jpg", "jpeg", "svg"] else ext
-
                     metric.base64_image = f"data:image/{ext};base64,{encoded}"
                 except Exception:
                     metric.base64_image = None
 
+        # ✅ Render HTML y generar PDF
         html = render_to_string(
             "dashboard/analytics/pdf_report.html",
             {
-                "data_upload": data_upload,
+                "report": report,
+                "data_upload": upload,
                 "metrics": metrics,
                 "logo_base64": logo_base64,
             },
@@ -608,9 +627,7 @@ def download_pdf_report(request, upload_id):
         pdf_file = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
 
         response = HttpResponse(pdf_file, content_type="application/pdf")
-        response["Content-Disposition"] = (
-            f"inline; filename=Report_{data_upload.id}.pdf"
-        )
+        response["Content-Disposition"] = f"inline; filename=Report_{report.id}.pdf"
         return response
 
     except Exception:
@@ -627,11 +644,7 @@ def get_available_datasets(request):
     Only used for 'append' and 'replace' uploads.
     """
     user = request.user
-    organization = (
-        user.owned_organization
-        if hasattr(user, "owned_organization") and user.owned_organization
-        else user.organization_memberships.first().organization
-    )
+    organization = get_user_organization(user)
 
     datasets = (
         DataSet.objects.filter(organization=organization)
@@ -645,18 +658,33 @@ def get_available_datasets(request):
 @staff_required
 def staff_dataset_list_view(request):
     """
-    Shows all datasets grouped by organization for staff users.
+    Shows all datasets and their reports grouped by organization for staff users.
     """
     organizations = Organization.objects.prefetch_related(
         Prefetch(
             "datasets",
-            queryset=DataSet.objects.prefetch_related("uploads").order_by("name"),
+            queryset=DataSet.objects.prefetch_related(
+                Prefetch(
+                    "uploads",
+                    queryset=DataUpload.objects.select_related(
+                        "dataset", "uploaded_by", "organization"
+                    ).order_by("-version"),
+                    to_attr="annotated_uploads",
+                ),
+                Prefetch(
+                    "reports",
+                    queryset=Report.objects.select_related("upload").order_by(
+                        "-created_at"
+                    ),
+                    to_attr="annotated_reports",
+                ),
+            ).order_by("name"),
             to_attr="annotated_datasets",
         )
     ).order_by("name")
 
     for org in organizations:
-        sub_obj = getattr(org, "subscription", None)  # Safe access
+        sub_obj = getattr(org, "subscription", None)
         if sub_obj and sub_obj.subscription:
             plan_name = sub_obj.subscription.name.lower()
             org.subscription_label = sub_obj.subscription.name
@@ -671,7 +699,6 @@ def staff_dataset_list_view(request):
             else:
                 org.subscription_color = "bg-dark"
 
-            # Status visual
             if sub_obj.status == "active":
                 org.status_class = "badge bg-success"
                 org.status_icon = "mdi-check-circle"
@@ -690,7 +717,6 @@ def staff_dataset_list_view(request):
             else:
                 org.status_class = "badge bg-dark"
                 org.status_icon = "mdi-help-circle"
-
         else:
             org.subscription_label = "No Plan"
             org.subscription_color = "bg-dark"
@@ -720,7 +746,7 @@ def mark_dataset_as_processed(request, dataset_id):
 @require_http_methods(["GET", "POST"])
 def staff_process_upload_view(request, upload_id):
     upload = get_object_or_404(
-        DataUpload.objects.select_related("dataset__organization"),
+        DataUpload.objects.select_related("dataset__organization", "uploaded_by"),
         id=upload_id,
     )
     dataset = upload.dataset
@@ -733,11 +759,19 @@ def staff_process_upload_view(request, upload_id):
             messages.error(request, "Jupyter HTML file is required.")
             return redirect(request.path)
 
-        # 📘 Guardar HTML como JupyterReport (ya usa S3 o local según config)
-        report = JupyterReport.objects.create(
+        # 🧾 Crear Report y JupyterReport vinculados
+        report = Report.objects.create(
             dataset=dataset,
             upload=upload,
+            created_by=upload.uploaded_by,
+            title="Reporte generado desde notebook",
+        )
+
+        # Después (✅)
+        JupyterReport.objects.create(
+            upload=upload,
             file=html_file,
+            report=report,
         )
 
         # 📂 Guardar archivos complementarios temporalmente
@@ -757,12 +791,13 @@ def staff_process_upload_view(request, upload_id):
                 {"stored_path": stored_path, "original_name": f.name}
             )
 
-        # 🚀 Lanza tarea de Celery
+        # 🚀 Lanza tarea de Celery con report_id
         process_metrics_task.delay(
-            upload_id=upload.id,
-            report_path=report.file.name,
+            report_id=report.id,
             file_entries=complementary_info,
         )
+
+        mark_as_processed(report)
 
         messages.success(
             request,
@@ -779,24 +814,15 @@ def staff_process_upload_view(request, upload_id):
 
 @staff_required
 @require_http_methods(["GET", "POST"])
-def staff_preview_report_view(request, upload_id):
-    upload = get_object_or_404(
-        DataUpload.objects.select_related("dataset"), id=upload_id
+def staff_preview_report_view(request, report_id):
+    report = get_object_or_404(
+        Report.objects.select_related("dataset", "upload", "created_by"),
+        id=report_id,
     )
-    dataset = upload.dataset
+    dataset = report.dataset
+    upload = report.upload  # Puede ser None
 
-    last_upload = (
-        DataUpload.objects.filter(dataset=dataset, removed=False)
-        .order_by("-version", "-created_at")
-        .first()
-    )
-
-    if last_upload.id != upload.id:
-        return JsonResponse(
-            {"success": False, "error": "Only the latest upload can be previewed."},
-            status=403,
-        )
-
+    # ✅ Procesar POST para guardar orden, ediciones, etc.
     if request.method == "POST":
         try:
             data = json.loads(request.body)
@@ -810,21 +836,20 @@ def staff_preview_report_view(request, upload_id):
                     {"success": False, "error": "Missing metric order."}, status=400
                 )
 
-            # 1. Elimina las métricas borradas
+            # Eliminar métricas
             if removed_ids:
-                Metric.objects.filter(id__in=removed_ids, dataset=dataset).delete()
+                Metric.objects.filter(id__in=removed_ids, report=report).delete()
 
-            # 2. Cambia posición a valores temporales altos para evitar colisiones
             TEMP_OFFSET = 10000
             for i, metric_id in enumerate(ordered_ids):
-                Metric.objects.filter(id=metric_id, dataset=dataset).update(
+                Metric.objects.filter(id=metric_id, report=report).update(
                     position=TEMP_OFFSET + i
                 )
 
-            # 3. Aplica cambios de título/valor
+            # Editar contenido
             for metric_id in set(edited_titles.keys()) | set(edited_values.keys()):
                 try:
-                    metric = Metric.objects.get(id=metric_id, dataset=dataset)
+                    metric = Metric.objects.get(id=metric_id, report=report)
                     if metric.is_preview:
                         if metric_id in edited_titles:
                             metric.name = edited_titles[metric_id].strip()
@@ -837,20 +862,24 @@ def staff_preview_report_view(request, upload_id):
                 except Metric.DoesNotExist:
                     continue
 
-            # 4. Reasigna posiciones finales
+            # Reasignar posiciones limpias
             for final_position, metric_id in enumerate(ordered_ids):
-                Metric.objects.filter(id=metric_id, dataset=dataset).update(
+                Metric.objects.filter(id=metric_id, report=report).update(
                     position=final_position
                 )
 
-            # 5. Finaliza procesamiento
-            mark_as_processed(upload)
-            Metric.objects.filter(source_upload=upload).update(is_preview=False)
+            # Marcar como procesado
+            report.processed = True
+            report.save()
+            Metric.objects.filter(report=report).update(is_preview=False)
 
             return JsonResponse(
                 {
                     "success": True,
-                    "redirect_url": reverse("dashboard:analytics:staff_dataset_list"),
+                    "redirect_url": reverse(
+                        "dashboard:analytics:staff_preview_report_by_report",
+                        args=[report.id],
+                    ),
                 }
             )
 
@@ -858,22 +887,26 @@ def staff_preview_report_view(request, upload_id):
             logger.exception("Error publishing report")
             return JsonResponse({"success": False, "error": str(e)}, status=500)
 
-    # GET
+    # 🔁 GET
     metrics = (
-        Metric.objects.filter(source_upload=upload)
+        Metric.objects.filter(report=report)
         .order_by("position")
         .select_related("table_data")
     )
-
     for m in metrics:
         m.presigned_url = m.get_presigned_url()
+
+    # Mostrar cualquier JupyterReport ligado por `report`
+    jupyter_reports = JupyterReport.objects.filter(report=report)
 
     return render(
         request,
         "dashboard/admin/staff_preview_report.html",
         {
-            "upload": upload,
+            "upload": upload,  # puede ser None
             "dataset": dataset,
+            "report": report,
             "metrics": metrics,
+            "jupyter_reports": jupyter_reports,
         },
     )

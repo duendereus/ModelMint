@@ -1,4 +1,5 @@
 from django import template
+import os
 
 register = template.Library()
 
@@ -30,3 +31,13 @@ def group_plot_metrics(metrics):
         grouped.append(current_group)
 
     return grouped
+
+
+@register.filter
+def dict_get(d, key):
+    return d.get(key)
+
+
+@register.filter
+def basename(value):
+    return os.path.basename(value)

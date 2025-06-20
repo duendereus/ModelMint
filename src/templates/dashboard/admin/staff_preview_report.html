@@ -1,19 +1,40 @@
 {% extends "dashboard/base.html" %}
 {% load static %}
+{% load custom_filters %}
+
 {% block title %}Preview Report{% endblock title %}
 
 {% block content %}
 <div class="container mt-4">
-  <h2 class="mb-1">🧪 Preview Report for <strong>{{ dataset.name }}</strong></h2>
-  <p class="text-muted mb-4">Upload v{{ upload.version }} by {{ upload.uploaded_by.email }}</p>
+  <h2 class="mb-1">🧪 Preview: <strong>{{ report.title }}</strong></h2>
+  <p class="text-muted mb-4">
+    Dataset: <strong>{{ dataset.name }}</strong>
+    {% if upload %}
+      • Version v{{ upload.version }} by {{ upload.uploaded_by.email }}
+    {% else %}
+      • <em class="text-muted">No upload associated</em>
+    {% endif %}
+  </p>
 
-  <!-- ✅ Upload Info Card -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <p><strong>Organization:</strong> {{ dataset.organization.name }}</p>
-      <p><strong>Uploaded By:</strong> {{ upload.uploaded_by.email }}</p>
+
+  {% if jupyter_reports %}
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title">📓 Attached Jupyter Notebooks</h5>
+        <ul class="list-group list-group-flush">
+          {% for jr in jupyter_reports %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>
+                - {{ jr.file.name|basename|default:"Unnamed file" }}
+                <small class="text-muted ms-2">(uploaded at {{ jr.uploaded_at|date:"Y-m-d H:i" }})</small>
+              </span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
-  </div>
+  {% endif %}
+
 
   <form method="post" id="publish-form">
     {% csrf_token %}
@@ -24,7 +45,6 @@
         <div class="{% if metric.type == 'table' or metric.type == 'text' %}col-md-12{% else %}col-md-6{% endif %} mb-4 metric-item" data-id="{{ metric.id }}">
           <div class="card h-100 border position-relative">
             <div class="card-body">
-              <!-- Editable title -->
               <h6 class="card-title">
                 {% if metric.is_preview %}
                   <input type="text" class="form-control form-control-sm editable-title mb-2"
@@ -34,29 +54,22 @@
                 {% endif %}
               </h6>
 
-              <!-- Editable content -->
               {% if metric.type == 'plot' and metric.presigned_url %}
                 <img src="{{ metric.presigned_url }}" class="img-fluid rounded" alt="{{ metric.name }}">
-
               {% elif metric.type in "text single_value" and metric.is_preview %}
                 <textarea class="form-control form-control-sm editable-value ckeditor-field"
                           data-id="{{ metric.id }}">{{ metric.value|safe }}</textarea>
-
               {% elif metric.type == 'text' %}
                 <div class="text-muted">{{ metric.value|safe }}</div>
-
               {% elif metric.type == 'single_value' %}
                 <p class="fs-2">{{ metric.value|safe }}</p>
-
               {% elif metric.type == 'table' and metric.table_data %}
                 <div class="table-responsive">
                   <table class="table table-sm table-bordered mt-2">
-                    <thead>
-                      <tr>{% for col in metric.table_data.columns %}<th>{{ col }}</th>{% endfor %}</tr>
-                    </thead>
+                    <thead><tr>{% for col in metric.table_data.columns %}<th>{{ col }}</th>{% endfor %}</tr></thead>
                     <tbody>
                       {% for row in metric.table_data.data|slice:":3" %}
-                        <tr>{% for val in row.values %}<td>{{ val }}</td>{% endfor %}</tr>
+                        <tr>{% for col in metric.table_data.columns %}<td>{{ row|get_item:col }}</td>{% endfor %}</tr>
                       {% endfor %}
                     </tbody>
                   </table>
@@ -68,9 +81,7 @@
             <!-- Controls -->
             <div class="position-absolute top-0 end-0 p-2 d-flex gap-1 align-items-center">
               {% if not metric.is_preview %}
-                <span class="badge bg-success" title="Already published">
-                  <i class="mdi mdi-check-bold"></i>
-                </span>
+                <span class="badge bg-success" title="Already published"><i class="mdi mdi-check-bold"></i></span>
               {% endif %}
               <button type="button" class="btn btn-sm btn-outline-danger delete-metric" title="Delete this metric">
                 <i class="mdi mdi-close-circle-outline"></i>
@@ -101,6 +112,9 @@
 <script src="{% static 'dashboard/js/staff_preview.js' %}"></script>
 <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
 {% endblock extra_scripts %}
+
+
+
 
 
 

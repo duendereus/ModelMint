@@ -73,29 +73,23 @@ def dashboard_home(request):
 
 @login_required
 def dashboard_customize(request):
-    """
-    Allows organization owners to select which metrics appear on the main dashboard.
-    """
     organization = get_object_or_404(Organization, owner=request.user)
 
-    # Get or create the selection model for this organization
-    dashboard_selection, created = DashboardSelection.objects.get_or_create(
+    dashboard_selection, _ = DashboardSelection.objects.get_or_create(
         organization=organization
     )
 
-    # Get all available metrics from the organization's DataUpload reports
-    available_metrics = Metric.objects.filter(
-        dataset__organization=organization, is_preview=False
+    available_metrics = (
+        Metric.objects.filter(
+            report__dataset__organization=organization, is_preview=False
+        )
+        .select_related("report__dataset", "table_data")
+        .order_by("report__dataset__name", "-report__created_at", "position")
     )
 
     if request.method == "POST":
-        selected_metric_ids = request.POST.getlist(
-            "metrics"
-        )  # List of selected metric IDs
-
-        # Update selection
+        selected_metric_ids = request.POST.getlist("metrics")
         dashboard_selection.metrics.set(selected_metric_ids)
-
         messages.success(request, "Dashboard selection updated successfully!")
         return redirect("dashboard:dashboard_home")
 

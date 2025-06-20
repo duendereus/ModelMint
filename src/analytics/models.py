@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.utils.timezone import now
 from .utils.utils import (
     upload_to_metric,
     validate_jupyter_extension,
@@ -53,10 +54,9 @@ class DataUpload(models.Model):
         ("uploaded", "Uploaded"),
         ("failed", "Failed"),
     ]
-
     OPERATION_CHOICES = [
         ("create", "Create New Dataset"),
-        ("append", "Append to Existing Dataset"),
+        ("append", "Append to Existing"),
         ("replace", "Replace Dataset"),
     ]
 
@@ -66,57 +66,23 @@ class DataUpload(models.Model):
     uploaded_by = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="uploads"
     )
-    title = models.CharField(
-        max_length=255, help_text="A short title describing the data upload."
-    )
-    file = models.CharField(
-        max_length=1024,
-        help_text="S3 key for the uploaded file",
-        blank=True,
-        null=True,
-    )
-    drive_link = models.URLField(
-        blank=True,
-        null=True,
-        help_text="If provided, the team will download the data from this link.",
-    )
-    job_instructions = CKEditor5Field(
-        "Instructions",
-        config_name="extends",
-        blank=False,
-        help_text="Detailed instructions on what needs to be done with the data.",
-    )
+    title = models.CharField(max_length=255)
+    file = models.CharField(max_length=1024, blank=True, null=True)
+    drive_link = models.URLField(blank=True, null=True)
+
     dataset = models.ForeignKey(
-        "DataSet",
-        on_delete=models.CASCADE,
-        related_name="uploads",
-        null=True,
-        blank=True,
-        help_text="Group uploads by versioned datasets.",
+        DataSet, on_delete=models.CASCADE, related_name="uploads", null=True, blank=True
     )
     operation = models.CharField(
-        max_length=10,
-        choices=OPERATION_CHOICES,
-        default="create",
-        help_text="Create, append, or replace the dataset.",
+        max_length=10, choices=OPERATION_CHOICES, default="create"
     )
-    version = models.PositiveIntegerField(
-        default=1, help_text="Version of this upload within the dataset."
-    )
+    version = models.PositiveIntegerField(default=1)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    removed = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    used_for_processing = models.BooleanField(default=False)
-    processing_notes = models.TextField(blank=True, null=True)
-
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default="pending",
-        help_text="Track the background upload status",
-    )
-    removed = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-created_at", "organization", "dataset", "-version"]
@@ -181,7 +147,39 @@ class DataUpload(models.Model):
             )
             self.version = (last_upload.version + 1) if last_upload else 1
 
+        if not self.title:
+            dataset_part = self.dataset.name if self.dataset else "upload"
+            date_part = (
+                self.created_at.strftime("%Y-%m-%d")
+                if self.created_at
+                else now().strftime("%Y-%m-%d")
+            )
+            version_part = f"v{self.version}"
+            self.title = f"{dataset_part}_{date_part}_{version_part}".lower().replace(
+                " ", "_"
+            )
+
         super().save(*args, **kwargs)
+
+
+class Report(models.Model):
+    dataset = models.ForeignKey(
+        DataSet, on_delete=models.CASCADE, related_name="reports"
+    )
+    title = models.CharField(max_length=255)
+    description = CKEditor5Field(config_name="default")
+    upload = models.ForeignKey(
+        DataUpload, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    processed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.title} ({self.dataset.name})"
 
 
 class Metric(models.Model):
@@ -192,17 +190,16 @@ class Metric(models.Model):
         ("text", "Text"),
     ]
 
-    dataset = models.ForeignKey(  # ✅ nuevo campo obligatorio
-        "analytics.DataSet", on_delete=models.CASCADE, related_name="metrics"
+    report = models.ForeignKey(
+        Report, on_delete=models.CASCADE, related_name="metrics", null=True, blank=True
     )
-
-    source_upload = models.ForeignKey(  # ✅ opcional para trazabilidad
+    source_upload = models.ForeignKey(
         "analytics.DataUpload",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="generated_metrics",
-        help_text="Original DataUpload used to generate this metric (for tracking only).",
+        help_text="Original DataUpload used to generate this metric.",
     )
 
     type = models.CharField(max_length=20, choices=METRIC_TYPES)
@@ -210,33 +207,29 @@ class Metric(models.Model):
     file = models.FileField(
         upload_to=upload_to_metric, blank=True, null=True, max_length=512
     )
-    value = CKEditor5Field(blank=True, null=True)  # config_name="extends"
+    value = CKEditor5Field(blank=True, null=True)
     position = models.PositiveIntegerField(default=0)
-    is_preview = models.BooleanField(
-        default=True,
-        help_text="True if the metric is in preview mode and not yet visible to the user.",
-    )
+    is_preview = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("dataset", "position")
-        ordering = ["dataset__organization", "dataset", "-created_at"]
+        unique_together = ("report", "position")
+        ordering = ["report__dataset__organization", "report__dataset", "-created_at"]
 
     def __str__(self):
-        return f"{self.name} ({self.get_type_display()}) - {self.dataset.name}"
+        return f"{self.name} ({self.get_type_display()}) - {self.report.title}"
 
     def save(self, *args, **kwargs):
         if (
             self.position is None
-            or Metric.objects.filter(dataset=self.dataset, position=self.position)
+            or Metric.objects.filter(report=self.report, position=self.position)
             .exclude(id=self.id)
             .exists()
         ):
-            # Asignar la siguiente posición libre
             max_position = (
-                Metric.objects.filter(dataset=self.dataset).aggregate(
+                Metric.objects.filter(report=self.report).aggregate(
                     models.Max("position")
                 )["position__max"]
                 or 0
@@ -246,9 +239,6 @@ class Metric(models.Model):
         super().save(*args, **kwargs)
 
     def get_presigned_url(self, expires_in=3600):
-        """
-        Generate a pre-signed URL for accessing the metric file (e.g. image/plot).
-        """
         if not self.file:
             return None
 
@@ -295,7 +285,13 @@ class TableMetric(models.Model):
 
 
 class JupyterReport(models.Model):
-    dataset = models.ForeignKey("DataSet", on_delete=models.CASCADE)
+    report = models.ForeignKey(
+        "Report",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="jupyter_reports",
+    )
     upload = models.ForeignKey(
         "DataUpload", on_delete=models.CASCADE, null=True, blank=True
     )
@@ -306,4 +302,4 @@ class JupyterReport(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"JupyterReport for {self.dataset.name} (v{self.upload.version})"
+        return f"JupyterReport for {self.report} (v{self.upload.version if self.upload else 'N/A'})"

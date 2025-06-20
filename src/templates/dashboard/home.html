@@ -17,11 +17,15 @@
 
     {% if is_owner %}
       <div>
-        <a href="{% url 'dashboard:customize_dashboard' %}" class="btn btn-success">
+        <a href="{% url 'dashboard:customize_dashboard' %}" class="btn btn-success me-2">
           Customize Dashboard
+        </a>
+        <a href="{% url 'dashboard:analytics:request_report' %}" class="btn btn-info">
+          Request New Report
         </a>
       </div>
     {% endif %}
+
   </div>
 
   {% if not selected_metrics %}

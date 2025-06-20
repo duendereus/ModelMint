@@ -5,7 +5,7 @@ from analytics.models import Metric
 from .jupyter_parser import parse_jupyter_html
 
 
-def process_jupyter_metrics(html_file, dataset, upload):
+def process_jupyter_metrics(html_file, report, upload):
     """
     Procesa un archivo HTML generado desde un
     Jupyter Notebook y registra las métricas encontradas.
@@ -14,7 +14,6 @@ def process_jupyter_metrics(html_file, dataset, upload):
     results = parse_jupyter_html(content)
     metric_count = 0
 
-    # ✅ Agrega esto:
     type_map = {
         "kpi": "single_value",
         "text": "text",
@@ -30,7 +29,7 @@ def process_jupyter_metrics(html_file, dataset, upload):
             continue
 
         metric = Metric.objects.create(
-            dataset=dataset,
+            report=report,
             source_upload=upload,
             type=model_type,
             name=title,

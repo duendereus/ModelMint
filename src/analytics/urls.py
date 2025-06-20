@@ -5,6 +5,7 @@ app_name = "analytics"
 
 urlpatterns = [
     path("upload/", views.upload_data, name="upload_data"),
+    path("reports/request/", views.request_report_view, name="request_report"),
     path(
         "upload/generate-url/",
         views.generate_presigned_post,
@@ -28,12 +29,12 @@ urlpatterns = [
     ),
     path("reports/", views.report_list_view, name="report_list_view"),
     path(
-        "reports/<int:dataset_id>/",
+        "reports/view/<int:report_id>/",
         views.report_detail_view,
         name="report_detail_view",
     ),
     path(
-        "reports/download-pdf/<int:upload_id>/",
+        "reports/download-pdf/<int:report_id>/",
         views.download_pdf_report,
         name="download_pdf_report",
     ),
@@ -50,8 +51,8 @@ urlpatterns = [
         name="staff_process_upload",
     ),
     path(
-        "staff/uploads/<int:upload_id>/preview/",
+        "staff/reports/<int:report_id>/preview/",
         views.staff_preview_report_view,
-        name="staff_preview_report_view",
+        name="staff_preview_report_by_report",
     ),
 ]

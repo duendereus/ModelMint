@@ -1,20 +1,19 @@
-from .models import DataUpload
+from analytics.models import Report
 
 
-def mark_as_processed(upload: DataUpload):
+def mark_as_processed(report: Report):
     """
-    Marca un DataUpload como el actual usado para procesar métricas
-    y desactiva todos los anteriores.
+    Marca un Report como el actual usado para mostrar métricas
+    y desactiva todos los anteriores del mismo dataset.
     """
-    if not upload or not upload.dataset:
-        raise ValueError("Upload and associated dataset are required.")
+    if not report or not report.dataset:
+        raise ValueError("Report and associated dataset are required.")
 
-    # Desactivar los anteriores
-    DataUpload.objects.filter(dataset=upload.dataset).exclude(id=upload.id).update(
-        used_for_processing=False
+    # Desactivar anteriores
+    Report.objects.filter(dataset=report.dataset).exclude(id=report.id).update(
+        processed=False
     )
 
-    # Activar el actual
-    upload.used_for_processing = True
-    upload.removed = False
-    upload.save()
+    # Activar este
+    report.processed = True
+    report.save()

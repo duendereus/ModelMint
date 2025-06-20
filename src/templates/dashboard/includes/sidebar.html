@@ -32,10 +32,23 @@
 
         <ul class="sidebar-menu">
             <li class="sidebar-dropdown">
-                <a href="javascript:void(0)"><i class="ti ti-chart-line"></i>Analytics</a>
+                <a href="javascript:void(0)"><i class="ti ti-database"></i>Datasets</a>
                 <div class="sidebar-submenu">
                     <ul>
-                        <li><a href="{% url 'dashboard:analytics:upload_data' %}">Upload Data</a></li>
+                        <li><a href="{% url 'dashboard:analytics:upload_data' %}">Upload New Dataset</a></li>
+                        <!-- Si en el futuro agregas una vista para gestionar datasets -->
+                        <!-- <li><a href="#">Manage Datasets</a></li> -->
+                    </ul>
+                </div>
+            </li>
+        </ul>
+
+        <ul class="sidebar-menu">
+            <li class="sidebar-dropdown">
+                <a href="javascript:void(0)"><i class="ti ti-chart-line"></i>Reports</a>
+                <div class="sidebar-submenu">
+                    <ul>
+                        <li><a href="{% url 'dashboard:analytics:request_report' %}">Request New Report</a></li>
                         <li><a href="{% url 'dashboard:analytics:report_list_view' %}">Reports List</a></li>
                     </ul>
                 </div>

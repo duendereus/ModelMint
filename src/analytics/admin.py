@@ -1,7 +1,6 @@
 from django.contrib import admin
-from .models import DataSet, DataUpload, Metric, TableMetric, JupyterReport
+from .models import DataSet, DataUpload, Metric, TableMetric, JupyterReport, Report
 from django.utils.html import format_html
-from django.contrib import messages
 
 
 @admin.register(DataSet)
@@ -27,15 +26,14 @@ class DataUploadAdmin(admin.ModelAdmin):
         "operation",
         "version",
         "created_at",
-        "used_for_processing",
         "status",
     )
     list_filter = (
-        "used_for_processing",
         "created_at",
         "status",
         "operation",
         "dataset",
+        "organization",
     )
     search_fields = (
         "title",
@@ -43,7 +41,6 @@ class DataUploadAdmin(admin.ModelAdmin):
         "organization__name",
         "uploaded_by__email",
     )
-
     readonly_fields = ("version", "created_at", "updated_at")
 
     fieldsets = (
@@ -58,25 +55,39 @@ class DataUploadAdmin(admin.ModelAdmin):
                     "operation",
                     "file",
                     "drive_link",
-                    "job_instructions",
                 )
             },
-        ),
-        (
-            "Processing Status",
-            {"fields": ("used_for_processing", "processing_notes")},
         ),
         ("Upload Status", {"fields": ("status",)}),
         (
             "Version & Timestamps",
-            {"fields": ()},
+            {"fields": ("version", "created_at", "updated_at")},
         ),
     )
 
-    def has_change_permission(self, request, obj=None):
-        if obj and obj.used_for_processing:
-            return False
-        return super().has_change_permission(request, obj)
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "dataset",
+        "upload",
+        "created_by",
+        "processed",
+        "created_at",
+    )
+    list_filter = (
+        "processed",
+        "dataset__organization",
+    )
+    search_fields = (
+        "title",
+        "dataset__name",
+        "dataset__organization__name",
+    )
+    readonly_fields = ("created_at",)
+    autocomplete_fields = ["dataset", "upload", "created_by"]
+    ordering = ["-created_at"]
 
 
 class TableMetricInline(admin.TabularInline):
@@ -101,52 +112,56 @@ class TableMetricInline(admin.TabularInline):
 class MetricAdmin(admin.ModelAdmin):
     list_display = (
         "name",
-        "dataset",
-        # "source_upload",
+        "get_dataset",
         "type",
         "position",
         "created_at",
         "is_preview",
-        # "preview_data",
     )
-    list_filter = ("type", "dataset__organization", "is_preview")
-    search_fields = ("name", "dataset__name", "dataset__organization__name")
-    ordering = ["dataset__organization", "dataset", "-created_at"]
+    list_filter = ("type", "report__dataset__organization", "is_preview")
+    search_fields = (
+        "name",
+        "report__dataset__name",
+        "report__dataset__organization__name",
+    )
+    ordering = ["report__dataset__organization", "report__dataset", "-created_at"]
     list_editable = ("position",)
     readonly_fields = ("created_at", "updated_at")
-
     inlines = [TableMetricInline]
 
     def get_queryset(self, request):
         return (
             super()
             .get_queryset(request)
-            .select_related("dataset", "dataset__organization", "source_upload")
+            .select_related(
+                "report__dataset", "report__dataset__organization", "source_upload"
+            )
         )
 
-    def preview_data(self, obj):
-        if obj.type == "table" and hasattr(obj, "table_data") and obj.table_data.data:
-            return format_html(
-                "<pre style='max-width:400px; max-height:100px; overflow:auto; white-space:pre-wrap;'>{}</pre>",
-                str(obj.table_data.data[:3]),
-            )
-        return "-"
+    def get_dataset(self, obj):
+        return obj.report.dataset.name
 
-    preview_data.short_description = "Table Preview"
-
-    def save_model(self, request, obj, form, change):
-        obj.save()
-        if hasattr(obj, "_warning_message"):
-            self.message_user(request, obj._warning_message, level=messages.WARNING)
+    get_dataset.short_description = "Dataset"
 
 
 @admin.register(JupyterReport)
 class JupyterReportAdmin(admin.ModelAdmin):
-    list_display = ("dataset", "upload", "uploaded_at", "file_link")
-    list_filter = ("uploaded_at", "dataset__organization")
-    search_fields = ("dataset__name", "upload__title", "dataset__organization__name")
+    list_display = ("id", "get_dataset", "upload", "uploaded_at", "file_link")
+    list_filter = ("uploaded_at", "report__dataset__organization")
+    search_fields = (
+        "report__dataset__name",
+        "upload__title",
+        "report__dataset__organization__name",
+    )
     readonly_fields = ("uploaded_at", "file_link")
-    autocomplete_fields = ["dataset", "upload"]
+    autocomplete_fields = ["report", "upload"]
+
+    def get_dataset(self, obj):
+        if obj.report and obj.report.dataset:
+            return obj.report.dataset.name
+        return "(No report)"
+
+    get_dataset.short_description = "Dataset"
 
     def file_link(self, obj):
         if obj.file:

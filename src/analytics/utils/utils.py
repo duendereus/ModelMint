@@ -24,8 +24,8 @@ def upload_to_data_file(instance, filename):
 
 
 def upload_to_metric(instance, filename):
-    org_name = instance.dataset.organization.name.lower().replace(" ", "_")[:20]
-    dataset_name = instance.dataset.name.lower().replace(" ", "_")[:20]
+    org_name = instance.report.dataset.organization.name.lower().replace(" ", "_")[:20]
+    dataset_name = instance.report.dataset.name.lower().replace(" ", "_")[:20]
     metric_name = instance.name.lower().replace(" ", "_")[:20]
 
     base, ext = os.path.splitext(filename)
@@ -52,3 +52,17 @@ def upload_to_jupyter_report(instance, filename):
     """
     org_name = instance.dataset.organization.name.lower().replace(" ", "_")
     return f"uploads/{org_name}/data/jupyter/{filename}"
+
+
+def get_user_organization(user):
+    """
+    Returns the organization associated with the user, either as owner or member.
+    """
+    if hasattr(user, "owned_organization") and user.owned_organization:
+        return user.owned_organization
+
+    membership = user.organization_memberships.first()
+    if membership:
+        return membership.organization
+
+    return None

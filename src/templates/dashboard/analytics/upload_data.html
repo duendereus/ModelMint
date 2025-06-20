@@ -38,13 +38,6 @@
                         <option value="replace">Replace Existing</option>
                     </select>
                 </div>
-            
-                <!-- Title -->
-                <div class="mb-3">
-                    <label for="id_title" class="form-label">Upload Title</label>
-                    <input type="text" name="title" id="id_title" class="form-control" required>
-                </div>
-            
                 
                 <p><a href="#" id="use-drive-link">Is your data already stored in a drive? Click here.</a></p>
 
@@ -61,14 +54,6 @@
                         <input type="file" class="form-control" id="id_file" required>
                     </div>
                 </div>
-            
-                <!-- Job Instructions -->
-                <!-- Reemplaza todo el bloque de Job Instructions por: -->
-                <div class="mb-3">
-                    <label class="form-label" for="{{ form.job_instructions.id_for_label }}">Job Instructions</label>
-                    {{ form.job_instructions }}
-                </div>
-
             
                 <!-- Dataset Dropdown (append/replace only) -->
                 <div class="mb-3" id="dataset-dropdown-group" style="display: none;">

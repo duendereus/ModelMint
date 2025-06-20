@@ -132,10 +132,8 @@
 <body>
 
 <!-- ✅ Portada -->
-{% load static %}
 <div class="cover-page">
     <div class="cover-content">
-        
         {% if logo_base64 %}
             <a href="https://modelmint.co" target="_blank">
                 <img src="{{ logo_base64 }}" alt="ModelMint Logo" class="cover-logo">
@@ -146,25 +144,23 @@
             </div>
         {% endif %}
 
-
         <div class="cover-title">
-            📊 Report: {{ data_upload.dataset.name }} (v{{ data_upload.version }})
+            📊 Report: {{ report.title }}
         </div>
         <p class="cover-meta"><strong>Organization:</strong> {{ data_upload.organization.name }}</p>
-        <p class="cover-meta"><strong>Uploaded By:</strong> {{ data_upload.uploaded_by.email }}</p>
+        <p class="cover-meta"><strong>Requested By:</strong> {{ report.created_by.email }}</p>
         <p class="cover-meta"><strong>Created At:</strong> {{ data_upload.created_at|date:"Y-m-d H:i" }}</p>
     </div>
 </div>
 
+<!-- ✅ Sección de descripción -->
+<div class="report-meta">
+    <h2>📝 Report Description</h2>
+    <p>{{ report.description|safe|default:"No description provided." }}</p>
+</div>
 
 <!-- ✅ Marca de agua a partir de aquí -->
 <!-- <div class="watermark">ModelMint</div> -->
-
-<!-- ✅ Contenido -->
-<div class="report-meta">
-    <h2>📋 Job Instructions</h2>
-    <p>{{ data_upload.job_instructions|safe }}</p>
-</div>
 
 <h2>📈 Metrics</h2>
 

@@ -1,0 +1,83 @@
+{% extends "dashboard/base.html" %}
+{% load widget_tweaks %}
+{% block title %}Request a New Report{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">📊 Request a New Report</h2>
+
+    {% if form.errors %}
+        <div class="alert alert-danger">
+            <ul>
+                {% for field, errors in form.errors.items %}
+                    <li><strong>{{ field }}:</strong> {{ errors|join:", " }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    {% if unlimited_reports %}
+        <div class="alert alert-success py-2 px-3 small">
+            ✅ Unlimited reports in your current plan.
+        </div>
+    {% else %}
+        <div class="alert alert-info py-2 px-3 small">
+            Reports used: {{ processed_reports_count }} / {{ max_reports }} <br>
+            Remaining: {{ reports_remaining }}
+        </div>
+    {% endif %}
+
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.media }}
+
+                <!-- Dataset selection -->
+                <div class="mb-3">
+                    <label for="{{ form.dataset.id_for_label }}" class="form-label">Dataset</label>
+                    {{ form.dataset|add_class:"form-select"|attr:"required" }}
+                </div>
+
+                <!-- Report title -->
+                <div class="mb-3">
+                    <label for="{{ form.title.id_for_label }}" class="form-label">Title</label>
+                    {{ form.title|add_class:"form-control"|attr:"required" }}
+                </div>
+
+                <!-- Report description -->
+                <div class="mb-3">
+                    <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                    {{ form.description|attr:"required" }}
+                </div>
+
+                <button type="submit" class="btn btn-success w-100">📨 Submit Report Request</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.querySelector("form");
+    const descriptionField = document.querySelector(".ck-editor__editable");
+
+    form.addEventListener("submit", function (e) {
+        // Obtener contenido desde el CKEditor (innerText ignora etiquetas vacías)
+        const plainText = descriptionField.innerText.trim();
+
+        if (!plainText) {
+            e.preventDefault();
+            alert("❌ Description is required to request a report.");
+            descriptionField.focus();
+        }
+    });
+});
+</script>
+{% endblock extra_scripts %}
+
+
+

@@ -1,4 +1,5 @@
 {% extends "dashboard/base.html" %}
+{% load custom_filters %}
 
 {% block title %} Reports {% endblock title %}
 
@@ -20,37 +21,59 @@
         </p>
     {% endif %}
 
-    {% if datasets %}
-        {% for dataset in datasets %}
-            {% if dataset.processed and dataset.processed_uploads %}
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ dataset.name }}</h5>
-                        <p class="card-text">{{ dataset.description|default:"No description provided." }}</p>
-
-                        {% with upload=dataset.processed_uploads.0 %}
-                        <p>
-                            <strong>Version:</strong> v{{ upload.version }} |
-                            <strong>Uploaded by:</strong> {{ upload.uploaded_by.email }} |
-                            <strong>Date:</strong> {{ upload.created_at|date:"Y-m-d" }}
-                        </p>
-
-                        <a href="{% url 'dashboard:analytics:report_detail_view' upload.dataset.id %}" class="btn btn-primary btn-sm">
-                            View Metrics
-                        </a>                        
-                        {% if can_download_pdf %}
-                        <a href="{% url 'dashboard:analytics:download_pdf_report' upload.pk %}" class="btn btn-outline-secondary btn-sm" target="_blank">
-                            Download PDF
-                        </a>
-                        {% endif %}
-                        {% endwith %}
+    {% for dataset in datasets %}
+        {% with processed_reports=dataset.reports.all|dictsortreversed:"created_at" %}
+            {% if processed_reports %}
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>{{ dataset.name }}</strong>
+                        <button class="btn btn-sm btn-outline-secondary toggle-reports" data-dataset-id="{{ dataset.id }}">
+                            <i class="mdi mdi-menu-down"></i>
+                        </button>
+                    </div>
+                    <div class="card-body reports-container" id="reports-dataset-{{ dataset.id }}" style="display: block;">
+                        {% for report in processed_reports %}
+                            {% if report.processed %}
+                            <div class="border-bottom pb-3 mb-3">
+                                <h5 class="mb-1">{{ report.title }}</h5>
+                                <p class="text-muted small mb-2">{{ report.description|default:"No description." }}</p>
+                                {% with upload=report.upload %}
+                                    <p class="text-muted small">
+                                        <strong>Version:</strong> v{{ upload.version }} |
+                                        <strong>Uploaded by:</strong> {{ upload.uploaded_by.email }} |
+                                        <strong>Date:</strong> {{ upload.created_at|date:"Y-m-d" }}
+                                    </p>
+                                    <a href="{% url 'dashboard:analytics:report_detail_view' report.id %}" class="btn btn-sm btn-primary">
+                                        View Metrics
+                                    </a>
+                                    {% if can_download_pdf %}
+                                        <a href="{% url 'dashboard:analytics:download_pdf_report' report.id %}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                                            Download PDF
+                                        </a>
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
                     </div>
                 </div>
             {% endif %}
-        {% endfor %}
-    {% else %}
-        <div class="alert alert-warning">No processed datasets available.</div>
-    {% endif %}
+        {% endwith %}
+    {% endfor %}
 </div>
 {% endblock content %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".toggle-reports").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-dataset-id");
+            const container = document.getElementById("reports-dataset-" + id);
+            container.style.display = container.style.display === "none" ? "block" : "none";
+        });
+    });
+});
+</script>
+{% endblock extra_scripts %}
 

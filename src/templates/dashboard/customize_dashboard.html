@@ -18,76 +18,78 @@
     {% endif %}
 
     <form method="POST">
-        {% csrf_token %}
-        {% regroup available_metrics by dataset as dataset_groups %}
+    {% csrf_token %}
+    {% regroup available_metrics by dataset as dataset_groups %}
 
-        {% for dataset_group in dataset_groups %}
-            <div class="dashboard-section">
-                <div class="dataset-title">{{ dataset_group.grouper.name }}</div>
+    {% for dataset_group in dataset_groups %}
+        <div class="dashboard-section">
+            <div class="dataset-title">{{ dataset_group.grouper.name }}</div>
 
-                {% regroup dataset_group.list by source_upload as upload_groups %}
-                {% for upload in upload_groups %}
-                    <div class="mb-3">
-                        <div class="text-muted mb-2 ms-1">{{ upload.grouper.title }} ({{ upload.grouper.created_at|date:"Y-m-d" }})</div>
-                        <div class="metric-grid">
-                            {% for metric in upload.list %}
-                                <div class="metric-card">
-                                    <div class="metric-header">
-                                        <input class="form-check-input" type="checkbox" name="metrics" value="{{ metric.id }}"
-                                            id="metric_{{ metric.id }}"
-                                            {% if metric in dashboard_selection.metrics.all %} checked {% endif %}>
-                                        <label class="form-check-label" for="metric_{{ metric.id }}">
-                                            {{ metric.name }}
-                                        </label>
-                                    </div>
+            {% regroup dataset_group.list by report as report_groups %}
+            {% for report_group in report_groups %}
+                <div class="mb-3 border-start ps-3">
+                    <div class="text-muted mb-2 ms-1">
+                        Report v{{ report_group.grouper.upload.version }} — {{ report_group.grouper.created_at|date:"Y-m-d" }}
+                    </div>
 
-                                    <div class="metric-preview">
-                                        {% if metric.type == "plot" %}
-                                            {% with metric.get_presigned_url as plot_url %}
-                                                {% if plot_url %}
-                                                    <img src="{{ plot_url }}" alt="Plot Preview" class="img-fluid mt-2 rounded" style="max-height:100px;">
-                                                {% endif %}
-                                            {% endwith %}
+                    <div class="metric-grid">
+                        {% for metric in report_group.list %}
+                            <div class="metric-card">
+                                <div class="metric-header">
+                                    <input class="form-check-input" type="checkbox" name="metrics" value="{{ metric.id }}"
+                                           id="metric_{{ metric.id }}"
+                                           {% if metric in dashboard_selection.metrics.all %} checked {% endif %}>
+                                    <label class="form-check-label" for="metric_{{ metric.id }}">
+                                        {{ metric.name }}
+                                    </label>
+                                </div>
 
-                                        {% elif metric.type == "single_value" %}
-                                            <div class="metric-single-value">{{ metric.value|safe }}</div>
+                                <div class="metric-preview">
+                                    {% if metric.type == "plot" %}
+                                        {% with metric.get_presigned_url as plot_url %}
+                                            {% if plot_url %}
+                                                <img src="{{ plot_url }}" alt="Plot Preview" class="img-fluid mt-2 rounded" style="max-height:100px;">
+                                            {% endif %}
+                                        {% endwith %}
 
+                                    {% elif metric.type == "single_value" %}
+                                        <div class="metric-single-value">{{ metric.value|safe }}</div>
 
-                                        {% elif metric.type == "text" %}
-                                          <div class="metric-text-snippet">{{ metric.value|safe }}</div>
+                                    {% elif metric.type == "text" %}
+                                        <div class="metric-text-snippet">{{ metric.value|safe }}</div>
 
-
-                                        {% elif metric.type == "table" and metric.table_data %}
-                                            <table>
-                                                <thead>
+                                    {% elif metric.type == "table" and metric.table_data %}
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    {% for col in metric.table_data.columns|slice:":3" %}
+                                                        <th>{{ col }}</th>
+                                                    {% endfor %}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for row in metric.table_data.data|slice:":2" %}
                                                     <tr>
                                                         {% for col in metric.table_data.columns|slice:":3" %}
-                                                            <th>{{ col }}</th>
+                                                            <td>{{ row|get_item:col }}</td>
                                                         {% endfor %}
                                                     </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for row in metric.table_data.data|slice:":2" %}
-                                                        <tr>
-                                                            {% for col in metric.table_data.columns|slice:":3" %}
-                                                                <td>{{ row|get_item:col }}</td>
-                                                            {% endfor %}
-                                                        </tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        {% endif %}
-                                    </div>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    {% endif %}
                                 </div>
-                            {% endfor %}
-                        </div>
+                            </div>
+                        {% endfor %}
                     </div>
-                {% endfor %}
-            </div>
-        {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
 
-        <button type="submit" class="btn btn-success btn-lg mt-4">💾 Save Changes</button>
-    </form>
+    <button type="submit" class="btn btn-success btn-lg mt-4">💾 Save Changes</button>
+</form>
+
 </div>
 {% endblock content %}
 

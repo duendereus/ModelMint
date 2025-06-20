@@ -5,8 +5,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("upload-form");
     const fileInput = document.getElementById("id_file");
     const driveLinkInput = document.getElementById("id_drive_link");
-    const titleInput = document.getElementById("id_title");
-    const instructionsInput = document.getElementById("id_job_instructions");
     const submitBtn = document.getElementById("submit-btn");
 
     const widget = document.getElementById("upload-widget");
@@ -19,27 +17,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const file = fileInput.files[0];
         const driveLink = driveLinkInput.value.trim();
-        const title = titleInput.value.trim();
-        const instructions = instructionsInput.value.trim();
 
-
-
-
-        if (!title || (!file && !driveLink)) {
-            alert("⚠️ Please provide a title and either select a file or paste a drive link.");
-            console.log("⚠️ Missing file or drive link or title");
+        if (!file && !driveLink) {
+            alert("⚠️ Please select a file or paste a drive link.");
             return;
         }
 
         if (driveLink) {
             console.log("🌐 Drive link detected, skipping file upload.");
-            await confirmUpload(null, title, instructions, driveLink);
+            await confirmUpload(null, driveLink);
             return;
         }
 
         console.log("📂 File selected:", file.name);
-        console.log("📝 Title:", title);
-        console.log("🛠️ Instructions:", instructions);
 
         showUploadWidget("Starting upload...");
         submitBtn.disabled = true;
@@ -51,15 +41,15 @@ document.addEventListener("DOMContentLoaded", function () {
             warningModal.show();
 
             setTimeout(() => {
-                uploadLargeFile(file, title, instructions);
+                uploadLargeFile(file);
             }, 500);
         } else {
             console.log("📦 Small file, using direct POST upload");
-            await uploadSmallFile(file, title, instructions);
+            await uploadSmallFile(file);
         }
     });
 
-    async function uploadSmallFile(file, title, instructions) {
+    async function uploadSmallFile(file) {
         console.log("🔹 Starting small file upload:", file.name, file.size);
         const cleanFileName = file.name.replace(/\s+/g, "_");
         const presignForm = new FormData();
@@ -91,7 +81,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         xhr.onload = async function () {
             if (xhr.status === 204 || xhr.status === 201) {
-                await confirmUpload(file_key, title, instructions, null);
+                await confirmUpload(file_key, null);
             } else {
                 alert("❌ Upload failed.");
                 reset();
@@ -107,7 +97,7 @@ document.addEventListener("DOMContentLoaded", function () {
         xhr.send(s3FormData);
     }
 
-    async function uploadLargeFile(file, title, instructions) {
+    async function uploadLargeFile(file) {
         console.log("🔸 Starting large file upload:", file.name, file.size);
         const cleanFileName = file.name.replace(/\s+/g, "_");
         const initForm = new FormData();
@@ -168,16 +158,15 @@ document.addEventListener("DOMContentLoaded", function () {
             body: JSON.stringify({
                 uploadId,
                 key,
-                parts,
-                title,
-                job_instructions: instructions
+                parts
             })
         });
 
         const result = await completeRes.json();
         if (result.success) {
             updateStatusText("✅ Upload complete!");
-            setTimeout(() => window.location.href = "/dashboard/", 1200);
+            const redirectUrl = result.redirect_url || "/dashboard/analytics/request-report/";
+            setTimeout(() => window.location.href = redirectUrl, 1200);
         } else {
             if (result.redirect_url) {
                 window.location.href = result.redirect_url;
@@ -188,20 +177,14 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    async function confirmUpload(file_key, title, instructions, drive_link) {
+    async function confirmUpload(file_key, drive_link) {
         const operation = document.getElementById("id_operation").value;
 
         const confirmForm = new FormData();
-        confirmForm.append("title", title);
-        confirmForm.append("job_instructions", instructions);
         confirmForm.append("operation", operation);
 
-        if (file_key) {
-            confirmForm.append("file_key", file_key);
-        }
-        if (drive_link) {
-            confirmForm.append("drive_link", drive_link);
-        }
+        if (file_key) confirmForm.append("file_key", file_key);
+        if (drive_link) confirmForm.append("drive_link", drive_link);
 
         if (operation === "create") {
             const datasetName = document.getElementById("id_dataset_name").value;
@@ -224,7 +207,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (result.success) {
                 updateStatusText("✅ Upload complete!");
-                setTimeout(() => window.location.href = "/dashboard/", 1200);
+                const redirectUrl = result.redirect_url || "/dashboard/analytics/request-report/";
+                setTimeout(() => window.location.href = redirectUrl, 1200);
             } else {
                 if (result.redirect_url) {
                     window.location.href = result.redirect_url;
@@ -265,5 +249,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return document.querySelector("[name=csrfmiddlewaretoken]").value;
     }
 });
+
+
 
 

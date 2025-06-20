@@ -100,6 +100,7 @@ THIRD_PARTY_APPS = [
     "django_celery_beat",
     "django_ckeditor_5",
     "anymail",
+    "widget_tweaks",
 ]
 
 LOCAL_APPS = [
