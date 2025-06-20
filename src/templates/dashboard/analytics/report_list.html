@@ -36,7 +36,7 @@
                             {% if report.processed %}
                             <div class="border-bottom pb-3 mb-3">
                                 <h5 class="mb-1">{{ report.title }}</h5>
-                                <p class="text-muted small mb-2">{{ report.description|default:"No description." }}</p>
+                                <p class="text-muted small mb-2">{{ report.description|safe|default:"No description." }}</p>
                                 {% with upload=report.upload %}
                                     <p class="text-muted small">
                                         <strong>Version:</strong> v{{ upload.version }} |
