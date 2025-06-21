@@ -744,12 +744,12 @@ def mark_dataset_as_processed(request, dataset_id):
 
 @staff_required
 @require_http_methods(["GET", "POST"])
-def staff_process_upload_view(request, upload_id):
-    upload = get_object_or_404(
-        DataUpload.objects.select_related("dataset__organization", "uploaded_by"),
-        id=upload_id,
+def staff_process_report_view(request, report_id):
+    report = get_object_or_404(
+        Report.objects.select_related("dataset__organization", "created_by"),
+        id=report_id,
     )
-    dataset = upload.dataset
+    dataset = report.dataset
 
     if request.method == "POST":
         html_file = request.FILES.get("jupyter_html")
@@ -759,17 +759,8 @@ def staff_process_upload_view(request, upload_id):
             messages.error(request, "Jupyter HTML file is required.")
             return redirect(request.path)
 
-        # 🧾 Crear Report y JupyterReport vinculados
-        report = Report.objects.create(
-            dataset=dataset,
-            upload=upload,
-            created_by=upload.uploaded_by,
-            title="Reporte generado desde notebook",
-        )
-
-        # Después (✅)
+        # ✅ Crear el JupyterReport asociado al Report
         JupyterReport.objects.create(
-            upload=upload,
             file=html_file,
             report=report,
         )
@@ -807,8 +798,8 @@ def staff_process_upload_view(request, upload_id):
 
     return render(
         request,
-        "dashboard/admin/staff_process_upload.html",
-        {"upload": upload, "dataset": dataset},
+        "dashboard/admin/staff_process_report.html",
+        {"report": report, "dataset": dataset},
     )
 
 

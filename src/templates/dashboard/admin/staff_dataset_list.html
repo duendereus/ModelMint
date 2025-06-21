@@ -29,16 +29,26 @@
                     <ul class="list-group">
                         {% for ds in org.annotated_datasets %}
                             <li class="list-group-item">
+                                
                                 <div>
                                     <strong>{{ ds.name }}</strong>
                                     {% if ds.processed %}
                                         <span class="badge bg-success ms-1">Processed</span>
                                     {% else %}
                                         <span class="badge bg-warning text-dark ms-1">Pending</span>
+                                        <button class="btn btn-sm btn-outline-success ms-2 mark-dataset-processed-btn"
+                                                data-dataset-id="{{ ds.id }}"
+                                                data-dataset-name="{{ ds.name }}">
+                                            Mark as Processed
+                                        </button>
                                     {% endif %}
                                     <br>
-                                    <small class="text-muted">
-                                        {{ ds.description|default:"No description." }}
+                                    <small>
+                                    {% if ds.description|length > 200 %}
+                                        {{ ds.description|slice:":200"|safe }}&hellip;
+                                    {% else %}
+                                        {{ ds.description|safe|default:"No description." }}
+                                    {% endif %}
                                     </small>
                                 </div>
 
@@ -48,7 +58,21 @@
 
                                             {% for report in ds.annotated_reports %}
                                                 <li class="mb-2">
-                                                    <strong>{{ report.title }}</strong>
+                                                    <strong>
+                                                        {{ report.title }}
+                                                        {% if report.processed %}
+                                                            <span class="text-success" title="Processed">&#10003;</span>  {# ✔ #}
+                                                        {% endif %}
+                                                    </strong><br>
+
+                                                    <small>
+                                                        {% if report.description|length > 100 %}
+                                                            {{ report.description|slice:":100"|safe }}&hellip;
+                                                        {% else %}
+                                                            {{ report.description|safe }}
+                                                        {% endif %}
+                                                    </small>
+
                                                     {% with upload=report.upload %}
                                                         <div class="ms-4 mt-1">
 
@@ -58,15 +82,15 @@
                                                                 </div>
 
                                                                 <small class="text-muted"><i class="mdi mdi-file-document-outline"></i> {{ upload.title }}</small><br>
-
-                                                                <a href="{% url 'dashboard:analytics:staff_process_upload' upload.id %}" class="btn btn-outline-primary btn-sm mt-1">
-                                                                    Process
-                                                                </a>
                                                             {% else %}
                                                                 <div class="text-muted small mb-2">
                                                                     No associated upload.
                                                                 </div>
                                                             {% endif %}
+
+                                                            <a href="{% url 'dashboard:analytics:staff_process_report' report.id %}" class="btn btn-success btn-sm mt-1">
+                                                                Process
+                                                            </a>
 
                                                             <a href="{% url 'dashboard:analytics:staff_preview_report_by_report' report.id %}"
                                                             class="btn {% if report.processed %}btn-secondary{% else %}btn-outline-secondary{% endif %} btn-sm mt-1">

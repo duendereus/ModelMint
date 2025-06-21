@@ -50,7 +50,10 @@ def upload_to_jupyter_report(instance, filename):
     Stores the Jupyter HTML notebook in:
     uploads/{org_name}/data/jupyter/{filename}
     """
-    org_name = instance.dataset.organization.name.lower().replace(" ", "_")
+    if instance.report and instance.report.dataset:
+        org_name = instance.report.dataset.organization.name.lower().replace(" ", "_")
+    else:
+        org_name = "unknown_org"
     return f"uploads/{org_name}/data/jupyter/{filename}"
 
 

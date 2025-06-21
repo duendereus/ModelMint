@@ -46,9 +46,9 @@ urlpatterns = [
         name="mark_dataset_as_processed",
     ),
     path(
-        "staff/uploads/<int:upload_id>/process/",
-        views.staff_process_upload_view,
-        name="staff_process_upload",
+        "staff/reports/<int:report_id>/process/",
+        views.staff_process_report_view,
+        name="staff_process_report",
     ),
     path(
         "staff/reports/<int:report_id>/preview/",
