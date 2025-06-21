@@ -118,7 +118,7 @@ def request_report_view(request):
         return redirect("dashboard:dashboard_home")
 
     if request.method == "POST":
-        form = ReportRequestForm(request.POST)
+        form = ReportRequestForm(request.POST, organization=organization)
         if form.is_valid():
             report = form.save(commit=False)
             report.created_by = user
@@ -126,7 +126,7 @@ def request_report_view(request):
             messages.success(request, "✅ Report request submitted.")
             return redirect("dashboard:dashboard_home")
     else:
-        form = ReportRequestForm()
+        form = ReportRequestForm(organization=organization)
 
     return render(
         request,
