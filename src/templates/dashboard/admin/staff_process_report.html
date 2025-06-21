@@ -13,6 +13,19 @@
         <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
             {% csrf_token %}
 
+            <div class="mb-4">
+                <label for="upload_select" class="form-label">Associate with Version</label>
+                <select name="upload_id" class="form-select">
+                <option value="">-- Select version --</option>
+                {% for u in uploads %}
+                    <option value="{{ u.id }}" {% if u.id == default_upload.id %}selected{% endif %}>
+                    v{{ u.version }} - {{ u.created_at|date:"Y-m-d" }}
+                    </option>
+                {% endfor %}
+                </select>
+            </div>
+
+
             <!-- 🧠 Jupyter HTML Upload -->
             <div class="mb-4">
                 <label class="form-label">Jupyter Notebook (HTML)</label>

@@ -751,21 +751,38 @@ def staff_process_report_view(request, report_id):
     )
     dataset = report.dataset
 
+    # Obtener todas las versiones disponibles para ese dataset (más reciente primero)
+    uploads = dataset.uploads.order_by("-version")
+    default_upload = uploads.first()
+
     if request.method == "POST":
         html_file = request.FILES.get("jupyter_html")
         files = request.FILES.getlist("files")
+        upload_id = request.POST.get("upload_id")
 
         if not html_file:
             messages.error(request, "Jupyter HTML file is required.")
             return redirect(request.path)
 
-        # ✅ Crear el JupyterReport asociado al Report
-        JupyterReport.objects.create(
+        # ⚙️ Obtener instancia de upload si se seleccionó una
+        upload_instance = None
+        if upload_id:
+            try:
+                upload_instance = DataUpload.objects.get(id=upload_id)
+            except DataUpload.DoesNotExist:
+                messages.warning(request, "⚠️ Selected version does not exist.")
+                return redirect(request.path)
+        else:
+            upload_instance = default_upload
+
+        # ✅ Crear el JupyterReport asociado
+        jupyter_report = JupyterReport.objects.create(
             file=html_file,
             report=report,
+            upload=upload_instance,
         )
 
-        # 📂 Guardar archivos complementarios temporalmente
+        # 📂 Procesar archivos complementarios
         VALID_TABLE_EXTENSIONS = {".csv", ".xls", ".xlsx"}
         complementary_info = []
 
@@ -782,9 +799,14 @@ def staff_process_report_view(request, report_id):
                 {"stored_path": stored_path, "original_name": f.name}
             )
 
-        # 🚀 Lanza tarea de Celery con report_id
+        if not report.upload and upload_instance:
+            report.upload = upload_instance
+            report.save(update_fields=["upload"])
+
+        # 🚀 Lanza tarea de Celery
         process_metrics_task.delay(
             report_id=report.id,
+            upload_id=upload_instance.id if upload_instance else None,
             file_entries=complementary_info,
         )
 
@@ -799,7 +821,12 @@ def staff_process_report_view(request, report_id):
     return render(
         request,
         "dashboard/admin/staff_process_report.html",
-        {"report": report, "dataset": dataset},
+        {
+            "report": report,
+            "dataset": dataset,
+            "uploads": uploads,
+            "default_upload": default_upload,
+        },
     )
 
 

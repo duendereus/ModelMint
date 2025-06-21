@@ -169,7 +169,11 @@ class Report(models.Model):
     title = models.CharField(max_length=255)
     description = CKEditor5Field(config_name="default")
     upload = models.ForeignKey(
-        DataUpload, on_delete=models.SET_NULL, null=True, blank=True
+        DataUpload,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=False,
+        related_name="reports",
     )
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     processed = models.BooleanField(default=False)
