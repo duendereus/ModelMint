@@ -213,7 +213,7 @@ def confirm_upload(request):
         drive_link = request.POST.get("drive_link")
         operation = request.POST.get("operation", "create")
 
-        if not title or (not file_key and not drive_link) or not operation:
+        if (not file_key and not drive_link) or not operation:
             logger.warning("⚠️ Missing basic required fields")
             return JsonResponse({"error": "Missing basic required fields."}, status=400)
 
@@ -365,7 +365,7 @@ def complete_multipart_upload(request):
         dataset_name = data.get("dataset_name")
         operation = data.get("operation", "create")
 
-        if not upload_id or not key or not parts or not title or not dataset_name:
+        if not upload_id or not key or not parts or not dataset_name:
             messages.error(request, "Missing required fields.")
             return JsonResponse(
                 {"redirect_url": reverse("dashboard:analytics:upload_data")}, status=400
