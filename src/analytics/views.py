@@ -912,9 +912,16 @@ def staff_preview_report_view(request, report_id):
                 edited_titles = data.get("edited_titles", {})
                 edited_values = data.get("edited_values", {})
 
-                if not ordered_ids:
+                # Solo aplicar lógica de ordenamiento si hay métricas
+                if (
+                    not ordered_ids
+                    and not removed_ids
+                    and not edited_titles
+                    and not edited_values
+                ):
                     return JsonResponse(
-                        {"success": False, "error": "Missing metric order."}, status=400
+                        {"success": False, "error": "Nothing to update or publish."},
+                        status=400,
                     )
 
                 if removed_ids:
@@ -923,15 +930,17 @@ def staff_preview_report_view(request, report_id):
                 for metric_id in set(edited_titles.keys()) | set(edited_values.keys()):
                     try:
                         metric = Metric.objects.get(id=metric_id, report=report)
-                        if metric.is_preview:
-                            if metric_id in edited_titles:
-                                metric.name = edited_titles[metric_id].strip()
-                            if metric_id in edited_values and metric.type in [
-                                "text",
-                                "single_value",
-                            ]:
-                                metric.value = edited_values[metric_id].strip()
-                            metric.save()
+
+                        if metric_id in edited_titles:
+                            metric.name = edited_titles[metric_id].strip()
+                        if metric_id in edited_values and metric.type in [
+                            "text",
+                            "single_value",
+                        ]:
+                            metric.value = edited_values[metric_id].strip()
+
+                        metric.save()
+
                     except Metric.DoesNotExist:
                         continue
 
