@@ -6,6 +6,7 @@ from django.http import HttpResponseForbidden
 from helpers.subscription_pricing import get_subscription_prices
 from accounts.models import Organization
 from .models import OrganizationSubscription
+from .tasks import notify_team_subscription_cancelled
 from subscriptions import utils as subs_utils
 
 
@@ -81,6 +82,11 @@ def organization_subscription_cancel_view(request, org_id):
             for k, v in sub_data.items():
                 setattr(org_sub_obj, k, v)
             org_sub_obj.save()
+            notify_team_subscription_cancelled.delay(
+                organization.name,
+                org_sub_obj.plan_name,
+                request.user.email,
+            )
             messages.success(
                 request, "The organization's subscription has been cancelled."
             )
