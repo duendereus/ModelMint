@@ -16,6 +16,20 @@
     {% endif %}
   </p>
 
+  <form method="get" class="mb-3">
+    <div class="row">
+      <div class="col-md-4">
+        <label for="upload-select" class="form-label">Select Upload Version</label>
+        <select id="upload-select" name="upload_id" class="form-select" onchange="this.form.submit()">
+          {% for u in all_uploads %}
+            <option value="{{ u.id }}" {% if u.id == upload.id %}selected{% endif %}>
+              v{{ u.version }} – {{ u.created_at|date:"Y-m-d H:i" }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </form>
 
   {% if jupyter_reports %}
     <div class="card mb-4">

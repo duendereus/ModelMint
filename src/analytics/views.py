@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.utils.timezone import now
+from django.db import transaction
 from .models import DataSet, DataUpload, Report, Metric, JupyterReport
 from .forms import DataUploadForm, ReportRequestForm
 from .tasks import process_metrics_task
@@ -33,7 +34,7 @@ import mimetypes
 import json
 import logging
 import os
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch
 from config.decorators import staff_required
 from accounts.models import Organization
 from django.core.files.storage import default_storage
@@ -522,33 +523,55 @@ def report_detail_view(request, report_id):
         dataset__organization=organization,
     )
 
-    data_upload = report.upload
-    try:
-        data_upload_presigned_url = (
-            data_upload.get_presigned_url() if data_upload else None
-        )
-    except Exception:
-        data_upload_presigned_url = None
+    all_uploads = (
+        report.dataset.uploads.order_by("-created_at")
+        if hasattr(report.dataset, "uploads")
+        else DataUpload.objects.filter(dataset=report.dataset).order_by("-created_at")
+    )
 
-    metrics = (
-        report.metrics.filter(is_preview=False)
+    selected_upload_id = request.GET.get("upload_id")
+    selected_upload = None
+
+    if selected_upload_id:
+        selected_upload = get_object_or_404(
+            DataUpload, id=selected_upload_id, dataset=report.dataset
+        )
+    else:
+        latest_metric = (
+            Metric.objects.filter(report=report, is_preview=False)
+            .exclude(source_upload__isnull=True)
+            .order_by("-source_upload__created_at")
+            .first()
+        )
+        selected_upload = (
+            latest_metric.source_upload if latest_metric else report.upload
+        )
+
+    metrics_qs = (
+        report.metrics.filter(is_preview=False, source_upload=selected_upload)
         .select_related("table_data")
         .order_by("position")
     )
 
-    for metric in metrics:
+    for metric in metrics_qs:
         metric.presigned_url = metric.get_presigned_url()
 
-    can_download_pdf = can_download_pdf_reports(organization)
+    try:
+        data_upload_presigned_url = (
+            selected_upload.get_presigned_url() if selected_upload else None
+        )
+    except Exception:
+        data_upload_presigned_url = None
 
     return render(
         request,
         "dashboard/analytics/report_detail.html",
         {
-            "data_upload": data_upload,
             "report": report,
-            "metrics": metrics,
-            "can_download_pdf": can_download_pdf,
+            "metrics": metrics_qs,
+            "can_download_pdf": can_download_pdf_reports(organization),
+            "data_upload": selected_upload,
+            "all_uploads": all_uploads,
             "data_upload_presigned_url": data_upload_presigned_url,
         },
     )
@@ -559,7 +582,6 @@ def download_pdf_report(request, report_id):
     try:
         report = get_object_or_404(Report, id=report_id, processed=True)
         dataset = report.dataset
-        upload = report.upload
 
         user = request.user
         organization = get_user_organization(user)
@@ -577,6 +599,22 @@ def download_pdf_report(request, report_id):
                 report_id=report.id,
             )
 
+        # ✅ Selección dinámica del upload
+        selected_upload_id = request.GET.get("upload_id")
+        if selected_upload_id:
+            upload = get_object_or_404(
+                DataUpload, id=selected_upload_id, dataset=dataset
+            )
+        else:
+            # Selecciona el upload con métricas más recientes (no preview)
+            latest_metric = (
+                Metric.objects.filter(report=report, is_preview=False)
+                .exclude(source_upload__isnull=True)
+                .order_by("-source_upload__created_at")
+                .first()
+            )
+            upload = latest_metric.source_upload if latest_metric else report.upload
+
         # ✅ Convertir logo a base64
         logo_base64 = None
         logo_path = os.path.join(settings.BASE_DIR, "static", "img", "logo-green.png")
@@ -587,9 +625,9 @@ def download_pdf_report(request, report_id):
         except Exception:
             logo_base64 = None
 
-        # ✅ Obtener métricas del Report
+        # ✅ Obtener métricas del upload seleccionado
         metrics = (
-            report.metrics.filter(is_preview=False)
+            report.metrics.filter(is_preview=False, source_upload=upload)
             .select_related("table_data")
             .order_by("position")
         )
@@ -597,7 +635,6 @@ def download_pdf_report(request, report_id):
         for metric in metrics:
             metric.presigned_url = None
             metric.base64_image = None
-
             if metric.type == "plot" and metric.file:
                 try:
                     presigned_url = metric.get_presigned_url(expires_in=60)
@@ -612,7 +649,6 @@ def download_pdf_report(request, report_id):
                 except Exception:
                     metric.base64_image = None
 
-        # ✅ Render HTML y generar PDF
         html = render_to_string(
             "dashboard/analytics/pdf_report.html",
             {
@@ -838,90 +874,119 @@ def staff_preview_report_view(request, report_id):
         id=report_id,
     )
     dataset = report.dataset
-    upload = report.upload  # Puede ser None
 
-    # ✅ Procesar POST para guardar orden, ediciones, etc.
+    all_uploads = (
+        dataset.uploads.order_by("-created_at")
+        if hasattr(dataset, "uploads")
+        else DataUpload.objects.filter(dataset=dataset).order_by("-created_at")
+    )
+
+    selected_upload_id = request.GET.get("upload_id")
+    if selected_upload_id:
+        selected_upload = get_object_or_404(
+            DataUpload, id=selected_upload_id, dataset=dataset
+        )
+    else:
+        latest_metric = (
+            Metric.objects.filter(report=report, is_preview=False)
+            .exclude(source_upload__isnull=True)
+            .order_by("-source_upload__created_at")
+            .first()
+        )
+        selected_upload = (
+            latest_metric.source_upload if latest_metric else report.upload
+        )
+
     if request.method == "POST":
         try:
-            data = json.loads(request.body)
-            ordered_ids = data.get("ordered_ids", [])
-            removed_ids = data.get("removed_ids", [])
-            edited_titles = data.get("edited_titles", {})
-            edited_values = data.get("edited_values", {})
+            with transaction.atomic():
+                data = json.loads(request.body)
+                ordered_ids = data.get("ordered_ids", [])
+                removed_ids = data.get("removed_ids", [])
+                edited_titles = data.get("edited_titles", {})
+                edited_values = data.get("edited_values", {})
 
-            if not ordered_ids:
-                return JsonResponse(
-                    {"success": False, "error": "Missing metric order."}, status=400
-                )
+                if not ordered_ids:
+                    return JsonResponse(
+                        {"success": False, "error": "Missing metric order."}, status=400
+                    )
 
-            # Eliminar métricas
-            if removed_ids:
-                Metric.objects.filter(id__in=removed_ids, report=report).delete()
+                if removed_ids:
+                    Metric.objects.filter(id__in=removed_ids, report=report).delete()
 
-            TEMP_OFFSET = 10000
-            for i, metric_id in enumerate(ordered_ids):
-                Metric.objects.filter(id=metric_id, report=report).update(
-                    position=TEMP_OFFSET + i
-                )
+                for metric_id in set(edited_titles.keys()) | set(edited_values.keys()):
+                    try:
+                        metric = Metric.objects.get(id=metric_id, report=report)
+                        if metric.is_preview:
+                            if metric_id in edited_titles:
+                                metric.name = edited_titles[metric_id].strip()
+                            if metric_id in edited_values and metric.type in [
+                                "text",
+                                "single_value",
+                            ]:
+                                metric.value = edited_values[metric_id].strip()
+                            metric.save()
+                    except Metric.DoesNotExist:
+                        continue
 
-            # Editar contenido
-            for metric_id in set(edited_titles.keys()) | set(edited_values.keys()):
-                try:
-                    metric = Metric.objects.get(id=metric_id, report=report)
-                    if metric.is_preview:
-                        if metric_id in edited_titles:
-                            metric.name = edited_titles[metric_id].strip()
-                        if metric_id in edited_values and metric.type in [
-                            "text",
-                            "single_value",
-                        ]:
-                            metric.value = edited_values[metric_id].strip()
+                # ✅ PRIMER PASO: Alejar posiciones de manera segura evitando colisiones
+                TEMP_OFFSET = 10000
+                for i, metric_id in enumerate(ordered_ids):
+                    try:
+                        metric = Metric.objects.select_for_update().get(
+                            id=metric_id, report=report
+                        )
+                        metric.position = TEMP_OFFSET + i
                         metric.save()
-                except Metric.DoesNotExist:
-                    continue
+                    except Metric.DoesNotExist:
+                        continue
 
-            # Reasignar posiciones limpias
-            for final_position, metric_id in enumerate(ordered_ids):
-                Metric.objects.filter(id=metric_id, report=report).update(
-                    position=final_position
+                # ✅ SEGUNDO PASO: Aplicar posición final de manera segura
+                for i, metric_id in enumerate(ordered_ids):
+                    try:
+                        metric = Metric.objects.select_for_update().get(
+                            id=metric_id, report=report
+                        )
+                        metric.position = i
+                        metric.save()
+                    except Metric.DoesNotExist:
+                        continue
+
+                # Confirmar publicación
+                report.processed = True
+                report.save()
+                Metric.objects.filter(report=report).update(is_preview=False)
+
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "redirect_url": reverse(
+                            "dashboard:analytics:staff_preview_report_by_report",
+                            args=[report.id],
+                        ),
+                    }
                 )
-
-            # Marcar como procesado
-            report.processed = True
-            report.save()
-            Metric.objects.filter(report=report).update(is_preview=False)
-
-            return JsonResponse(
-                {
-                    "success": True,
-                    "redirect_url": reverse(
-                        "dashboard:analytics:staff_preview_report_by_report",
-                        args=[report.id],
-                    ),
-                }
-            )
 
         except Exception as e:
             logger.exception("Error publishing report")
             return JsonResponse({"success": False, "error": str(e)}, status=500)
 
-    # 🔁 GET
     metrics = (
-        Metric.objects.filter(report=report)
+        Metric.objects.filter(report=report, source_upload=selected_upload)
         .order_by("position")
         .select_related("table_data")
     )
     for m in metrics:
         m.presigned_url = m.get_presigned_url()
 
-    # Mostrar cualquier JupyterReport ligado por `report`
     jupyter_reports = JupyterReport.objects.filter(report=report)
 
     return render(
         request,
         "dashboard/admin/staff_preview_report.html",
         {
-            "upload": upload,  # puede ser None
+            "upload": selected_upload,
+            "all_uploads": all_uploads,
             "dataset": dataset,
             "report": report,
             "metrics": metrics,

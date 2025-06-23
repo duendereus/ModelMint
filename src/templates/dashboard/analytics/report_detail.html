@@ -22,13 +22,31 @@
       <p><strong>Report Objective:</strong></p>
       <p>{{ report.description|safe|default:"No description." }}</p>
       
-      {% if can_download_pdf %}
-        <a href="{% url 'dashboard:analytics:download_pdf_report' report.id %}" target="_blank" class="btn btn-outline-primary mt-2">
-          📄 Download PDF Report
-        </a>
-      {% endif %}
+      <a href="{% url 'dashboard:analytics:download_pdf_report' report.id %}?upload_id={{ data_upload.id }}"
+        target="_blank"
+        class="btn btn-outline-primary mt-2">
+        📄 Download PDF Report
+      </a>
+
     </div>
   </div>
+
+  
+  <form method="get" class="mb-4">
+    <div class="row align-items-end">
+      <div class="col-md-4">
+        <label for="upload-select" class="form-label">Select Upload Version</label>
+        <select id="upload-select" name="upload_id" class="form-select" onchange="this.form.submit()">
+          {% for upload in all_uploads %}
+            <option value="{{ upload.id }}" {% if upload.id == data_upload.id %}selected{% endif %}>
+              v{{ upload.version }} – {{ upload.created_at|date:"Y-m-d H:i" }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </form>
+
 
   <!-- ✅ Metrics Section -->
   <h3 class="mt-4">Metrics</h3>
@@ -79,7 +97,7 @@
     </div>
   {% else %}
     <div class="alert alert-warning mt-3">
-      No metrics available for this report.
+      No metrics available for this version (v{{ data_upload.version }}).
     </div>
   {% endif %}
 </div>
