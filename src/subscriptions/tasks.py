@@ -33,6 +33,3 @@ def notify_team_subscription_cancelled(organization_name, plan_name, user_email)
     send_mail(
         subject, plain_message, from_email, [recipient], html_message=html_message
     )
-
-
-z
