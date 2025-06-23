@@ -12,6 +12,7 @@ from subscriptions.models import (
     OrganizationSubscription,
 )
 from customers.models import OrganizationCustomer
+from .tasks import notify_team_new_subscription
 
 BASE_URL = settings.BASE_URL
 
@@ -105,6 +106,11 @@ def checkout_finalize_view(request):
         setattr(org_sub, k, v)
 
     org_sub.save()
+    notify_team_new_subscription.delay(
+        organization.name,
+        sub_obj.name,
+        request.user.email,
+    )
     messages.success(
         request, "Success! Your organization's subscription has been updated."
     )

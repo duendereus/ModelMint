@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700">
+    <meta charset="UTF-8">
+    <title>New Subscription Notification</title>
+    <style>
+        body {
+            background-color: #f9f4f2;
+            margin: 0;
+            font-family: 'Lato', sans-serif;
+        }
+
+        #email {
+            max-width: 600px;
+            margin: auto;
+            background-color: #fff7f3;
+            border: 1px solid #f5c8a1;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background-color: #e27c3e;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            border-bottom: 3px solid #cc6a2f;
+        }
+
+        .header img {
+            margin-top: 10px;
+        }
+
+        .content {
+            padding: 30px 20px;
+        }
+
+        .content h2 {
+            color: #e27c3e;
+            font-size: 22px;
+            margin-bottom: 15px;
+        }
+
+        .content p {
+            font-size: 16px;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .footer {
+            background-color: #f2a97e;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            border-radius: 0 0 8px 8px;
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+<div id="email">
+    <div class="header">
+        <h1>New Subscription Alert</h1>
+        <img src="https://modelmint.co/static/img/logo-white.9644615fed48.png" alt="ModelMint Logo" width="80">
+    </div>
+
+    <div class="content">
+        <h2>🚀 A new subscription was completed</h2>
+        <p><strong>Organization:</strong> {{ organization_name }}</p>
+        <p><strong>Plan:</strong> {{ plan_name }}</p>
+        <p><strong>User:</strong> {{ user_email }}</p>
+
+        <p style="margin-top: 20px;">
+            You can view this organization’s details in the admin panel for further follow-up.
+        </p>
+    </div>
+
+    <div class="footer">
+        <p>© {% now "Y" %} <a href="https://modelmint.co">ModelMint</a> — All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>

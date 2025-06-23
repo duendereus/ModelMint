@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700">
+    <meta charset="UTF-8">
+    <title>New Report Request</title>
+    <style>
+        body {
+            background-color: #f2faf2;
+            margin: 0;
+            font-family: 'Lato', sans-serif;
+        }
+
+        #email {
+            max-width: 600px;
+            margin: auto;
+            background-color: #f6fffa;
+            border: 1px solid #bfffd9;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background-color: #2bba64;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            border-bottom: 3px solid #0db851;
+        }
+
+        .header img {
+            margin-top: 10px;
+        }
+
+        .content {
+            padding: 30px 20px;
+        }
+
+        .content h2 {
+            color: #2bba64;
+            font-size: 22px;
+            margin-bottom: 15px;
+        }
+
+        .content p {
+            font-size: 16px;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .footer {
+            background-color: #6aba8a;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            border-radius: 0 0 8px 8px;
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+<div id="email">
+    <div class="header">
+        <h1>New Report Request</h1>
+        <img src="https://modelmint.co/static/img/logo-white.9644615fed48.png" alt="ModelMint Logo" width="80">
+    </div>
+
+    <div class="content">
+        <h2>📊 A new report has been requested</h2>
+        <p><strong>Organization:</strong> {{ organization_name }}</p>
+        <p><strong>Dataset:</strong> {{ dataset_name }}</p>
+        <p><strong>User:</strong> {{ user_email }}</p>
+        <p><strong>Report ID:</strong> {{ report_id }}</p>
+
+        <p>
+            <strong>🔗 Admin panel:</strong><br>
+            <a href="https://modelmint.co/dashboard/analytics/staff/reports/{{ report_id }}/preview/" style="color: #2bba64;">
+                View Report Preview
+            </a>
+        </p>
+    </div>
+
+    <div class="footer">
+        <p>© {% now "Y" %} <a href="https://modelmint.co">ModelMint</a> — All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>

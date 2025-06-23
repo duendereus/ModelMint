@@ -1,8 +1,11 @@
 from celery import shared_task
+from django.core.mail import send_mail
+from django.conf import settings
 from analytics.models import Metric, Report, DataUpload
 from analytics.utils.process_jupyter_metrics import process_jupyter_metrics
 from analytics.utils.jupyter_parser import clean_metric_name
 from django.core.files.storage import default_storage
+from django.template.loader import render_to_string
 import os
 
 
@@ -74,3 +77,28 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
     except Exception as e:
         print(f"❌ Error in process_metrics_task for report {report_id}: {str(e)}")
         return None
+
+
+@shared_task
+def notify_team_new_report_requested(
+    report_id, user_email, dataset_name, organization_name
+):
+    subject = f"📝 New Report Requested by {user_email}"
+    recipient = settings.ADMIN_USER_EMAIL
+    sender = settings.DEFAULT_FROM_EMAIL
+
+    if not recipient:
+        return
+
+    context = {
+        "report_id": report_id,
+        "user_email": user_email,
+        "dataset_name": dataset_name,
+        "organization_name": organization_name,
+    }
+
+    html_message = render_to_string(
+        "dashboard/analytics/emails/notify_team_new_report_requested.html", context
+    )
+
+    send_mail(subject, "", sender, [recipient], html_message=html_message)

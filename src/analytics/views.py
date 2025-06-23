@@ -7,7 +7,7 @@ from django.utils.timezone import now
 from django.db import transaction
 from .models import DataSet, DataUpload, Report, Metric, JupyterReport
 from .forms import DataUploadForm, ReportRequestForm
-from .tasks import process_metrics_task
+from .tasks import process_metrics_task, notify_team_new_report_requested
 from .services import mark_as_processed
 from analytics.utils.utils import get_user_organization
 from subscriptions.utils import (
@@ -125,6 +125,12 @@ def request_report_view(request):
             report.created_by = user
             report.save()
             messages.success(request, "✅ Report request submitted.")
+            notify_team_new_report_requested.delay(
+                report.id,
+                user.email,
+                report.dataset.name,
+                organization.name,
+            )
             return redirect("dashboard:dashboard_home")
     else:
         form = ReportRequestForm(organization=organization)

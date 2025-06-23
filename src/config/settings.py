@@ -47,7 +47,6 @@ ANYMAIL = {
 
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="hello@mg.modelmint.co")
 
-
 ADMIN_USER_NAME = config("ADMIN_USER_NAME", default="Admin user")
 ADMIN_USER_EMAIL = config("ADMIN_USER_EMAIL", default=None)
 
