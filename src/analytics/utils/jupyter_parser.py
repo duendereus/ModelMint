@@ -137,13 +137,23 @@ def parse_jupyter_html(content):
     for el in soup.descendants:
         if is_cell_wrapper(el):
             flush_text()
+
         elif isinstance(el, Comment):
-            flush_text()
-            metadata = parse_mint_comment(el)
-            if metadata:
-                print(f"[DEBUG comment] Parsed metadata: {metadata}")
-                metadata["anchor"] = el
-                current_metadata = metadata
+            comment_text = el.strip()
+            if re.search(r"end[-\s]?text", comment_text, re.IGNORECASE):
+                if current_metadata and current_metadata["type"] == "text":
+                    print(
+                        "[DEBUG end-text] Found <!-- End Text --> marker. Flushing text."
+                    )
+                    flush_text()
+            else:
+                flush_text()
+                metadata = parse_mint_comment(el)
+                if metadata:
+                    print(f"[DEBUG comment] Parsed metadata: {metadata}")
+                    metadata["anchor"] = el
+                    current_metadata = metadata
+
         elif is_input_prompt(el):
             flush_text()
         elif (
