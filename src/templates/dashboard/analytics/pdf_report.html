@@ -23,6 +23,20 @@
             }
         }
 
+        @page landscape_page {
+            size: A4 landscape;
+            margin: 40px;
+            @bottom-center {
+                content: "ModelMint • Page " counter(page) " of " counter(pages);
+                font-size: 10px;
+                color: #666;
+            }
+        }
+
+        .landscape {
+            page: landscape_page;
+        }
+
         body {
             font-family: "Helvetica", "Arial", sans-serif;
             font-size: 12px;
@@ -127,6 +141,47 @@
         .report-meta p {
             margin: 2px 0;
         }
+
+        .table-wrapper {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        table {
+            font-size: 10px; /* o menos si es necesario */
+            table-layout: auto;
+            word-wrap: break-word;
+        }
+
+        td, th {
+            white-space: normal;
+        }
+
+        .avoid-page-break {
+            page-break-inside: avoid;
+        }
+
+        /* Tabla ligeramente comprimida */
+        .small-table {
+            font-size: 9px;
+            table-layout: auto;
+            word-wrap: break-word;
+        }
+        .small-table th, .small-table td {
+            padding: 2px 4px;
+            white-space: normal;
+        }
+
+        /* Tabla MUY comprimida (más de 15 columnas) */
+        .extra-small-table {
+            font-size: 8px;
+            table-layout: auto;
+            word-wrap: break-word;
+        }
+        .extra-small-table th, .extra-small-table td {
+            padding: 1px 3px;
+            white-space: normal;
+        }
     </style>
 </head>
 <body>
@@ -165,44 +220,59 @@
 <h2>📈 Metrics</h2>
 
 {% for metric in metrics %}
-    <div class="metric">
-        <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
-
-        {% if metric.type == "single_value" %}
-            <p style="font-size: 16px;"><strong>{{ metric.value|safe }}</strong></p>
-        {% elif metric.type == "text" %}
-            <p>{{ metric.value|safe }}</p>
-        {% elif metric.type == "plot" %}
-            {% if metric.base64_image %}
-                <img src="{{ metric.base64_image }}" alt="Plot Image">
-            {% elif metric.presigned_url %}
-                <img src="{{ metric.presigned_url }}" alt="Plot Image">
-            {% else %}
-                <p class="muted">Plot not available.</p>
-            {% endif %}
-        {% elif metric.type == "table" and metric.table_data %}
-            <table>
-                <thead>
-                    <tr>
-                        {% for col in metric.table_data.columns %}
-                            <th>{{ col }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in metric.table_data.data %}
-                        <tr>
-                            {% for col in metric.table_data.columns %}
-                                <td>{{ row|get_item:col }}</td>
+    {% with metric_type=metric.type %}
+        {% if metric_type == "table" and metric.table_data %}
+            {% with col_count=metric.table_data.columns|length %}
+            <div class="metric landscape avoid-page-break">
+                <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
+                <div class="table-wrapper">
+                    <table class="{% if col_count > 15 %}extra-small-table{% elif col_count > 8 %}small-table{% endif %}">
+                        <thead>
+                            <tr>
+                                {% for col in metric.table_data.columns %}
+                                    <th>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in metric.table_data.data %}
+                                <tr>
+                                    {% for col in metric.table_data.columns %}
+                                        <td>{{ row|get_item:col }}</td>
+                                    {% endfor %}
+                                </tr>
                             {% endfor %}
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endwith %}
         {% else %}
-            <p class="muted">No data available for this metric.</p>
+            <!-- 🎯 Métricas regulares -->
+            <div class="metric avoid-page-break">
+                <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
+
+                {% if metric_type == "single_value" %}
+                    <p style="font-size: 16px;"><strong>{{ metric.value|safe }}</strong></p>
+
+                {% elif metric_type == "text" %}
+                    <p>{{ metric.value|safe }}</p>
+
+                {% elif metric_type == "plot" %}
+                    {% if metric.base64_image %}
+                        <img src="{{ metric.base64_image }}" alt="Plot Image">
+                    {% elif metric.presigned_url %}
+                        <img src="{{ metric.presigned_url }}" alt="Plot Image">
+                    {% else %}
+                        <p class="muted">Plot not available.</p>
+                    {% endif %}
+
+                {% else %}
+                    <p class="muted">No data available for this metric.</p>
+                {% endif %}
+            </div>
         {% endif %}
-    </div>
+    {% endwith %}
 {% empty %}
     <p class="muted">No metrics available for this report.</p>
 {% endfor %}
