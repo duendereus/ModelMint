@@ -9,9 +9,12 @@ from accounts.tasks import send_verification_email_task
 from analytics.models import Metric
 from subscriptions.utils import can_add_member, get_plan_limits
 from .forms import InviteMemberForm
-from .models import DashboardSelection
+from .models import DashboardSelection, DashboardMetricOrder
 from django.contrib.auth import get_user_model
 from django.contrib import messages
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+import json
 
 User = get_user_model()
 
@@ -29,31 +32,24 @@ def dashboard_home(request):
     is_owner = False
     is_member = False
 
-    # Check if the user is the owner of an organization
     if hasattr(request.user, "owned_organization"):
         organization = request.user.owned_organization
         is_owner = True
-
-    # If the user is not an owner, check if they are a member of any organization
     elif OrganizationMembership.objects.filter(user=request.user).exists():
         organization = OrganizationMembership.objects.get(
             user=request.user
         ).organization
         is_member = True
 
-    # If the user is part of an organization, fetch the dashboard selection
     if organization:
         dashboard_selection = DashboardSelection.objects.filter(
             organization=organization
         ).first()
 
         if dashboard_selection:
-            # ✅ Prefetch table data to avoid missing relations
-            selected_metrics = dashboard_selection.metrics.all().select_related(
+            selected_metrics = dashboard_selection.get_ordered_metrics().select_related(
                 "table_data"
             )
-
-            # ✅ Generate pre-signed URLs using the existing model method
             for metric in selected_metrics:
                 metric.presigned_url = (
                     metric.get_presigned_url() if metric.file else None
@@ -69,6 +65,40 @@ def dashboard_home(request):
             "organization": organization,
         },
     )
+
+
+@require_POST
+@login_required
+def reorder_dashboard_metrics(request):
+    try:
+        data = json.loads(request.body)
+        order = data.get("order", [])
+    except Exception:
+        return JsonResponse(
+            {"success": False, "error": "Invalid request body."}, status=400
+        )
+
+    try:
+        organization = request.user.owned_organization
+    except AttributeError:
+        return JsonResponse(
+            {"success": False, "error": "User has no organization."}, status=400
+        )
+
+    dashboard_selection = DashboardSelection.objects.filter(
+        organization=organization
+    ).first()
+    if not dashboard_selection:
+        return JsonResponse(
+            {"success": False, "error": "DashboardSelection not found."}, status=404
+        )
+
+    for index, metric_id in enumerate(order):
+        DashboardMetricOrder.objects.filter(
+            dashboard=dashboard_selection, metric_id=metric_id
+        ).update(position=index)
+
+    return JsonResponse({"success": True})
 
 
 @login_required
@@ -89,7 +119,19 @@ def dashboard_customize(request):
 
     if request.method == "POST":
         selected_metric_ids = request.POST.getlist("metrics")
-        dashboard_selection.metrics.set(selected_metric_ids)
+
+        # Eliminar selección y órdenes previas
+        dashboard_selection.metrics.clear()
+        DashboardMetricOrder.objects.filter(dashboard=dashboard_selection).delete()
+
+        # Asignar nuevas métricas y guardar orden inicial
+        for idx, metric_id in enumerate(selected_metric_ids):
+            metric = get_object_or_404(Metric, id=metric_id)
+            dashboard_selection.metrics.add(metric)
+            DashboardMetricOrder.objects.create(
+                dashboard=dashboard_selection, metric=metric, position=idx
+            )
+
         messages.success(request, "Dashboard selection updated successfully!")
         return redirect("dashboard:dashboard_home")
 

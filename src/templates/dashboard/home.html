@@ -25,7 +25,6 @@
         </a>
       </div>
     {% endif %}
-
   </div>
 
   {% if not selected_metrics %}
@@ -42,12 +41,12 @@
   {% for upload_group in grouped_uploads %}
     {% with data_upload=upload_group.grouper metrics=upload_group.list %}
     <div class="mt-5">
-      <div class="row">
+      <div class="row metrics-row" data-group-id="{{ data_upload.id }}">
         {% for group in metrics|group_plot_metrics %}
           {% if group|length == 1 %}
             {% with metric=group.0 %}
-              <div class="{% if metric.type == 'table' or metric.type == 'text' %}col-md-12{% else %}col-md-6{% endif %} mb-4">
-                {% include "dashboard/analytics/includes/metric_card.html" with metric=metric %}
+              <div class="{% if metric.type == 'table' or metric.type == 'text' %}col-md-12{% else %}col-md-6{% endif %} mb-4 metric-draggable" data-metric-id="{{ metric.id }}">
+                {% include "dashboard/analytics/includes/metric_card_reorderable.html" with metric=metric %}
               </div>
             {% endwith %}
           {% else %}
@@ -68,8 +67,8 @@
 
                 <div class="carousel-inner">
                   {% for metric in group %}
-                  <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                    {% include "dashboard/analytics/includes/metric_card.html" with metric=metric %}
+                  <div class="carousel-item {% if forloop.first %}active{% endif %} metric-draggable" data-metric-id="{{ metric.id }}">
+                    {% include "dashboard/analytics/includes/metric_card_reorderable.html" with metric=metric %}
                   </div>
                   {% endfor %}
                 </div>
@@ -93,7 +92,41 @@
     {% endwith %}
   {% endfor %}
 </div>
+
+{% if is_owner %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+  document.querySelectorAll(".metrics-row").forEach(row => {
+    Sortable.create(row, {
+      animation: 150,
+      handle: ".drag-handle",
+      ghostClass: "sortable-ghost",
+      onEnd: function () {
+        const order = [];
+        row.querySelectorAll(".metric-draggable").forEach(el => {
+          order.push(el.dataset.metricId);
+        });
+
+        fetch("{% url 'dashboard:reorder_dashboard_metrics' %}", {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": "{{ csrf_token }}",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ order: order })
+        })
+        .then(resp => resp.json())
+        .then(data => {
+          console.log("Reorder response:", data);
+        })
+        .catch(err => {
+          console.error("Reorder error:", err);
+        });
+      }
+    });
+  });
+</script>
+{% endif %}
+
 {% endblock content %}
-
-
 
