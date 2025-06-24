@@ -53,3 +53,11 @@ def generate_random_password(length=12):
     """Generates a random password."""
     characters = string.ascii_letters + string.digits + string.punctuation
     return "".join(random.choice(characters) for _ in range(length))
+
+
+# def get_user_organization_type(user):
+#     if hasattr(user, "owned_organization"):
+#         return user.owned_organization.type
+#     elif user.organization_memberships.exists():
+#         return user.organization_memberships.first().organization.type
+#     return None

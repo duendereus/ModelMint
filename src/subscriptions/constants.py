@@ -21,3 +21,27 @@ PLAN_LIMITS = {
         "turnaround_days": 1,
     },
 }
+
+LAB_PLAN_LIMITS = {
+    "Solo": {
+        "max_reports": 5,
+        "max_members": 1,
+        "otp_access": False,
+        "allow_pdf_download": False,
+        "branding": "none",
+    },
+    "Team": {
+        "max_reports": 10,
+        "max_members": 3,
+        "otp_access": True,
+        "allow_pdf_download": True,
+        "branding": "partial",
+    },
+    "Org Pro": {
+        "max_reports": float("inf"),
+        "max_members": 10,
+        "otp_access": True,
+        "allow_pdf_download": True,
+        "branding": "full",
+    },
+}

@@ -118,9 +118,19 @@ class Organization(models.Model):
     Organization model representing a company or project.
     """
 
+    TYPE_CHOICES = [
+        ("client", "Client (DaaS)"),
+        ("lab", "Labs (Data Scientists)"),
+    ]
     name = models.CharField(max_length=255, unique=True)
     owner = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="owned_organization"
+    )
+    type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default="client",
+        help_text="Indicates whether this org is a client (DaaS) or Labs (data scientists)",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

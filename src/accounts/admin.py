@@ -43,9 +43,9 @@ class OrganizationAdmin(admin.ModelAdmin):
     Admin panel for Organization model.
     """
 
-    list_display = ("name", "owner", "created_at")
+    list_display = ("name", "owner", "type", "created_at")
     search_fields = ("name", "owner__email", "owner__username")
-    list_filter = ("created_at",)
+    list_filter = ("created_at", "type")
     ordering = ("-created_at",)
     readonly_fields = ("created_at",)
     inlines = [OrganizationMembershipInline]  # Add the inline

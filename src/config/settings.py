@@ -110,6 +110,7 @@ LOCAL_APPS = [
     "checkouts.apps.CheckoutsConfig",
     "dashboard.apps.DashboardConfig",
     "analytics.apps.AnalyticsConfig",
+    "labs.apps.LabsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

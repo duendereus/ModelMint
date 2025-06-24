@@ -1,7 +1,7 @@
 import helpers.billing
 from customers.models import OrganizationCustomer
 from subscriptions.models import Subscription, OrganizationSubscription
-from .constants import PLAN_LIMITS
+from .constants import PLAN_LIMITS, LAB_PLAN_LIMITS
 from django.utils.timezone import now
 
 
@@ -78,12 +78,16 @@ def sync_subs_group_permissions():
 
 def get_plan_limits(organization):
     """
-    Returns the limits dictionary for the current plan, or None if no active plan.
+    Returns the limits dictionary for the current plan,
+    depending on whether it's a DaaS or Labs organization.
     """
     try:
         sub = organization.subscription
         if sub and sub.subscription and sub.is_active_status:
-            return PLAN_LIMITS.get(sub.subscription.name, PLAN_LIMITS["Starter Plan"])
+            plan_name = sub.subscription.name
+            if organization.type == "lab":
+                return LAB_PLAN_LIMITS.get(plan_name, LAB_PLAN_LIMITS["Solo"])
+            return PLAN_LIMITS.get(plan_name, PLAN_LIMITS["Starter Plan"])
     except AttributeError:
         pass
     return None
@@ -104,6 +108,7 @@ def can_add_member(organization):
     current_member_count = organization.members.count() + 1  # Include the owner
     return current_member_count < max_members
 
+
 def can_upload_data(organization):
     """
     Checks if the organization is allowed to upload more data this month.
@@ -118,9 +123,12 @@ def can_upload_data(organization):
         return True
 
     start_of_month = now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    uploads_this_month = organization.data_uploads.filter(created_at__gte=start_of_month).count()
+    uploads_this_month = organization.data_uploads.filter(
+        created_at__gte=start_of_month
+    ).count()
 
     return uploads_this_month < max_uploads
+
 
 def can_view_more_reports(organization):
     limits = get_plan_limits(organization)

@@ -13,6 +13,7 @@ urlpatterns = [
     path("", include("checkouts.urls", namespace="checkouts")),
     path("accounts/", include("accounts.urls", namespace="accounts")),
     path("dashboard/", include("dashboard.urls", namespace="dashboard")),
+    path("labs/", include("labs.urls", namespace="labs")),
     # ckeditor
     path("ckeditor5/", include("django_ckeditor_5.urls")),
 ]
