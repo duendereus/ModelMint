@@ -10,9 +10,9 @@ from accounts.models import Organization
 User = get_user_model()
 
 SUBSCRIPTION_PERMISSIONS = [
-    ("starter", "Starter Plan Access"),       # subscriptions.starter
-    ("business", "Business Plan Access"),     # subscriptions.business
-    ("enterprise", "Enterprise Plan Access"), # subscriptions.enterprise
+    ("starter", "Starter Plan Access"),  # subscriptions.starter
+    ("business", "Business Plan Access"),  # subscriptions.business
+    ("enterprise", "Enterprise Plan Access"),  # subscriptions.enterprise
 ]
 
 
@@ -24,18 +24,22 @@ class Subscription(models.Model):
     name = models.CharField(max_length=120)
     subtitle = models.TextField(blank=True, null=True)
     active = models.BooleanField(default=True)
-    groups = models.ManyToManyField(Group)
+    groups = models.ManyToManyField(Group, blank=True)
     permissions = models.ManyToManyField(
         Permission,
         limit_choices_to={
             "content_type__app_label": "subscriptions",
             "codename__in": [x[0] for x in SUBSCRIPTION_PERMISSIONS],
         },
+        blank=True,
     )
     stripe_id = models.CharField(max_length=120, null=True, blank=True)
     order = models.IntegerField(default=-1, help_text="Ordering on Django pricing page")
     featured = models.BooleanField(
         default=True, help_text="Featured on Django pricing page"
+    )
+    is_for_labs = models.BooleanField(
+        default=False, help_text="Show on Labs landing page"
     )
     updated = models.DateTimeField(auto_now=True)
     timestamp = models.DateTimeField(auto_now_add=True)

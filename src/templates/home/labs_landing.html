@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="banner banner-one" style="height: 900px !important;">
+  <div class="circle-shape" data-parallax='{"y" : 230}'>
+    <img src="{% static 'img/banner/circle-shape.png' %}" alt="circle">
+  </div>
+
+  <div class="container">
+    <div class="banner-content-wrap">
+      <div class="row align-items-center">
+        <div class="col-lg-6">
+          <div class="banner-content">
+            <h1 class="banner-title wow pixFadeUp" data-wow-delay="0.3s">
+              Turn your <span>Notebooks</span> into monetizable <span>Labs</span>
+            </h1>
+            <p class="description wow pixFadeUp" data-wow-delay="0.5s">
+              Share your data analyses as valuable products — no extra code, dashboards, or deployment required.
+            </p>
+            <a href="{% url 'accounts:register' %}" class="pxs-btn banner-btn wow pixFadeUp" data-wow-delay="0.6s">
+              Create Your Lab
+            </a>
+          </div>
+        </div>
+
+        <div class="col-lg-6 d-flex justify-content-center align-items-center">
+          <div class="promo-mockup" style="
+              max-width: 750px;
+              width: 100%;
+              background-color: white;
+              border-radius: 12px;
+              box-shadow: 0 10px 30px rgba(0,0,0,0.07);
+              padding: 16px;
+              transition: transform 0.3s ease;
+          ">
+            <img src="{% static 'img/banner/labs-preview2.png' %}" alt="Labs preview" style="width: 100%; max-height: 650px; border-radius: 8px;">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-shape">
+    <img src="{% static 'img/banner/shape-bg.png' %}" alt="">
+  </div>
+</section>
+{% endblock %}

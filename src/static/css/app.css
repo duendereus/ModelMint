@@ -2240,6 +2240,7 @@ select {
 .site-header .header-inner .site-logo a .sticky-logo {
   display: none;
 }
+
 .site-header .header-inner .site-nav {
   display: -webkit-box;
   display: -ms-flexbox;

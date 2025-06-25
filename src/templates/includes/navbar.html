@@ -1,5 +1,7 @@
 {% load static %}
-<header class="site-header header_trans-fixed" data-top="992"">
+
+{% if request.path|slice:":6" == "/labs/" %}
+<header class="site-header header_trans-fixed" data-top="992">
     <div class="container">
         <div class="header-inner">
             <div class="toggle-menu">
@@ -7,61 +9,118 @@
                 <span class="bar"></span>
                 <span class="bar"></span>
             </div>
-            <!-- /.toggle-menu -->
 
-            <div class="site-mobile-logo">
+            <div class="site-mobile-logo mobile-visible">
+                <a href="{% url 'labs:labs_landing' %}" class="logo">
+                    <img src="{% static 'img/logo-white.svg' %}" alt="site logo" class="main-logo" />
+                    <img src="{% static 'img/logo-green.svg' %}" alt="site logo" class="sticky-logo" />
+                </a>
+            </div>
+
+            <nav class="site-nav">
+                <div class="close-menu">
+                    <i class="fa fa-times"></i>
+                </div>
+
+                <div class="site-logo mobile-hidden">
+                    <a href="{% url 'labs:labs_landing' %}" class="logo">
+                        <!-- Logo normal -->
+                        <span class="main-logo" style="display: flex; align-items: center; gap: 6px;">
+                        <img src="{% static 'img/logo-white.svg' %}" alt="site logo" style="max-width: 40px; height: auto;" />
+                        <span style="font-family: 'Poppins', sans-serif; font-size: 2rem; font-weight: bold; color: white;">
+                            Model<span style="color: #00FF7F;">Mint</span>
+                        </span>
+                        <span style="background-color: #00FF7F; color: black; font-size: 0.65rem; font-weight: 600; padding: 2px 6px; border-radius: 6px;">
+                            labs
+                        </span>
+                        </span>
+
+                        <!-- Logo sticky -->
+                        <span class="sticky-logo" style="display: inline-flex !important; align-items: center; gap: 6px; min-width: 600px;">
+                            <img src="{% static 'img/logo-green.svg' %}" alt="site logo" style="max-width: 40px; height: auto;" />
+                            <span style="font-family: 'Poppins', sans-serif; font-size: 2rem; font-weight: bold; color: black;">
+                                Model<span style="color: #00FF7F;">Mint</span>
+                            </span>
+                            <span style="background-color: #00FF7F; color: black; font-size: 0.65rem; font-weight: 600; padding: 2px 6px; border-radius: 6px;">
+                                labs
+                            </span>
+                        </span>
+
+                    </a>
+                    </div>
+
+
+                <div class="menu-wrapper" data-top="992">
+                    <ul class="site-main-menu">
+                        <!-- <li><a href="{% url 'labs:labs_landing' %}">Labs Home</a></li> -->
+                        <li><a href="#">Explore Models</a></li>
+                        <li><a href="#">Upload</a></li>
+
+                        {% if request.user.is_authenticated %}
+                            <li><a href="{% url 'accounts:logout' %}">Logout</a></li>
+                        {% else %}
+                            <li><a href="{% url 'accounts:login' %}">Login</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                {% if request.user.is_authenticated %}
+                {% else %}
+                <div class="nav-right">
+                    <a href="{% url 'accounts:register' %}" class="nav-btn">Try ModelMint Labs</a>
+                </div>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+</header>
+
+{% else %}
+
+<header class="site-header header_trans-fixed" data-top="992">
+    <div class="container">
+        <div class="header-inner">
+            <div class="toggle-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+
+            <div class="site-mobile-logo mobile-visible">
                 <a href="{% url 'home' %}" class="logo">
                     <img src="{% static 'img/logo-white.svg' %}" alt="site logo" class="main-logo" />
                     <img src="{% static 'img/logo-green.svg' %}" alt="site logo" class="sticky-logo" />
                 </a>
             </div>
-            
+
             <nav class="site-nav">
                 <div class="close-menu">
-                    
                     <i class="fa fa-times"></i>
                 </div>
-            
-                <div class="site-logo" style="display: flex; align-items: center; gap: 10px;">
+
+                <div class="site-logo mobile-hidden" style="display: flex; align-items: center; gap: 10px;">
                     <a href="{% url 'home' %}" class="logo" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
-                        <!-- White logo -->
-                        <img src="{% static 'img/logo-white.svg' %}" alt="site logo" class="main-logo" style="max-width: 40px; height: auto;"/>
-                
-                        <!-- White text -->
+                        <img src="{% static 'img/logo-white.svg' %}" alt="site logo" class="main-logo" style="max-width: 40px; height: auto;" />
                         <span class="main-logo" style="font-family: 'Poppins', sans-serif; font-size: 2rem; font-weight: bold; color: white;">
                             Model<span style="color: #00FF7F;">Mint</span>
                         </span>
-                
-                        <!-- Sticky (Scrolled) logo -->
-                        <img src="{% static 'img/logo-green.svg' %}" alt="site logo" class="sticky-logo" style="max-width: 40px; height: auto; display: none;"/>
-                
-                        <!-- Sticky (Scrolled) text -->
+                        <img src="{% static 'img/logo-green.svg' %}" alt="site logo" class="sticky-logo" style="max-width: 40px; height: auto; display: none;" />
                         <span class="sticky-logo" style="font-family: 'Poppins', sans-serif; font-size: 2rem; font-weight: bold; color: black; display: none;">
                             Model<span style="color: #00FF7F;">Mint</span>
                         </span>
                     </a>
                 </div>
-                
-                <!-- /.site-logo -->
 
                 <div class="menu-wrapper" data-top="992">
                     <ul class="site-main-menu">
-                        <li>
-                            <a href="{% url 'home' %}">Home</a>
-                        </li>
-
+                        <li><a href="{% url 'home' %}">Home</a></li>
                         <li><a href="{% url 'subscriptions:pricing' %}">Pricing</a></li>
-
                         <li><a href="{% url 'landing:contact' %}">Contact</a></li>
 
                         {% if request.user.is_authenticated %}
-
-                        <li><a href="{% url 'accounts:logout' %}">Logout</a></li>
-
+                            <li><a href="{% url 'accounts:logout' %}">Logout</a></li>
                         {% else %}
-
-                        <li><a href="{% url 'accounts:login' %}">Login</a></li>
-
+                            <li><a href="{% url 'accounts:login' %}">Login</a></li>
                         {% endif %}
                     </ul>
                 </div>
@@ -72,11 +131,9 @@
                     <a href="{% url 'accounts:register' %}" class="nav-btn">Start Leveraging your Data</a>
                 </div>
                 {% endif %}
-                <!-- /.menu-wrapper -->
             </nav>
-            <!-- /.site-nav -->
         </div>
-        <!-- /.header-inner -->
     </div>
-    <!-- /.container -->
 </header>
+
+{% endif %}

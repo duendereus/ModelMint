@@ -26,7 +26,8 @@ class SubscriptionPriceInline(admin.StackedInline):
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
     inlines = [SubscriptionPriceInline, SubscriptionFeatureInline]
-    list_display = ("name",)
+    list_display = ("name", "active", "featured", "is_for_labs")
+    list_filter = ["is_for_labs", "active", "featured"]
     search_fields = ("name", "groups")
     list_filter = ("groups",)
 
