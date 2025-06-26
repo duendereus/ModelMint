@@ -37,6 +37,7 @@ import os
 from django.db.models import Prefetch
 from config.decorators import staff_required
 from accounts.models import Organization
+from accounts.decorators import daas_only
 from django.core.files.storage import default_storage
 import base64
 import requests
@@ -46,6 +47,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
+@daas_only
 def upload_data(request):
     user = request.user
     organization = get_user_organization(user)
@@ -82,6 +84,7 @@ def upload_data(request):
 
 
 @login_required
+@daas_only
 def request_report_view(request):
     user = request.user
     organization = get_user_organization(user)
@@ -153,6 +156,7 @@ def request_report_view(request):
 
 
 @login_required
+@daas_only
 @require_POST
 def generate_presigned_post(request):
     logger.info("🔧 generate_presigned_post: Request received")
@@ -212,6 +216,7 @@ def generate_presigned_post(request):
 @csrf_exempt
 @require_POST
 @login_required
+@daas_only
 def confirm_upload(request):
     logger.info("📥 confirm_upload: Metadata received")
 
@@ -294,6 +299,7 @@ def confirm_upload(request):
 @csrf_exempt
 @require_POST
 @login_required
+@daas_only
 def initiate_multipart_upload(request):
     file_name = request.POST.get("file_name")
     mime_type = request.POST.get("content_type", "application/octet-stream")
@@ -327,6 +333,7 @@ def initiate_multipart_upload(request):
 @csrf_exempt
 @require_POST
 @login_required
+@daas_only
 def generate_part_presigned_url(request):
     data = json.loads(request.body)
     key = data.get("key")
@@ -362,6 +369,7 @@ def generate_part_presigned_url(request):
 @csrf_exempt
 @require_POST
 @login_required
+@daas_only
 def complete_multipart_upload(request):
     try:
         data = json.loads(request.body)
@@ -461,6 +469,7 @@ def complete_multipart_upload(request):
 
 
 @login_required
+@daas_only
 def report_list_view(request):
     user = request.user
 
@@ -507,6 +516,7 @@ def report_list_view(request):
 
 
 @login_required
+@daas_only
 def report_detail_view(request, report_id):
     """
     Shows the details of a processed Report and its associated Metrics.
@@ -584,6 +594,7 @@ def report_detail_view(request, report_id):
 
 
 @login_required
+@daas_only
 def download_pdf_report(request, report_id):
     try:
         report = get_object_or_404(Report, id=report_id, processed=True)
@@ -680,6 +691,7 @@ def download_pdf_report(request, report_id):
 
 
 @login_required
+@daas_only
 def get_available_datasets(request):
     """
     Return a list of versioned datasets available to the user's organization.

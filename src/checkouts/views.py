@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.http import HttpResponseBadRequest
-
+from accounts.decorators import daas_only
 from subscriptions.models import (
     SubscriptionPrice,
     Subscription,
@@ -23,6 +23,7 @@ def product_price_redirect_view(request, price_id=None, *args, **kwargs):
 
 
 @login_required
+@daas_only
 def checkout_redirect_view(request):
     checkout_subscription_price_id = request.session.get(
         "checkout_subscription_price_id"
@@ -62,6 +63,7 @@ def checkout_redirect_view(request):
 
 
 @login_required
+@daas_only
 def checkout_finalize_view(request):
     session_id = request.GET.get("session_id")
     checkout_data = helpers.billing.get_checkout_customer_plan(session_id)

@@ -1,4 +1,5 @@
 import helpers.billing
+from accounts.decorators import daas_only
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -11,6 +12,7 @@ from subscriptions import utils as subs_utils
 
 
 @login_required
+@daas_only
 def organization_subscription_view(request, org_id):
     """
     View and refresh an organization's subscription.
@@ -53,6 +55,7 @@ def organization_subscription_view(request, org_id):
 
 
 @login_required
+@daas_only
 def organization_subscription_cancel_view(request, org_id):
     """
     Cancel an organization's subscription.
@@ -110,17 +113,4 @@ def subscription_price_view(request, interval="month"):
         request,
         "subscriptions/pricing.html",
         {"object_list": object_list, "active": active},
-    )
-
-
-def labs_pricing_view(request):
-    """
-    Labs subscription pricing page.
-    """
-    object_list, _ = get_subscription_prices(for_labs=True)
-
-    return render(
-        request,
-        "labs/labs_pricing.html",
-        {"object_list": object_list},
     )

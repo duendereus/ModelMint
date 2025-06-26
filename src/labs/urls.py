@@ -5,8 +5,8 @@ from labs.views.accounts_views import (
     labs_activate_account_view,
     labs_login_view,
 )
-from config.views import labs_landing_view
-from subscriptions.views import labs_pricing_view
+from labs.views.landing_views import labs_landing_view
+from labs.views.subscription_views import labs_pricing_view
 
 app_name = "labs"
 

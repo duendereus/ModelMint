@@ -6,7 +6,9 @@ from django.utils.encoding import force_bytes
 from accounts.models import OrganizationMembership, Organization
 from accounts.utils import generate_random_password
 from accounts.tasks import send_verification_email_task
+from accounts.decorators import daas_only
 from analytics.models import Metric
+from accounts.utils import get_user_organization_type
 from subscriptions.utils import can_add_member, get_plan_limits
 from .forms import InviteMemberForm
 from .models import DashboardSelection, DashboardMetricOrder
@@ -20,12 +22,16 @@ User = get_user_model()
 
 
 @login_required
+@daas_only
 def dashboard_home(request):
     """
-    View for the main dashboard, displaying only selected metrics.
-    - Owners can manage metric selection.
-    - Members can only view the selected metrics.
+    DaaS Dashboard Home View:
+    Bloquea el acceso a organizaciones tipo 'lab'.
     """
+    org_type = get_user_organization_type(request.user)
+    if org_type == "lab":
+        return redirect("labs:labs_landing")
+
     organization = None
     dashboard_selection = None
     selected_metrics = []
@@ -69,6 +75,7 @@ def dashboard_home(request):
 
 @require_POST
 @login_required
+@daas_only
 def reorder_dashboard_metrics(request):
     try:
         data = json.loads(request.body)
@@ -102,6 +109,7 @@ def reorder_dashboard_metrics(request):
 
 
 @login_required
+@daas_only
 def dashboard_customize(request):
     organization = get_object_or_404(Organization, owner=request.user)
 
@@ -146,6 +154,7 @@ def dashboard_customize(request):
 
 
 @login_required
+@daas_only
 def invite_member(request):
     """Allows organization owners to invite new members or admins."""
     organization = get_object_or_404(Organization, owner=request.user)
@@ -210,6 +219,7 @@ def invite_member(request):
 
 
 @login_required
+@daas_only
 def organization_users(request):
     """
     Lists all users (owner and members/admins) of an organization.

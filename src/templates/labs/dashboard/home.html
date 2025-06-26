@@ -1,0 +1,46 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Labs Dashboard{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex align-items-center justify-content-between">
+    <div>
+      <h6 class="text-muted mb-1">Welcome back, {{ request.user.username }}!</h6>
+      {% if organization %}
+        <h5 class="mb-3">Lab: {{ organization.name }}</h5>
+      {% endif %}
+    </div>
+
+    {% if is_owner %}
+      <div>
+        <a href="{% url 'labs:upload_notebook' %}" class="btn btn-success me-2">
+          Upload Notebook
+        </a>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if not notebooks %}
+    <div class="alert alert-info mt-3">
+      No lab notebooks uploaded yet.
+    </div>
+  {% else %}
+    <div class="row mt-4">
+      {% for notebook in notebooks %}
+        <div class="col-md-6 col-lg-4 mb-4">
+          <div class="card shadow-sm h-100">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title">{{ notebook.title }}</h5>
+              <p class="card-text text-muted small">{{ notebook.description|truncatechars:100 }}</p>
+              <p class="text-muted small mt-auto">
+                Uploaded {{ notebook.created_at|date:"M d, Y" }} by {{ notebook.created_by.username }}
+              </p>
+              <a href="{% url 'labs:notebook_detail' slug=notebook.slug %}" class="btn btn-outline-primary mt-2">View Notebook</a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endblock content %}

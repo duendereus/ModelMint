@@ -17,11 +17,3 @@ def home(request):
 
     context = {"object_list": object_list, "active": active}
     return render(request, "home/home.html", context)
-
-
-def labs_landing_view(request):
-    """
-    Public landing page explaining the Labs offering.
-    """
-    prices, _ = get_subscription_prices(for_labs=True)
-    return render(request, "labs/labs_landing.html", {"labs_prices": prices})

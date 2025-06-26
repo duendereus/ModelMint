@@ -13,6 +13,7 @@ from .utils import anonymous_required, get_user_organization_type
 from .tasks import send_verification_email_task
 from .signals import user_signed_up, email_confirmed
 from .forms import UserForm, UserProfileForm
+from .decorators import daas_only
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
@@ -183,6 +184,7 @@ def password_reset_confirm(request, uidb64, token):
 
 
 @login_required
+@daas_only
 def profile_view(request):
     """
     Displays and allows editing of the user's profile.
