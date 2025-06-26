@@ -57,6 +57,7 @@ def login_view(request):
 
 
 @login_required(login_url="accounts:login")
+@daas_only
 def logout(request):
     auth.logout(request)
     messages.info(request, "You have sucesfully logged out!")

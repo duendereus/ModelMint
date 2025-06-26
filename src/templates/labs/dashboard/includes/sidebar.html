@@ -1,0 +1,48 @@
+{% load static %}
+<!-- sidebar-wrapper -->
+<nav id="sidebar" class="sidebar-wrapper sidebar-dark" style="background-color: rgb(80, 196, 80) !important;">
+    <div class="sidebar-content" data-simplebar style="height: calc(100% - 60px);">
+        <div class="sidebar-brand">
+            <a href="{% url 'labs:labs_dashboard_home' %}" style="display: flex; align-items: center; gap: 6px;">
+                <img src="{% static 'img/logo-white.svg' %}" height="28" alt="ModelMint logo">
+                <!-- <span style="font-family: 'Poppins', sans-serif; font-size: 1.4rem; font-weight: bold; color: white;">
+                    MODEL<span style="color: #00FF7F;">MINT</span>
+                </span> -->
+                <span style="background-color: white; color: #00c266; font-size: 1rem; font-weight: 600; padding: 2px 6px; border-radius: 6px;">
+                    LABS
+                </span>
+            </a>
+        </div>
+
+
+        <ul class="sidebar-menu">
+            <li class="sidebar-dropdown">
+                <a href="javascript:void(0)"><i class="ti ti-home me-2"></i>Dashboard</a>
+                <div class="sidebar-submenu">
+                    <ul>
+                        <li><a href="{% url 'labs:labs_dashboard_home' %}">Main Dashboard</a></li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+
+        <ul class="sidebar-menu">
+            <li class="sidebar-dropdown">
+                <a href="javascript:void(0)"><i class="ti ti-users"></i> Org. Members</a>
+                <div class="sidebar-submenu">
+                    <ul>
+                        {% if request.user.owned_organization %}
+                            <li><a href="#">Invite Members</a></li>
+                        {% endif %}
+                        <li>
+                            <a href="#">
+                                Organization Members
+                            </a>
+                        </li>                        
+                    </ul>
+                </div>
+            </li>
+        </ul> 
+    </div>
+</nav>
+<!-- sidebar-wrapper  -->

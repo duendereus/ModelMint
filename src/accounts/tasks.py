@@ -13,18 +13,30 @@ def send_verification_email_task(
 ):
     """
     Asynchronous task to send an email with an account activation or password reset link.
+    Supports passing uid/token manually, and optional reset_url_name for custom reverse.
     """
-    from accounts.models import (
-        User,
-    )  # Import inside the function to avoid circular imports
+    from accounts.models import User
+    from django.urls import reverse
 
     try:
         user = User.objects.get(pk=user_id)
         from_email = settings.DEFAULT_FROM_EMAIL
 
-        # Retrieve uidb64 and token from kwargs, or generate if not provided
+        # Get uid/token (or generate)
         uidb64 = kwargs.get("uidb64", urlsafe_base64_encode(force_bytes(user.pk)))
         token = kwargs.get("token", default_token_generator.make_token(user))
+
+        # Optional: Generate reset URL if reset_url_name is provided
+        reset_url = None
+        reset_url_name = kwargs.get("reset_url_name")
+        if reset_url_name:
+            try:
+                reset_url = reverse(
+                    reset_url_name,
+                    kwargs={"uidb64": uidb64, "token": token},
+                )
+            except Exception as e:
+                reset_url = None  # Optional: log the error
 
         message = render_to_string(
             email_template,
@@ -34,6 +46,7 @@ def send_verification_email_task(
                 "scheme": scheme,
                 "uid": uidb64,
                 "token": token,
+                "reset_url": reset_url,
             },
         )
 
@@ -42,5 +55,4 @@ def send_verification_email_task(
         mail.content_subtype = "html"
         mail.send()
     except User.DoesNotExist:
-        # Handle the case where the user doesn't exist (perhaps log it)
-        pass
+        pass  # Optional: log error

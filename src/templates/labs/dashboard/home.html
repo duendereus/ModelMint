@@ -1,4 +1,4 @@
-{% extends "dashboard/base.html" %}
+{% extends "labs/dashboard/base.html" %}
 {% block title %}Labs Dashboard{% endblock title %}
 
 {% block content %}
@@ -13,7 +13,7 @@
 
     {% if is_owner %}
       <div>
-        <a href="{% url 'labs:upload_notebook' %}" class="btn btn-success me-2">
+        <a href="#" class="btn btn-success me-2">
           Upload Notebook
         </a>
       </div>
@@ -35,7 +35,7 @@
               <p class="text-muted small mt-auto">
                 Uploaded {{ notebook.created_at|date:"M d, Y" }} by {{ notebook.created_by.username }}
               </p>
-              <a href="{% url 'labs:notebook_detail' slug=notebook.slug %}" class="btn btn-outline-primary mt-2">View Notebook</a>
+              <a href="#" class="btn btn-outline-primary mt-2">View Notebook</a>
             </div>
           </div>
         </div>

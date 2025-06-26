@@ -12,7 +12,7 @@ from labs.models import LabNotebook
 
 @login_required
 @labs_only
-def dashboard_home_labs(request):
+def dashboard_home_labs_view(request):
     """
     Labs Dashboard Home View:
     Muestra los LabNotebooks subidos por los miembros del equipo.
