@@ -20,7 +20,10 @@
         </ul>
 
         <div class="action text-left">
-            <a href="{{ object.get_checkout_url }}" class="pix-btn btn-outline-two">Start your data journey!</a>
+            <a href="{% if labs_mode %}#{% else %}{{ object.get_checkout_url }}{% endif %}"
+                class="pix-btn btn-outline-two">
+                {% if labs_mode %}Launch your Lab!{% else %}Start your data journey!{% endif %}
+            </a>
         </div>
     </div>
 </div>

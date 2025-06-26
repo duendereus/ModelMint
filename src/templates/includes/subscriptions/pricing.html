@@ -1,13 +1,18 @@
 <section class="pricing-hosting">
     <div class="container">
         <div class="section-title text-center">
-            <h2 class="title">Choose the Perfect Plan for Your Data Needs</h2>
-            <p>Unlock the power of ML-driven analytics with a plan that fits your business.</p>
+            {% if labs_mode %}
+                <h2 class="title">The Easiest Way to Deploy and Share Your Metrics and Models</h2>
+                <p>Choose your Lab plan and start hosting your notebooks with no infrastructure, no friction, just results.</p>
+            {% else %}
+                <h2 class="title">Choose the Perfect Plan for Your Data Needs</h2>
+                <p>Unlock the power of ML-driven analytics with a plan that fits your business.</p>
+            {% endif %}
         </div>
 
         <div class="row justify-content-center">
             {% for price_obj in object_list %}
-                {% include 'subscriptions/snippets/pricing-card.html' with object=price_obj %}
+                {% include 'subscriptions/snippets/pricing-card.html' with object=price_obj labs_mode=labs_mode %}
             {% empty %}
                 <p class="text-center text-gray-500">No pricing plans available at the moment.</p>
             {% endfor %}

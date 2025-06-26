@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %} Labs Pricing {% endblock title %}
+
+{% block content %}
+    {% include 'subscriptions/snippets/labs-pricing-banner.html' %}
+    {% include 'includes/subscriptions/pricing.html' with labs_mode=True %}
+{% endblock content %}

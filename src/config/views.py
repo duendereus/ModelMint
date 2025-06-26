@@ -24,4 +24,4 @@ def labs_landing_view(request):
     Public landing page explaining the Labs offering.
     """
     prices, _ = get_subscription_prices(for_labs=True)
-    return render(request, "home/labs_landing.html", {"labs_prices": prices})
+    return render(request, "labs/labs_landing.html", {"labs_prices": prices})

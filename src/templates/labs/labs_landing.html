@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block title %}Labs{% endblock title %}
+
 {% block content %}
 <section class="banner banner-one" style="height: 900px !important;">
   <div class="circle-shape" data-parallax='{"y" : 230}'>
@@ -44,5 +46,22 @@
   <div class="bg-shape">
     <img src="{% static 'img/banner/shape-bg.png' %}" alt="">
   </div>
+</section>
+
+<section class="pricing-hosting">
+    <div class="container">
+        <div class="section-title text-center">
+            <h2 class="title">Choose Your Lab Plan</h2>
+            <p>Deploy and share your ML models without extra dashboards or infrastructure.</p>
+        </div>
+
+        <div class="row justify-content-center">
+            {% for price_obj in labs_prices %}
+                {% include 'subscriptions/snippets/pricing-card.html' with object=price_obj labs_mode=True %}
+            {% empty %}
+                <p class="text-center text-gray-500">No Lab pricing plans available right now.</p>
+            {% endfor %}
+        </div>
+    </div>
 </section>
 {% endblock %}

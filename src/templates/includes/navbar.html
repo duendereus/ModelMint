@@ -53,13 +53,13 @@
                 <div class="menu-wrapper" data-top="992">
                     <ul class="site-main-menu">
                         <!-- <li><a href="{% url 'labs:labs_landing' %}">Labs Home</a></li> -->
-                        <li><a href="#">Explore Models</a></li>
+                        <li><a href="{% url 'labs:labs_pricing' %}">Pricing</a></li>
                         <li><a href="#">Upload</a></li>
 
                         {% if request.user.is_authenticated %}
                             <li><a href="{% url 'accounts:logout' %}">Logout</a></li>
                         {% else %}
-                            <li><a href="{% url 'accounts:login' %}">Login</a></li>
+                            <li><a href="{% url 'labs:labs_login' %}">Login</a></li>
                         {% endif %}
                     </ul>
                 </div>
@@ -67,7 +67,7 @@
                 {% if request.user.is_authenticated %}
                 {% else %}
                 <div class="nav-right">
-                    <a href="{% url 'accounts:register' %}" class="nav-btn">Try ModelMint Labs</a>
+                    <a href="{% url 'labs:labs_register' %}" class="nav-btn">Try ModelMint Labs</a>
                 </div>
                 {% endif %}
             </nav>

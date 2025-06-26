@@ -9,7 +9,7 @@ from .forms import (
     CustomSetPasswordForm,
 )
 from .models import UserProfile
-from .utils import anonymous_required
+from .utils import anonymous_required, get_user_organization_type
 from .tasks import send_verification_email_task
 from .signals import user_signed_up, email_confirmed
 from .forms import UserForm, UserProfileForm
@@ -23,9 +23,9 @@ User = get_user_model()
 
 @anonymous_required
 def login_view(request):
-    """Handles user authentication."""
+    """Handles user authentication for DaaS."""
     if request.user.is_authenticated:
-        return redirect("home")  # Redirect logged-in users
+        return redirect("dashboard:dashboard_home")
 
     if request.method == "POST":
         email = request.POST.get("email") or None
@@ -43,7 +43,12 @@ def login_view(request):
                     return redirect("accounts:login")
 
                 login(request, user)
-                return redirect("home")  # Redirect authenticated user to home page
+
+                org_type = get_user_organization_type(user)
+                if org_type == "lab":
+                    return redirect("labs:labs_landing")
+                return redirect("dashboard:dashboard_home")
+
             else:
                 messages.error(request, "Invalid credentials, please try again!")
 
@@ -60,7 +65,7 @@ def logout(request):
 @anonymous_required
 def register_view(request):
     if request.user.is_authenticated:
-        return redirect("home")
+        return redirect("dashboard:dashboard_home")
 
     if request.method == "POST":
         form = UserRegistrationForm(request.POST)

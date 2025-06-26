@@ -54,7 +54,7 @@ class UserRegistrationForm(forms.ModelForm):
 
         return cleaned_data
 
-    def save(self, commit=True):
+    def save(self, commit=True, org_type="client"):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password1"])
         user.is_active = False  # Require email verification
@@ -64,7 +64,9 @@ class UserRegistrationForm(forms.ModelForm):
 
             # Create a new organization (ensured unique in clean())
             organization = Organization.objects.create(
-                name=self.cleaned_data["organization_name"], owner=user
+                name=self.cleaned_data["organization_name"],
+                owner=user,
+                type=org_type,  # 👈 Aquí está la diferencia clave
             )
 
             # The owner should **not** be a member
