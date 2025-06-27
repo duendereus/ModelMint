@@ -2,7 +2,13 @@ from django.utils.text import slugify
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
-from accounts.models import Organization
+from analytics.models import Metric
+from labs.utils import (
+    upload_to_metric_labs,
+    upload_to_lab_notebook,
+    validate_html_file_extension,
+)
+from django_ckeditor_5.fields import CKEditor5Field
 import uuid
 
 
@@ -17,8 +23,11 @@ class LabNotebook(models.Model):
     )
     title = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, blank=True)
-    description = models.TextField(blank=True)
-    file = models.FileField(upload_to="lab_notebooks/")
+    description = CKEditor5Field(blank=True)
+    file = models.FileField(
+        upload_to=upload_to_lab_notebook,
+        validators=[validate_html_file_extension],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_public = models.BooleanField(default=False)
@@ -57,6 +66,40 @@ class LabNotebook(models.Model):
 
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class NotebookMetric(models.Model):
+    notebook = models.ForeignKey(
+        LabNotebook, on_delete=models.CASCADE, related_name="metrics"
+    )
+    version = models.PositiveIntegerField()
+    type = models.CharField(max_length=20, choices=Metric.METRIC_TYPES)
+    name = models.CharField(max_length=255)
+    value = CKEditor5Field(blank=True, null=True)
+    file = models.FileField(upload_to=upload_to_metric_labs, blank=True, null=True)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.notebook} - {self.name}"
+
+    class Meta:
+        unique_together = ("notebook", "version", "position")
+        ordering = ["notebook", "-version", "position"]
+
+
+class NotebookTableMetric(models.Model):
+    metric = models.OneToOneField(
+        NotebookMetric, on_delete=models.CASCADE, related_name="table_data"
+    )
+    columns = models.JSONField(help_text="Column names of the table")
+    data = models.JSONField(help_text="Row data stored as JSON")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Table Data for {self.metric.name}"
 
 
 class NotebookAccessRequest(models.Model):
