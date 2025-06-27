@@ -10,7 +10,10 @@ from labs.views.accounts_views import (
 )
 from labs.views.landing_views import labs_landing_view
 from labs.views.subscription_views import labs_pricing_view
-from labs.views.dashboard_views import dashboard_home_labs_view
+from labs.views.dashboard_views import (
+    dashboard_home_labs_view,
+    lab_notebook_upload_view,
+)
 
 app_name = "labs"
 
@@ -34,4 +37,5 @@ urlpatterns = [
         name="labs_password_reset_confirm",
     ),
     path("home/", dashboard_home_labs_view, name="labs_dashboard_home"),
+    path("upload/", lab_notebook_upload_view, name="lab_notebook_upload"),
 ]

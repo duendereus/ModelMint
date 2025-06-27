@@ -1,11 +1,16 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.contrib import messages
 from labs.models import LabNotebook
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from accounts.models import OrganizationMembership
 from accounts.decorators import labs_only
-from labs.models import LabNotebook
+from analytics.utils.utils import get_user_organization
+from labs.models import LabNotebook, NotebookTableMetric
+from labs.forms import LabNotebookUploadForm
+from subscriptions.utils import get_plan_limits
+import os
 
 
 @login_required
@@ -49,5 +54,85 @@ def dashboard_home_labs_view(request):
             "is_owner": is_owner,
             "is_member": is_member,
             "notebooks": notebooks,
+        },
+    )
+
+
+@login_required
+def lab_notebook_upload_view(request):
+    user = request.user
+    organization = get_user_organization(user)
+
+    if not organization or organization.type != "lab":
+        messages.warning(
+            request, "Your organization is not allowed to upload notebooks."
+        )
+        return redirect("dashboard:dashboard_home")
+
+    limits = get_plan_limits(organization)
+    if not limits:
+        messages.error(
+            request,
+            "Your organization doesn't have an active Labs plan. Please upgrade to enable notebook uploads.",
+        )
+        return redirect("dashboard:dashboard_home")
+
+    max_reports = limits.get("max_reports", 1)
+    current_active_notebooks = LabNotebook.objects.filter(
+        organization=organization, active=True
+    ).count()
+
+    if request.method == "POST":
+        form = LabNotebookUploadForm(request.POST, request.FILES)
+        files = request.FILES.getlist("files")  # Aquí accedemos a los .csv/.xlsx
+
+        if form.is_valid():
+            if current_active_notebooks >= max_reports:
+                messages.error(
+                    request,
+                    f"You've reached the limit of {max_reports} active notebook(s) for your plan.",
+                )
+                return redirect("dashboard:labs:notebook_upload")
+
+            notebook = form.save(commit=False)
+            notebook.organization = organization
+            notebook.created_by = user
+            notebook.save()
+
+            # 💡 Guardar archivos complementarios
+            VALID_EXTS = {".csv", ".xls", ".xlsx"}
+            for f in files:
+                ext = os.path.splitext(f.name)[1].lower()
+                if ext not in VALID_EXTS:
+                    messages.warning(request, f"Skipped unsupported file: {f.name}")
+                    continue
+
+                NotebookTableMetric.objects.create(
+                    notebook=notebook,
+                    file=f,
+                    original_filename=f.name,
+                    uploaded_by=user,
+                )
+
+            messages.success(request, "✅ Notebook uploaded successfully.")
+            return redirect("dashboard:labs:notebook_detail", slug=notebook.slug)
+    else:
+        form = LabNotebookUploadForm()
+
+    can_upload = current_active_notebooks < max_reports
+
+    return render(
+        request,
+        "labs/dashboard/notebook_upload.html",
+        {
+            "form": form,
+            "max_allowed": max_reports,
+            "current_count": current_active_notebooks,
+            "plan_name": (
+                getattr(organization.subscription.subscription, "name", "Free")
+                if hasattr(organization, "subscription") and organization.subscription
+                else "Free"
+            ),
+            "can_upload": can_upload,
         },
     )

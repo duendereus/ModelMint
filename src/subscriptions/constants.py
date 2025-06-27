@@ -23,6 +23,13 @@ PLAN_LIMITS = {
 }
 
 LAB_PLAN_LIMITS = {
+    "Free": {
+        "max_reports": 1,
+        "max_members": 1,
+        "otp_access": False,
+        "allow_pdf_download": False,
+        "branding": "none",
+    },
     "Solo": {
         "max_reports": 5,
         "max_members": 1,

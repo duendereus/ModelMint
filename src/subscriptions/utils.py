@@ -86,10 +86,15 @@ def get_plan_limits(organization):
         if sub and sub.subscription and sub.is_active_status:
             plan_name = sub.subscription.name
             if organization.type == "lab":
-                return LAB_PLAN_LIMITS.get(plan_name, LAB_PLAN_LIMITS["Solo"])
-            return PLAN_LIMITS.get(plan_name, PLAN_LIMITS["Starter Plan"])
+                return LAB_PLAN_LIMITS.get(plan_name, LAB_PLAN_LIMITS["Free"])
+            return PLAN_LIMITS.get(plan_name)
     except AttributeError:
         pass
+
+    if organization.type == "lab":
+        return LAB_PLAN_LIMITS["Free"]
+
+    # For DaaS orgs without plan, return None (access denied)
     return None
 
 
