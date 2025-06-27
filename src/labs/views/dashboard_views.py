@@ -1,8 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from labs.models import LabNotebook
-
-
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from accounts.models import OrganizationMembership
@@ -39,9 +37,9 @@ def dashboard_home_labs_view(request):
             is_member = True
 
     if organization:
-        notebooks = LabNotebook.objects.filter(organization=organization).order_by(
-            "-created_at"
-        )
+        notebooks = LabNotebook.objects.filter(
+            organization=organization, active=True
+        ).order_by("-created_at")
 
     return render(
         request,
