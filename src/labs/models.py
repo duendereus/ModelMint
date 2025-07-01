@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
 from analytics.models import Metric
-from labs.utils import (
+from labs.utils.utils import (
     upload_to_metric_labs,
     upload_to_lab_notebook,
     validate_html_file_extension,

@@ -51,7 +51,7 @@
             {% endwith %}
           {% else %}
             <div class="col-md-12 mb-4">
-              <div id="carousel-{{ forloop.counter }}" class="carousel slide" data-bs-ride="carousel">
+              <div id="carousel-{{ forloop.counter }}" class="carousel slide" data-bs-ride="false">
                 {% if group|length > 1 %}
                 <div class="carousel-indicators">
                   {% for metric in group %}

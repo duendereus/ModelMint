@@ -9,6 +9,7 @@ from accounts.decorators import labs_only
 from analytics.utils.utils import get_user_organization
 from labs.models import LabNotebook, NotebookTableMetric
 from labs.forms import LabNotebookUploadForm
+from labs.tasks import process_lab_notebook_task
 from subscriptions.utils import get_plan_limits
 import os
 
@@ -83,8 +84,10 @@ def lab_notebook_upload_view(request):
     ).count()
 
     if request.method == "POST":
-        form = LabNotebookUploadForm(request.POST, request.FILES)
-        files = request.FILES.getlist("files")  # Aquí accedemos a los .csv/.xlsx
+        form = LabNotebookUploadForm(
+            request.POST, request.FILES, organization=organization, created_by=user
+        )
+        files = request.FILES.getlist("files")
 
         if form.is_valid():
             if current_active_notebooks >= max_reports:
@@ -94,12 +97,9 @@ def lab_notebook_upload_view(request):
                 )
                 return redirect("dashboard:labs:notebook_upload")
 
-            notebook = form.save(commit=False)
-            notebook.organization = organization
-            notebook.created_by = user
-            notebook.save()
+            notebook = form.save(commit=True)
 
-            # 💡 Guardar archivos complementarios
+            # Archivos complementarios
             VALID_EXTS = {".csv", ".xls", ".xlsx"}
             for f in files:
                 ext = os.path.splitext(f.name)[1].lower()
@@ -115,7 +115,8 @@ def lab_notebook_upload_view(request):
                 )
 
             messages.success(request, "✅ Notebook uploaded successfully.")
-            return redirect("dashboard:labs:notebook_detail", slug=notebook.slug)
+            process_lab_notebook_task.delay(notebook.id)
+            return redirect("labs:labs_dashboard_home")
     else:
         form = LabNotebookUploadForm()
 

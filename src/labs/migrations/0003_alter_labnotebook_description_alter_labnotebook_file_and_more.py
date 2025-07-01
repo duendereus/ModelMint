@@ -2,54 +2,108 @@
 
 import django.db.models.deletion
 import django_ckeditor_5.fields
-import labs.utils
+import labs.utils.utils
 from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('labs', '0002_labnotebook_active'),
+        ("labs", "0002_labnotebook_active"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='labnotebook',
-            name='description',
+            model_name="labnotebook",
+            name="description",
             field=django_ckeditor_5.fields.CKEditor5Field(blank=True),
         ),
         migrations.AlterField(
-            model_name='labnotebook',
-            name='file',
-            field=models.FileField(upload_to=labs.utils.upload_to_lab_notebook, validators=[labs.utils.validate_html_file_extension]),
+            model_name="labnotebook",
+            name="file",
+            field=models.FileField(
+                upload_to=labs.utils.utils.upload_to_lab_notebook,
+                validators=[labs.utils.utils.validate_html_file_extension],
+            ),
         ),
         migrations.CreateModel(
-            name='NotebookMetric',
+            name="NotebookMetric",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('version', models.PositiveIntegerField()),
-                ('type', models.CharField(choices=[('table', 'Table'), ('plot', 'Plot'), ('single_value', 'Single Value'), ('text', 'Text')], max_length=20)),
-                ('name', models.CharField(max_length=255)),
-                ('value', django_ckeditor_5.fields.CKEditor5Field(blank=True, null=True)),
-                ('file', models.FileField(blank=True, null=True, upload_to=labs.utils.upload_to_metric_labs)),
-                ('position', models.PositiveIntegerField(default=0)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('notebook', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='metrics', to='labs.labnotebook')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("version", models.PositiveIntegerField()),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("table", "Table"),
+                            ("plot", "Plot"),
+                            ("single_value", "Single Value"),
+                            ("text", "Text"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                (
+                    "value",
+                    django_ckeditor_5.fields.CKEditor5Field(blank=True, null=True),
+                ),
+                (
+                    "file",
+                    models.FileField(
+                        blank=True,
+                        null=True,
+                        upload_to=labs.utils.utils.upload_to_metric_labs,
+                    ),
+                ),
+                ("position", models.PositiveIntegerField(default=0)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "notebook",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="metrics",
+                        to="labs.labnotebook",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['notebook', '-version', 'position'],
-                'unique_together': {('notebook', 'version', 'position')},
+                "ordering": ["notebook", "-version", "position"],
+                "unique_together": {("notebook", "version", "position")},
             },
         ),
         migrations.CreateModel(
-            name='NotebookTableMetric',
+            name="NotebookTableMetric",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('columns', models.JSONField(help_text='Column names of the table')),
-                ('data', models.JSONField(help_text='Row data stored as JSON')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('metric', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='table_data', to='labs.notebookmetric')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("columns", models.JSONField(help_text="Column names of the table")),
+                ("data", models.JSONField(help_text="Row data stored as JSON")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "metric",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="table_data",
+                        to="labs.notebookmetric",
+                    ),
+                ),
             ],
         ),
     ]

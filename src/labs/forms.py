@@ -2,7 +2,7 @@ from django import forms
 from django_ckeditor_5.widgets import CKEditor5Widget
 from accounts.models import Organization
 from labs.models import LabNotebook
-from labs.utils import validate_html_file_extension
+from labs.utils.utils import validate_html_file_extension
 
 
 class LabNotebookAdminForm(forms.ModelForm):
@@ -25,5 +25,12 @@ class LabNotebookUploadForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        organization = kwargs.pop("organization", None)
+        created_by = kwargs.pop("created_by", None)
         super().__init__(*args, **kwargs)
+
+        if self.instance:
+            self.instance.organization = organization
+            self.instance.created_by = created_by
+
         self.fields["file"].validators.append(validate_html_file_extension)
