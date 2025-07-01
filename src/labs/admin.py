@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
     LabNotebook,
+    NotebookVersion,
     NotebookAccessRequest,
     NotebookMetric,
     NotebookTableMetric,
@@ -36,19 +37,46 @@ class LabNotebookAdmin(admin.ModelAdmin):
     notebook_file_link.short_description = "Archivo"
 
 
+@admin.register(NotebookVersion)
+class NotebookVersionAdmin(admin.ModelAdmin):
+    list_display = (
+        "notebook",
+        "version",
+        "uploaded_by",
+        "created_at",
+        "html_file_link",
+    )
+    list_filter = ("notebook__organization",)
+    search_fields = ("notebook__title", "uploaded_by__email")
+
+    def html_file_link(self, obj):
+        if obj.html_file:
+            return format_html(
+                '<a href="{}" target="_blank">📄 Ver archivo</a>', obj.html_file.url
+            )
+        return "—"
+
+    html_file_link.short_description = "Archivo HTML"
+
+
 @admin.register(NotebookMetric)
 class NotebookMetricAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "notebook",
+        "get_version",
         "type",
-        "version",
         "position",
         "created_at",
         "file_link",
     )
     list_filter = ("type", "notebook__organization")
     search_fields = ("name", "notebook__title")
+
+    def get_version(self, obj):
+        return obj.version_obj.version
+
+    get_version.short_description = "Versión"
 
     def file_link(self, obj):
         if obj.file:

@@ -13,6 +13,7 @@ from labs.views.subscription_views import labs_pricing_view
 from labs.views.dashboard_views import (
     dashboard_home_labs_view,
     lab_notebook_upload_view,
+    upload_new_version_view,
 )
 
 app_name = "labs"
@@ -38,4 +39,9 @@ urlpatterns = [
     ),
     path("home/", dashboard_home_labs_view, name="labs_dashboard_home"),
     path("upload/", lab_notebook_upload_view, name="lab_notebook_upload"),
+    path(
+        "notebooks/<int:notebook_id>/upload-version/",
+        upload_new_version_view,
+        name="lab_notebook_upload_version",
+    ),
 ]

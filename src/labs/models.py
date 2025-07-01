@@ -68,11 +68,34 @@ class LabNotebook(models.Model):
         super().save(*args, **kwargs)
 
 
+class NotebookVersion(models.Model):
+    notebook = models.ForeignKey(
+        LabNotebook, on_delete=models.CASCADE, related_name="versions"
+    )
+    version = models.PositiveIntegerField()
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
+    )
+    html_file = models.FileField(
+        upload_to=upload_to_lab_notebook, validators=[validate_html_file_extension]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("notebook", "version")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.notebook.title} (v{self.version})"
+
+
 class NotebookMetric(models.Model):
+    version_obj = models.ForeignKey(
+        "NotebookVersion", on_delete=models.CASCADE, related_name="metrics"
+    )
     notebook = models.ForeignKey(
         LabNotebook, on_delete=models.CASCADE, related_name="metrics"
     )
-    version = models.PositiveIntegerField()
     type = models.CharField(max_length=20, choices=Metric.METRIC_TYPES)
     name = models.CharField(max_length=255)
     value = CKEditor5Field(blank=True, null=True)
@@ -84,8 +107,8 @@ class NotebookMetric(models.Model):
         return f"{self.notebook} - {self.name}"
 
     class Meta:
-        unique_together = ("notebook", "version", "position")
-        ordering = ["notebook", "-version", "position"]
+        unique_together = ("version_obj", "position")
+        ordering = ["notebook", "version_obj__version", "position"]
 
 
 class NotebookTableMetric(models.Model):
