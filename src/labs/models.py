@@ -9,7 +9,7 @@ from labs.utils.utils import (
     validate_html_file_extension,
 )
 from django_ckeditor_5.fields import CKEditor5Field
-import uuid
+import uuid, boto3
 
 
 class LabNotebook(models.Model):
@@ -101,10 +101,37 @@ class NotebookMetric(models.Model):
     value = CKEditor5Field(blank=True, null=True)
     file = models.FileField(upload_to=upload_to_metric_labs, blank=True, null=True)
     position = models.PositiveIntegerField(default=0)
+    is_preview = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.notebook} - {self.name}"
+
+    def get_presigned_url(self, expires_in=3600):
+        if not self.file:
+            return None
+
+        if not settings.USE_S3:
+            return f"{settings.MEDIA_URL}{self.file}"
+
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_S3_REGION_NAME,
+        )
+
+        try:
+            return s3_client.generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                    "Key": self.file.name,
+                },
+                ExpiresIn=expires_in,
+            )
+        except Exception:
+            return None
 
     class Meta:
         unique_together = ("version_obj", "position")

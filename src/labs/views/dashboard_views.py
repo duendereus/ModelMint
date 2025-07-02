@@ -3,17 +3,21 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
 from django.core.files.storage import default_storage
-from labs.models import LabNotebook
+from django.urls import reverse
+from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
+from django.http import JsonResponse
 from accounts.models import OrganizationMembership
 from accounts.decorators import labs_only
 from analytics.utils.utils import get_user_organization
-from labs.models import LabNotebook
+from labs.models import LabNotebook, NotebookMetric, NotebookVersion
 from labs.forms import LabNotebookUploadForm
 from labs.tasks import process_lab_notebook_task
 from subscriptions.utils import get_plan_limits
-import os, uuid
+import os, uuid, logging, json
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -216,5 +220,134 @@ def upload_new_version_view(request, notebook_id):
         "labs/dashboard/upload_new_version.html",
         {
             "notebook": notebook,
+        },
+    )
+
+
+@login_required
+@labs_only
+@require_http_methods(["GET", "POST"])
+def lab_preview_notebook_view(request, notebook_slug):
+    notebook = get_object_or_404(
+        LabNotebook.objects.select_related("organization", "created_by"),
+        slug=notebook_slug,
+        organization=get_user_organization(request.user),
+    )
+
+    all_versions = notebook.versions.order_by("-created_at")
+    selected_version_id = request.GET.get("version_id")
+
+    if selected_version_id:
+        selected_version = get_object_or_404(
+            NotebookVersion, id=selected_version_id, notebook=notebook
+        )
+    else:
+        latest_metric = (
+            NotebookMetric.objects.filter(notebook=notebook, is_preview=True)
+            .exclude(version_obj__isnull=True)
+            .order_by("-version_obj__created_at")
+            .first()
+        )
+        selected_version = (
+            latest_metric.version_obj if latest_metric else notebook.versions.first()
+        )
+
+    # POST: aplicar edición, orden y publicación
+    if request.method == "POST":
+        try:
+            with transaction.atomic():
+                data = json.loads(request.body)
+                ordered_ids = data.get("ordered_ids", [])
+                removed_ids = data.get("removed_ids", [])
+                edited_titles = data.get("edited_titles", {})
+                edited_values = data.get("edited_values", {})
+
+                if (
+                    not ordered_ids
+                    and not removed_ids
+                    and not edited_titles
+                    and not edited_values
+                ):
+                    return JsonResponse(
+                        {"success": False, "error": "Nothing to update."}, status=400
+                    )
+
+                if removed_ids:
+                    NotebookMetric.objects.filter(
+                        id__in=removed_ids, notebook=notebook
+                    ).delete()
+
+                for metric_id in set(edited_titles.keys()) | set(edited_values.keys()):
+                    try:
+                        metric = NotebookMetric.objects.get(
+                            id=metric_id, notebook=notebook
+                        )
+                        if metric_id in edited_titles:
+                            metric.name = edited_titles[metric_id].strip()
+                        if metric_id in edited_values and metric.type in [
+                            "text",
+                            "single_value",
+                        ]:
+                            metric.value = edited_values[metric_id].strip()
+                        metric.save()
+                    except NotebookMetric.DoesNotExist:
+                        continue
+
+                TEMP_OFFSET = 10000
+                for i, metric_id in enumerate(ordered_ids):
+                    try:
+                        metric = NotebookMetric.objects.select_for_update().get(
+                            id=metric_id, notebook=notebook
+                        )
+                        metric.position = TEMP_OFFSET + i
+                        metric.save()
+                    except NotebookMetric.DoesNotExist:
+                        continue
+
+                for i, metric_id in enumerate(ordered_ids):
+                    try:
+                        metric = NotebookMetric.objects.select_for_update().get(
+                            id=metric_id, notebook=notebook
+                        )
+                        metric.position = i
+                        metric.save()
+                    except NotebookMetric.DoesNotExist:
+                        continue
+
+                # Marcar métricas como publicadas
+                NotebookMetric.objects.filter(notebook=notebook).update(
+                    is_preview=False
+                )
+
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "redirect_url": reverse("labs:labs_dashboard_home"),
+                    }
+                )
+
+        except Exception as e:
+            logger.exception("Error publishing notebook preview")
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    # GET
+    metrics = (
+        NotebookMetric.objects.filter(notebook=notebook, version_obj=selected_version)
+        .order_by("position")
+        .select_related("table_data")
+    )
+
+    for m in metrics:
+        m.presigned_url = m.get_presigned_url() if m.file else None
+        m.is_published = not m.is_preview
+
+    return render(
+        request,
+        "labs/dashboard/lab_preview_notebook.html",
+        {
+            "notebook": notebook,
+            "selected_version": selected_version,
+            "all_versions": all_versions,
+            "metrics": metrics,
         },
     )

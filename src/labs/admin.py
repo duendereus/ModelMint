@@ -67,10 +67,15 @@ class NotebookMetricAdmin(admin.ModelAdmin):
         "get_version",
         "type",
         "position",
+        "is_preview",
         "created_at",
         "file_link",
     )
-    list_filter = ("type", "notebook__organization")
+    list_filter = (
+        "type",
+        "notebook__organization",
+        "is_preview",
+    )
     search_fields = ("name", "notebook__title")
 
     def get_version(self, obj):
