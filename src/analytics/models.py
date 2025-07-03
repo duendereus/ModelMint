@@ -242,19 +242,19 @@ class Metric(models.Model):
         return f"{self.name} ({self.get_type_display()}) - {self.report.title}"
 
     def save(self, *args, **kwargs):
-        # if (
-        #     self.position is None
-        #     or Metric.objects.filter(report=self.report, position=self.position)
-        #     .exclude(id=self.id)
-        #     .exists()
-        # ):
-        #     max_position = (
-        #         Metric.objects.filter(report=self.report).aggregate(
-        #             models.Max("position")
-        #         )["position__max"]
-        #         or 0
-        #     )
-        #     self.position = max_position + 1
+        if (
+            self.position is None
+            or Metric.objects.filter(report=self.report, position=self.position)
+            .exclude(id=self.id)
+            .exists()
+        ):
+            max_position = (
+                Metric.objects.filter(report=self.report).aggregate(
+                    models.Max("position")
+                )["position__max"]
+                or 0
+            )
+            self.position = max_position + 1
 
         super().save(*args, **kwargs)
 
