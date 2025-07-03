@@ -77,8 +77,8 @@ urlpatterns = [
     ),
     path(
         "reports/dynamic/<int:report_id>/",
-        views.report_detail_view,
-        name="report_detail_view",
+        views.dynamic_report_detail_view,
+        name="dynamic_report_detail_view",
     ),
     path(
         "reports/dynamic/chart-data/<int:report_id>/",

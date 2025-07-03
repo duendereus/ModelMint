@@ -1191,7 +1191,7 @@ def confirm_dynamic_dashboard_metric(request, report_id):
 
 
 @login_required
-def report_detail_view(request, report_id):
+def dynamic_report_detail_view(request, report_id):
     report = get_object_or_404(
         Report.objects.select_related("dataset", "upload", "created_by"),
         id=report_id,
