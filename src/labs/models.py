@@ -96,7 +96,7 @@ class NotebookMetric(models.Model):
     notebook = models.ForeignKey(
         LabNotebook, on_delete=models.CASCADE, related_name="metrics"
     )
-    type = models.CharField(max_length=20, choices=Metric.METRIC_TYPES)
+    type = models.CharField(max_length=30, choices=Metric.METRIC_TYPES)
     name = models.CharField(max_length=255)
     value = CKEditor5Field(blank=True, null=True)
     file = models.FileField(upload_to=upload_to_metric_labs, blank=True, null=True)

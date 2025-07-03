@@ -1,0 +1,162 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Dynamic Report Detail{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-1">{{ report.title }}</h2>
+  <p class="text-muted mb-4">
+    Dataset: <strong>{{ report.dataset.name }}</strong>
+    {% if report.upload %}
+      • Version v{{ report.upload.version }} by {{ report.upload.uploaded_by.email }}
+    {% endif %}
+  </p>
+
+  {% if metric %}
+    <a href="{{ metric.get_presigned_url }}" class="btn btn-sm btn-outline-primary">
+        Download CSV
+    </a><br><br>
+  {% endif %}
+
+  <!-- Filtros -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h5 class="card-title mb-3">🧪 Filters</h5>
+      <div id="filters" class="row g-3"></div>
+    </div>
+  </div>
+
+  <!-- Gráficas -->
+  <div id="dashboard-container" class="d-flex flex-column gap-4"></div>
+</div>
+
+
+
+<style>
+  .chart-wrapper {
+    position: relative;
+    height: 100px;  /* 🎯 prueba con altura fija */
+    max-height: 100px;
+  }
+
+  .chart-wrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+</style>
+
+{% if table_headers and table_rows %}
+<div class="table-responsive mt-4">
+    <table class="table table-bordered table-striped">
+        <thead class="table-light">
+            <tr>
+                {% for header in table_headers %}
+                    <th>{{ header }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in table_rows %}
+                <tr>
+                    {% for header in table_headers %}
+                        <td>{{ row|dict_get:header }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+
+{% endblock content %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const container = document.getElementById("dashboard-container");
+  const filtersContainer = document.getElementById("filters");
+  const filterInputs = {};
+
+  // Render dropdowns
+  for (const [key, values] of Object.entries(filterChoices)) {
+    const col = document.createElement("div");
+    col.classList.add("col-md-4");
+
+    const label = document.createElement("label");
+    label.classList.add("form-label");
+    label.textContent = key;
+
+    const select = document.createElement("select");
+    select.classList.add("form-select");
+    select.innerHTML = `<option value="">-- All --</option>`;
+    values.forEach(v => {
+      const option = document.createElement("option");
+      option.value = v;
+      option.textContent = v;
+      select.appendChild(option);
+    });
+
+    filterInputs[key] = select;
+    col.appendChild(label);
+    col.appendChild(select);
+    filtersContainer.appendChild(col);
+  }
+
+  // Function to fetch and render charts
+  async function loadCharts() {
+    container.innerHTML = ""; // clear previous
+    const params = new URLSearchParams();
+    for (const [key, input] of Object.entries(filterInputs)) {
+      if (input.value) params.append(key, input.value);
+    }
+
+    const res = await fetch(`/dashboard/analytics/reports/dynamic/chart-data/${reportId}/?` + params.toString());
+    const data = await res.json();
+
+    for (const [title, values] of Object.entries(data)) {
+      const wrapper = document.createElement("div");
+      wrapper.classList.add("card", "shadow-sm", "p-3");
+
+      const chartTitle = document.createElement("h5");
+      chartTitle.textContent = title;
+      wrapper.appendChild(chartTitle);
+
+      const chartWrapper = document.createElement("div");
+      chartWrapper.classList.add("chart-wrapper");
+
+      const canvas = document.createElement("canvas");
+      canvas.id = `chart-${title.replace(/\s+/g, "-")}`;
+      chartWrapper.appendChild(canvas);
+      wrapper.appendChild(chartWrapper);
+      container.appendChild(wrapper);
+
+      const ctx = canvas.getContext("2d");
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: Object.keys(values),
+          datasets: [{
+            label: "churned",
+            data: Object.values(values),
+            backgroundColor: "#6aba8a",
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "top" } }
+        }
+      });
+    }
+  }
+
+  // Bind filter button
+  document.getElementById("applyFiltersBtn").addEventListener("click", loadCharts);
+  loadCharts();  // Load on first render
+});
+</script>
+{% endblock %}

@@ -10,6 +10,7 @@
     <h2 class="mb-4">Datasets by Organization</h2>
 
     {% for org in organizations %}
+        {% if org.type == "client" %}
         <div class="card mb-3">
             <div class="card-header text-white d-flex justify-content-between align-items-center {{ org.subscription_color }}">
                 <div>
@@ -88,14 +89,23 @@
                                                                 </div>
                                                             {% endif %}
 
-                                                            <a href="{% url 'dashboard:analytics:staff_process_report' report.id %}" class="btn btn-success btn-sm mt-1">
-                                                                Process
-                                                            </a>
-
-                                                            <a href="{% url 'dashboard:analytics:staff_preview_report_by_report' report.id %}"
-                                                            class="btn {% if report.processed %}btn-secondary{% else %}btn-outline-secondary{% endif %} btn-sm mt-1">
-                                                                Preview
-                                                            </a>
+                                                            {% if report.type == "dynamic" %}
+                                                                <a href="{% url 'dashboard:analytics:staff_process_dynamic_dashboard' report.id %}" class="btn btn-warning btn-sm mt-1">
+                                                                    Process Dynamic Dashboard
+                                                                </a>
+                                                                <a href="{% url 'dashboard:analytics:staff_preview_dynamic_dashboard' report.id %}"
+                                                                class="btn {% if report.processed %}btn-secondary{% else %}btn-outline-secondary{% endif %} btn-sm mt-1">
+                                                                    Preview
+                                                                </a>
+                                                            {% elif report.type == "static" %}
+                                                                <a href="{% url 'dashboard:analytics:staff_process_report' report.id %}" class="btn btn-success btn-sm mt-1">
+                                                                    Process
+                                                                </a>
+                                                                <a href="{% url 'dashboard:analytics:staff_preview_report_by_report' report.id %}"
+                                                                class="btn {% if report.processed %}btn-secondary{% else %}btn-outline-secondary{% endif %} btn-sm mt-1">
+                                                                    Preview
+                                                                </a>
+                                                            {% endif %}
                                                         </div>
                                                     {% endwith %}
                                                 </li>
@@ -113,6 +123,7 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
     {% empty %}
         <div class="alert alert-warning">No organizations found.</div>
     {% endfor %}

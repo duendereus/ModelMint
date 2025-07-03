@@ -1,0 +1,42 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Process Dynamic Dashboard{% endblock title %}
+
+{% block content %}
+<div class="card shadow border-0">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0">📊 Process Dynamic Dashboard for <strong>{{ dataset.name }}</strong></h5>
+        <p class="text-muted small mb-0">
+            Org: {{ dataset.organization.name }} | Report ID: {{ report.id }}
+        </p>
+    </div>
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+            {% csrf_token %}
+
+            <!-- 📦 Upload Version Selector -->
+            <div class="mb-4">
+                <label for="upload_select" class="form-label">Associate with Version</label>
+                <select name="upload_id" class="form-select">
+                    <option value="">-- Select version --</option>
+                    {% for u in uploads %}
+                        <option value="{{ u.id }}" {% if u.id == default_upload.id %}selected{% endif %}>
+                            v{{ u.version }} - {{ u.created_at|date:"Y-m-d" }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- 📄 CSV File Upload -->
+            <div class="mb-4">
+                <label class="form-label">Filtered CSV File</label>
+                <input type="file" name="csv_file" accept=".csv" class="form-control" required>
+                <div class="form-text">
+                    This CSV should contain the pre-filtered data to be used for the dashboard (e.g. attendance by month).
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">🚀 Start Dashboard Processing</button>
+        </form>
+    </div>
+</div>
+{% endblock content %}

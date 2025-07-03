@@ -55,4 +55,34 @@ urlpatterns = [
         views.staff_preview_report_view,
         name="staff_preview_report_by_report",
     ),
+    path(
+        "staff/reports/dynamic/<int:report_id>/process/",
+        views.staff_process_dynamic_dashboard_view,
+        name="staff_process_dynamic_dashboard",
+    ),
+    path(
+        "staff/reports/<int:report_id>/dashboard-config/",
+        views.get_dashboard_config,
+        name="get_dashboard_config",
+    ),
+    path(
+        "staff/preview/dynamic/<int:report_id>/",
+        views.staff_preview_dynamic_dashboard_view,
+        name="staff_preview_dynamic_dashboard",
+    ),
+    path(
+        "staff/confirm/dynamic/<int:report_id>/",
+        views.confirm_dynamic_dashboard_metric,
+        name="confirm_dynamic_dashboard_metric",
+    ),
+    path(
+        "reports/dynamic/<int:report_id>/",
+        views.report_detail_view,
+        name="report_detail_view",
+    ),
+    path(
+        "reports/dynamic/chart-data/<int:report_id>/",
+        views.get_chart_data,
+        name="get_chart_data",
+    ),
 ]

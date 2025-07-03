@@ -69,3 +69,18 @@ def get_user_organization(user):
         return membership.organization
 
     return None
+
+
+def upload_to_example_file(instance, filename):
+    """
+    Stores the example file (for dynamic dashboards) in:
+    uploads/{org_name}/data/{dataset_name}/reports/examples/{filename}
+    """
+    if instance.dataset and instance.dataset.organization:
+        org_name = instance.dataset.organization.name.lower().replace(" ", "_")[:20]
+        dataset_name = instance.dataset.name.lower().replace(" ", "_")[:20]
+    else:
+        org_name = "unknown_org"
+        dataset_name = "unknown_dataset"
+
+    return f"uploads/{org_name}/data/{dataset_name}/reports/examples/{filename}"

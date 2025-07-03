@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import DataSet, DataUpload, Metric, TableMetric, JupyterReport, Report
+from .models import (
+    DataSet,
+    DataUpload,
+    Metric,
+    TableMetric,
+    JupyterReport,
+    Report,
+    DynamicDashboardConfig,
+)
 from django.utils.html import format_html
 
 
@@ -70,6 +78,7 @@ class DataUploadAdmin(admin.ModelAdmin):
 class ReportAdmin(admin.ModelAdmin):
     list_display = (
         "title",
+        "type",
         "dataset",
         "upload",
         "created_by",
@@ -78,6 +87,7 @@ class ReportAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "processed",
+        "type",
         "dataset__organization",
     )
     search_fields = (
@@ -88,6 +98,24 @@ class ReportAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at",)
     autocomplete_fields = ["dataset", "upload", "created_by"]
     ordering = ["-created_at"]
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "title",
+                    "description",
+                    "type",
+                    "example_file",
+                    "dataset",
+                    "upload",
+                    "created_by",
+                    "processed",
+                    "created_at",
+                )
+            },
+        ),
+    )
 
 
 class TableMetricInline(admin.TabularInline):
@@ -171,3 +199,14 @@ class JupyterReportAdmin(admin.ModelAdmin):
         return "No file"
 
     file_link.short_description = "Notebook File"
+
+
+@admin.register(DynamicDashboardConfig)
+class DynamicDashboardConfigAdmin(admin.ModelAdmin):
+    list_display = (
+        "metric",
+        "created_at",
+    )
+    readonly_fields = ("created_at",)
+    search_fields = ("metric__name", "metric__report__title")
+    list_select_related = ("metric",)

@@ -30,9 +30,15 @@
 
     <div class="card">
         <div class="card-body">
-            <form method="post">
+            <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 {{ form.media }}
+
+                <!-- Report type -->
+                <div class="mb-3">
+                    <label for="{{ form.type.id_for_label }}" class="form-label">Type</label>
+                    {{ form.type|add_class:"form-select"|attr:"required" }}
+                </div>
 
                 <!-- Dataset selection -->
                 <div class="mb-3">
@@ -50,6 +56,12 @@
                 <div class="mb-3">
                     <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
                     {{ form.description|attr:"required" }}
+                </div>
+
+                <!-- Example file for dynamic reports -->
+                <div class="mb-3" id="example-file-wrapper" style="display: none;">
+                    <label for="{{ form.example_file.id_for_label }}" class="form-label">Example File (CSV)</label>
+                    {{ form.example_file|add_class:"form-control" }}
                 </div>
 
                 <button type="submit" class="btn btn-success w-100">📨 Submit Report Request</button>
@@ -75,6 +87,38 @@ document.addEventListener("DOMContentLoaded", function () {
             descriptionField.focus();
         }
     });
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.querySelector("form");
+    const descriptionField = document.querySelector(".ck-editor__editable");
+
+    form.addEventListener("submit", function (e) {
+        const plainText = descriptionField.innerText.trim();
+        if (!plainText) {
+            e.preventDefault();
+            alert("❌ Description is required to request a report.");
+            descriptionField.focus();
+        }
+    });
+
+    // 🧠 Mostrar campo de archivo solo si seleccionan "dynamic"
+    const typeField = document.getElementById("id_type");
+    const exampleFileWrapper = document.getElementById("example-file-wrapper");
+
+    function toggleExampleFileField() {
+        if (typeField.value === "dynamic") {
+            exampleFileWrapper.style.display = "block";
+        } else {
+            exampleFileWrapper.style.display = "none";
+        }
+    }
+
+    // Ejecutar al cargar y al cambiar
+    toggleExampleFileField();
+    typeField.addEventListener("change", toggleExampleFileField);
 });
 </script>
 {% endblock extra_scripts %}

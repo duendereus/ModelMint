@@ -5,9 +5,20 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.utils.timezone import now
 from django.db import transaction
-from .models import DataSet, DataUpload, Report, Metric, JupyterReport
+from .models import (
+    DataSet,
+    DataUpload,
+    Report,
+    Metric,
+    JupyterReport,
+    DynamicDashboardConfig,
+)
 from .forms import DataUploadForm, ReportRequestForm
-from .tasks import process_metrics_task, notify_team_new_report_requested
+from .tasks import (
+    process_metrics_task,
+    notify_team_new_report_requested,
+    process_dynamic_dashboard_task,
+)
 from .services import mark_as_processed
 from analytics.utils.utils import get_user_organization
 from subscriptions.utils import (
@@ -17,11 +28,12 @@ from subscriptions.utils import (
     can_download_pdf_reports,
 )
 import boto3
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+import pandas as pd
 
 try:
     from weasyprint import HTML
@@ -122,7 +134,7 @@ def request_report_view(request):
         return redirect("dashboard:dashboard_home")
 
     if request.method == "POST":
-        form = ReportRequestForm(request.POST, organization=organization)
+        form = ReportRequestForm(request.POST, request.FILES, organization=organization)
         if form.is_valid():
             report = form.save(commit=False)
             report.created_by = user
@@ -714,28 +726,32 @@ def staff_dataset_list_view(request):
     """
     Shows all datasets and their reports grouped by organization for staff users.
     """
-    organizations = Organization.objects.prefetch_related(
-        Prefetch(
-            "datasets",
-            queryset=DataSet.objects.prefetch_related(
-                Prefetch(
-                    "uploads",
-                    queryset=DataUpload.objects.select_related(
-                        "dataset", "uploaded_by", "organization"
-                    ).order_by("-version"),
-                    to_attr="annotated_uploads",
-                ),
-                Prefetch(
-                    "reports",
-                    queryset=Report.objects.select_related("upload").order_by(
-                        "-created_at"
+    organizations = (
+        Organization.objects.filter(type="client")
+        .prefetch_related(
+            Prefetch(
+                "datasets",
+                queryset=DataSet.objects.prefetch_related(
+                    Prefetch(
+                        "uploads",
+                        queryset=DataUpload.objects.select_related(
+                            "dataset", "uploaded_by", "organization"
+                        ).order_by("-version"),
+                        to_attr="annotated_uploads",
                     ),
-                    to_attr="annotated_reports",
-                ),
-            ).order_by("name"),
-            to_attr="annotated_datasets",
+                    Prefetch(
+                        "reports",
+                        queryset=Report.objects.select_related("upload").order_by(
+                            "-created_at"
+                        ),
+                        to_attr="annotated_reports",
+                    ),
+                ).order_by("name"),
+                to_attr="annotated_datasets",
+            )
         )
-    ).order_by("name")
+        .order_by("name")
+    )
 
     for org in organizations:
         sub_obj = getattr(org, "subscription", None)
@@ -1020,3 +1036,241 @@ def staff_preview_report_view(request, report_id):
             "jupyter_reports": jupyter_reports,
         },
     )
+
+
+@staff_required
+@require_http_methods(["GET", "POST"])
+def staff_process_dynamic_dashboard_view(request, report_id):
+    report = get_object_or_404(
+        Report.objects.select_related("dataset__organization", "created_by"),
+        id=report_id,
+        type="dynamic",  # Aseguramos que sea reporte dinámico
+    )
+    dataset = report.dataset
+    uploads = dataset.uploads.order_by("-version")
+    default_upload = uploads.first()
+
+    if request.method == "POST":
+        csv_file = request.FILES.get("csv_file")
+        upload_id = request.POST.get("upload_id")
+
+        if not csv_file:
+            messages.error(request, "CSV file is required.")
+            return redirect(request.path)
+
+        # ✅ Obtener instancia de upload
+        upload_instance = None
+        if upload_id:
+            try:
+                upload_instance = DataUpload.objects.get(id=upload_id)
+            except DataUpload.DoesNotExist:
+                messages.warning(request, "⚠️ Selected version does not exist.")
+                return redirect(request.path)
+        else:
+            upload_instance = default_upload
+
+        # ✅ Validar extensión y guardar con nombre seguro
+        ext = os.path.splitext(csv_file.name)[1].lower()
+        if ext != ".csv":
+            messages.warning(request, "⚠️ Only CSV files are supported.")
+            return redirect(request.path)
+
+        safe_name = f"{uuid.uuid4().hex}_{csv_file.name.replace(' ', '_')}"
+        stored_path = default_storage.save(f"metrics_temp/{safe_name}", csv_file)
+
+        # ✅ Asignar upload al reporte si no tiene
+        if not report.upload and upload_instance:
+            report.upload = upload_instance
+            report.save(update_fields=["upload"])
+
+        # ✅ Marcar como procesado
+        mark_as_processed(report)
+
+        # 🚀 Lanza tarea de Celery
+        process_dynamic_dashboard_task.delay(
+            report_id=report.id,
+            upload_id=upload_instance.id if upload_instance else None,
+            stored_path=stored_path,
+        )
+
+        messages.success(
+            request,
+            "📤 CSV uploaded. Dashboard processing will complete in background.",
+        )
+        return redirect("dashboard:analytics:staff_dataset_list")
+
+    return render(
+        request,
+        "dashboard/admin/staff_process_dynamic_dashboard.html",
+        {
+            "report": report,
+            "dataset": dataset,
+            "uploads": uploads,
+            "default_upload": default_upload,
+        },
+    )
+
+
+@login_required
+def get_dashboard_config(request, report_id):
+    report = get_object_or_404(Report, id=report_id)
+
+    metric = (
+        report.metrics.filter(type="dynamic_csv_dashboard")
+        .order_by("-is_preview", "-created_at")
+        .first()
+    )
+
+    if not metric:
+        return JsonResponse({"error": "No dashboard metric found."}, status=404)
+
+    try:
+        dashboard_config = DynamicDashboardConfig.objects.get(metric=metric)
+    except DynamicDashboardConfig.DoesNotExist:
+        return JsonResponse({"error": "Dashboard config not found."}, status=404)
+
+    return JsonResponse({"config": dashboard_config.config})
+
+
+@staff_required
+@require_http_methods(["GET"])
+def staff_preview_dynamic_dashboard_view(request, report_id):
+    report = get_object_or_404(
+        Report.objects.select_related("dataset", "upload", "created_by"),
+        id=report_id,
+        type="dynamic",
+    )
+    dataset = report.dataset
+
+    uploads = dataset.uploads.order_by("-created_at")
+    selected_upload_id = request.GET.get("upload_id")
+    if selected_upload_id:
+        selected_upload = get_object_or_404(
+            DataUpload, id=selected_upload_id, dataset=dataset
+        )
+    else:
+        selected_upload = report.upload
+
+    return render(
+        request,
+        "dashboard/admin/staff_preview_dynamic_dashboard.html",
+        {
+            "report": report,
+            "dataset": dataset,
+            "upload": selected_upload,
+            "all_uploads": uploads,
+        },
+    )
+
+
+@staff_required
+@require_POST
+def confirm_dynamic_dashboard_metric(request, report_id):
+    report = get_object_or_404(Report, id=report_id, type="dynamic")
+
+    metric = report.metrics.filter(type="dynamic_csv_dashboard").first()
+
+    if not metric:
+        return JsonResponse(
+            {"success": False, "error": "No metric of expected type found."},
+            status=404,
+        )
+
+    if metric.is_preview:
+        metric.is_preview = False
+        metric.save(update_fields=["is_preview"])
+        report.processed = True
+        report.save(update_fields=["processed"])
+
+    return JsonResponse(
+        {
+            "success": True,
+            "redirect_url": reverse("dashboard:analytics:staff_dataset_list"),
+        }
+    )
+
+
+@login_required
+def report_detail_view(request, report_id):
+    report = get_object_or_404(
+        Report.objects.select_related("dataset", "upload", "created_by"),
+        id=report_id,
+        processed=True,
+        type="dynamic",
+    )
+
+    metric = (
+        report.metrics.filter(type="dynamic_csv_dashboard", is_preview=False)
+        .order_by("-created_at")
+        .first()
+    )
+
+    if not metric or not metric.file:
+        return render(
+            request,
+            "dashboard/analytics/reports/dynamic_report_detail.html",
+            {
+                "report": report,
+                "filters": {},
+                "metric": None,
+                "table_headers": [],
+                "table_rows": [],
+            },
+        )
+
+    with default_storage.open(metric.file.name, "rb") as f:
+        df = pd.read_csv(f)
+
+    print("🔎 DF columns:", df.columns.tolist())
+    print("📦 DF sample:", df.head().to_dict())
+
+    # Detectar filtros solo si tiene columnas esperadas
+    columns = [c.lower() for c in df.columns]
+    filters = {}
+    if "studio" in columns and "mes" in columns:
+        df.columns = df.columns.str.lower()
+        filters = {
+            "studio": sorted(df["studio"].dropna().unique().tolist()),
+            "mes": sorted(df["mes"].dropna().unique().tolist()),
+        }
+
+    # Preparar datos de la tabla
+    table_headers = df.columns.tolist()
+    table_rows = df.to_dict(orient="records")
+
+    return render(
+        request,
+        "dashboard/analytics/reports/dynamic_report_detail.html",
+        {
+            "report": report,
+            "filters": filters,
+            "metric": metric,
+            "table_headers": table_headers,
+            "table_rows": table_rows,
+        },
+    )
+
+
+@require_GET
+@login_required
+def get_chart_data(request, report_id):
+    # Extraer filtros desde request.GET
+    studio = request.GET.get("studio")
+    mes = request.GET.get("mes")
+
+    # Cargar el CSV del reporte y filtrarlo (ejemplo usando pandas)
+    upload = get_object_or_404(Report, id=report_id).upload
+    df = pd.read_csv(upload.file.path)
+
+    if studio:
+        df = df[df["studio"].str.contains(studio, case=False, na=False)]
+    if mes:
+        df = df[df["mes"].str.contains(mes, case=False, na=False)]
+
+    # Agrupar los datos según lo que necesitas
+    response_data = {
+        "Churned by Studio": df.groupby("studio")["churned"].sum().to_dict(),
+        "Churned by Mes": df.groupby("mes")["churned"].sum().to_dict(),
+    }
+
+    return JsonResponse(response_data)

@@ -7,6 +7,8 @@ from .utils.utils import (
     upload_to_metric,
     validate_jupyter_extension,
     upload_to_jupyter_report,
+    upload_to_example_file,
+    validate_file_extension,
 )
 from accounts.models import Organization, OrganizationMembership
 import boto3
@@ -163,6 +165,10 @@ class DataUpload(models.Model):
 
 
 class Report(models.Model):
+    REPORT_TYPES = [
+        ("static", "Static Report"),
+        ("dynamic", "Dynamic Dashboard"),
+    ]
     dataset = models.ForeignKey(
         DataSet, on_delete=models.CASCADE, related_name="reports"
     )
@@ -177,6 +183,15 @@ class Report(models.Model):
     )
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     processed = models.BooleanField(default=False)
+
+    type = models.CharField(max_length=20, choices=REPORT_TYPES, default="static")
+    example_file = models.FileField(
+        upload_to=upload_to_example_file,
+        validators=[validate_file_extension],
+        blank=True,
+        null=True,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -192,6 +207,7 @@ class Metric(models.Model):
         ("plot", "Plot"),
         ("single_value", "Single Value"),
         ("text", "Text"),
+        ("dynamic_csv_dashboard", "Dynamic CSV Dashboard"),
     ]
 
     report = models.ForeignKey(
@@ -206,7 +222,7 @@ class Metric(models.Model):
         help_text="Original DataUpload used to generate this metric.",
     )
 
-    type = models.CharField(max_length=20, choices=METRIC_TYPES)
+    type = models.CharField(max_length=30, choices=METRIC_TYPES)
     name = models.CharField(max_length=255, help_text="Name of the metric")
     file = models.FileField(
         upload_to=upload_to_metric, blank=True, null=True, max_length=512
@@ -307,3 +323,14 @@ class JupyterReport(models.Model):
 
     def __str__(self):
         return f"JupyterReport for {self.report} (v{self.upload.version if self.upload else 'N/A'})"
+
+
+class DynamicDashboardConfig(models.Model):
+    metric = models.OneToOneField(
+        Metric, on_delete=models.CASCADE, related_name="dashboard_config"
+    )
+    config = models.JSONField(help_text="Auto-generated dashboard config.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Dashboard Config for {self.metric.name}"
