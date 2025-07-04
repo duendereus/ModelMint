@@ -908,27 +908,35 @@ def staff_preview_report_view(request, report_id):
         id=report_id,
     )
     dataset = report.dataset
-
     all_uploads = dataset.uploads.order_by("-created_at")
 
-    selected_upload_id = request.GET.get("upload_id")
-    if selected_upload_id:
-        selected_upload = get_object_or_404(
-            DataUpload, id=selected_upload_id, dataset=dataset
+    selected_upload_id = request.GET.get("upload_id") or request.POST.get("upload_id")
+    if not selected_upload_id:
+        latest_preview = (
+            Metric.objects.filter(report=report, is_preview=True)
+            .exclude(source_upload__isnull=True)
+            .order_by("-source_upload__created_at")
+            .first()
         )
-    else:
-        selected_upload = report.upload
+        fallback_upload = (
+            latest_preview.source_upload if latest_preview else report.upload
+        )
+        return redirect(f"{request.path}?upload_id={fallback_upload.id}")
+
+    selected_upload = get_object_or_404(
+        DataUpload, id=selected_upload_id, dataset=dataset
+    )
 
     if request.method == "POST":
         try:
             with transaction.atomic():
                 data = json.loads(request.body)
+
                 ordered_ids = data.get("ordered_ids", [])
                 removed_ids = data.get("removed_ids", [])
                 edited_titles = data.get("edited_titles", {})
                 edited_values = data.get("edited_values", {})
 
-                # 🔒 Obtener solo métricas de este upload
                 valid_metric_ids = set(
                     Metric.objects.filter(
                         report=report, source_upload=selected_upload
@@ -952,15 +960,11 @@ def staff_preview_report_view(request, report_id):
                     if int(k) in valid_metric_ids
                 }
 
-                # 🧠 Detectar si el orden realmente cambió
                 current_order = list(
-                    Metric.objects.filter(
-                        id__in=ordered_ids, report=report, source_upload=selected_upload
-                    )
+                    Metric.objects.filter(id__in=ordered_ids)
                     .order_by("position")
                     .values_list("id", flat=True)
                 )
-
                 is_order_changed = current_order != ordered_ids
 
                 if (
@@ -974,14 +978,14 @@ def staff_preview_report_view(request, report_id):
                         status=400,
                     )
 
-                # 🗑 Eliminar métricas marcadas
+                # Eliminar métricas
                 if removed_ids:
-                    Metric.objects.filter(id__in=removed_ids, report=report).delete()
+                    Metric.objects.filter(id__in=removed_ids).delete()
 
-                # ✏️ Actualizar títulos y valores
+                # Editar títulos y valores
                 for metric_id in set(edited_titles.keys()) | set(edited_values.keys()):
                     try:
-                        metric = Metric.objects.get(id=metric_id, report=report)
+                        metric = Metric.objects.get(id=metric_id)
                         if metric_id in edited_titles:
                             metric.name = edited_titles[metric_id].strip()
                         if metric_id in edited_values and metric.type in [
@@ -993,20 +997,29 @@ def staff_preview_report_view(request, report_id):
                     except Metric.DoesNotExist:
                         continue
 
-                # 🚀 Actualizar posición de forma segura
+                # Reasignación temporal para evitar conflictos de posición
                 TEMP_OFFSET = 10000
-                for i, metric_id in enumerate(ordered_ids):
-                    Metric.objects.filter(id=metric_id).update(position=TEMP_OFFSET + i)
+                temp_metrics = list(
+                    Metric.objects.filter(
+                        report=report, source_upload=selected_upload
+                    ).order_by("position")
+                )
+                for idx, metric in enumerate(temp_metrics):
+                    metric.position = TEMP_OFFSET + idx
+                    metric.save(update_fields=["position"])
 
                 for i, metric_id in enumerate(ordered_ids):
                     Metric.objects.filter(id=metric_id).update(position=i)
 
-                # ✅ Confirmar publicación
-                report.processed = True
-                report.save()
+                # Confirmar como publicadas
                 Metric.objects.filter(
                     report=report, source_upload=selected_upload
                 ).update(is_preview=False)
+
+                # 🔥 Actualizar el `upload` del reporte al que acaba de ser publicado
+                report.upload = selected_upload
+                report.processed = True
+                report.save()
 
                 return JsonResponse(
                     {
@@ -1014,7 +1027,8 @@ def staff_preview_report_view(request, report_id):
                         "redirect_url": reverse(
                             "dashboard:analytics:staff_preview_report_by_report",
                             args=[report.id],
-                        ),
+                        )
+                        + f"?upload_id={selected_upload.id}",
                     }
                 )
 
@@ -1022,6 +1036,7 @@ def staff_preview_report_view(request, report_id):
             logger.exception("Error publishing report")
             return JsonResponse({"success": False, "error": str(e)}, status=500)
 
+    # GET
     metrics = (
         Metric.objects.filter(report=report, source_upload=selected_upload)
         .order_by("position")

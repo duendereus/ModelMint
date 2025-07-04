@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
+    const selectedUploadId = new URLSearchParams(window.location.search).get("upload_id");
     const metricContainer = document.getElementById("metric-list");
     const form = document.getElementById("publish-form");
     const removedIds = new Set();
@@ -100,13 +101,14 @@ document.addEventListener("DOMContentLoaded", function () {
             editedValues[id] = current;
         });
 
-        fetch(window.location.pathname, {
+        fetch(window.location.href, {
             method: "POST",
             headers: {
                 "X-CSRFToken": csrfToken,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
+                upload_id: selectedUploadId,
                 ordered_ids: orderedIds,
                 removed_ids: [...removedIds],
                 edited_titles: editedTitles,
