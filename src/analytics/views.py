@@ -960,8 +960,19 @@ def staff_preview_report_view(request, report_id):
                     if int(k) in valid_metric_ids
                 }
 
+                # 🧠 Detectar si el orden realmente cambió
+                current_order = list(
+                    Metric.objects.filter(
+                        id__in=ordered_ids, report=report, source_upload=selected_upload
+                    )
+                    .order_by("position")
+                    .values_list("id", flat=True)
+                )
+
+                is_order_changed = current_order != ordered_ids
+
                 if (
-                    not ordered_ids
+                    not is_order_changed
                     and not removed_ids
                     and not edited_titles
                     and not edited_values
