@@ -917,15 +917,7 @@ def staff_preview_report_view(request, report_id):
             DataUpload, id=selected_upload_id, dataset=dataset
         )
     else:
-        latest_metric = (
-            Metric.objects.filter(report=report, is_preview=False)
-            .exclude(source_upload__isnull=True)
-            .order_by("-source_upload__created_at")
-            .first()
-        )
-        selected_upload = (
-            latest_metric.source_upload if latest_metric else report.upload
-        )
+        selected_upload = report.upload
 
     if request.method == "POST":
         try:
