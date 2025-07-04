@@ -235,7 +235,12 @@ class Metric(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("report", "position")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["report", "source_upload", "position"],
+                name="unique_metric_position_per_upload",
+            )
+        ]
         ordering = ["report__dataset__organization", "report__dataset", "-created_at"]
 
     def __str__(self):

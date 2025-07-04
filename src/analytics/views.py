@@ -909,11 +909,7 @@ def staff_preview_report_view(request, report_id):
     )
     dataset = report.dataset
 
-    all_uploads = (
-        dataset.uploads.order_by("-created_at")
-        if hasattr(dataset, "uploads")
-        else DataUpload.objects.filter(dataset=dataset).order_by("-created_at")
-    )
+    all_uploads = dataset.uploads.order_by("-created_at")
 
     selected_upload_id = request.GET.get("upload_id")
     if selected_upload_id:
@@ -940,7 +936,30 @@ def staff_preview_report_view(request, report_id):
                 edited_titles = data.get("edited_titles", {})
                 edited_values = data.get("edited_values", {})
 
-                # Solo aplicar lógica de ordenamiento si hay métricas
+                # 🔒 Obtener solo métricas de este upload
+                valid_metric_ids = set(
+                    Metric.objects.filter(
+                        report=report, source_upload=selected_upload
+                    ).values_list("id", flat=True)
+                )
+
+                ordered_ids = [
+                    int(mid) for mid in ordered_ids if int(mid) in valid_metric_ids
+                ]
+                removed_ids = [
+                    int(mid) for mid in removed_ids if int(mid) in valid_metric_ids
+                ]
+                edited_titles = {
+                    int(k): v
+                    for k, v in edited_titles.items()
+                    if int(k) in valid_metric_ids
+                }
+                edited_values = {
+                    int(k): v
+                    for k, v in edited_values.items()
+                    if int(k) in valid_metric_ids
+                }
+
                 if (
                     not ordered_ids
                     and not removed_ids
@@ -952,13 +971,14 @@ def staff_preview_report_view(request, report_id):
                         status=400,
                     )
 
+                # 🗑 Eliminar métricas marcadas
                 if removed_ids:
                     Metric.objects.filter(id__in=removed_ids, report=report).delete()
 
+                # ✏️ Actualizar títulos y valores
                 for metric_id in set(edited_titles.keys()) | set(edited_values.keys()):
                     try:
                         metric = Metric.objects.get(id=metric_id, report=report)
-
                         if metric_id in edited_titles:
                             metric.name = edited_titles[metric_id].strip()
                         if metric_id in edited_values and metric.type in [
@@ -966,39 +986,24 @@ def staff_preview_report_view(request, report_id):
                             "single_value",
                         ]:
                             metric.value = edited_values[metric_id].strip()
-
                         metric.save()
-
                     except Metric.DoesNotExist:
                         continue
 
-                # ✅ PRIMER PASO: Alejar posiciones de manera segura evitando colisiones
+                # 🚀 Actualizar posición de forma segura
                 TEMP_OFFSET = 10000
                 for i, metric_id in enumerate(ordered_ids):
-                    try:
-                        metric = Metric.objects.select_for_update().get(
-                            id=metric_id, report=report
-                        )
-                        metric.position = TEMP_OFFSET + i
-                        metric.save()
-                    except Metric.DoesNotExist:
-                        continue
+                    Metric.objects.filter(id=metric_id).update(position=TEMP_OFFSET + i)
 
-                # ✅ SEGUNDO PASO: Aplicar posición final de manera segura
                 for i, metric_id in enumerate(ordered_ids):
-                    try:
-                        metric = Metric.objects.select_for_update().get(
-                            id=metric_id, report=report
-                        )
-                        metric.position = i
-                        metric.save()
-                    except Metric.DoesNotExist:
-                        continue
+                    Metric.objects.filter(id=metric_id).update(position=i)
 
-                # Confirmar publicación
+                # ✅ Confirmar publicación
                 report.processed = True
                 report.save()
-                Metric.objects.filter(report=report).update(is_preview=False)
+                Metric.objects.filter(
+                    report=report, source_upload=selected_upload
+                ).update(is_preview=False)
 
                 return JsonResponse(
                     {
