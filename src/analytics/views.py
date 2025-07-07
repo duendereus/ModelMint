@@ -41,18 +41,12 @@ except ImportError:
     HTML = None
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-import uuid
-import mimetypes
-import json
-import logging
-import os
+import os, re, logging, json, uuid, mimetypes, base64, requests
 from django.db.models import Prefetch
 from config.decorators import staff_required
 from accounts.models import Organization
 from accounts.decorators import daas_only
 from django.core.files.storage import default_storage
-import base64
-import requests
 
 
 logger = logging.getLogger(__name__)
@@ -1241,23 +1235,26 @@ def dynamic_report_detail_view(request, report_id):
             },
         )
 
+    # 📦 Cargar el archivo CSV
     with default_storage.open(metric.file.name, "rb") as f:
         df = pd.read_csv(f)
 
-    print("🔎 DF columns:", df.columns.tolist())
-    print("📦 DF sample:", df.head().to_dict())
+    # 🔧 Obtener config desde DynamicDashboardConfig
+    try:
+        dashboard_config = DynamicDashboardConfig.objects.get(metric=metric)
+    except DynamicDashboardConfig.DoesNotExist:
+        dashboard_config = None
 
-    # Detectar filtros solo si tiene columnas esperadas
-    columns = [c.lower() for c in df.columns]
+    # 🧪 Generar filtros dinámicamente
     filters = {}
-    if "studio" in columns and "mes" in columns:
+    if dashboard_config:
         df.columns = df.columns.str.lower()
-        filters = {
-            "studio": sorted(df["studio"].dropna().unique().tolist()),
-            "mes": sorted(df["mes"].dropna().unique().tolist()),
-        }
+        for col in dashboard_config.config.get("filters", []):
+            col = col.lower()
+            if col in df.columns:
+                filters[col] = sorted(df[col].dropna().unique().tolist())
 
-    # Preparar datos de la tabla
+    # 🧮 Preparar tabla
     table_headers = df.columns.tolist()
     table_rows = df.to_dict(orient="records")
 
@@ -1277,23 +1274,120 @@ def dynamic_report_detail_view(request, report_id):
 @require_GET
 @login_required
 def get_chart_data(request, report_id):
-    # Extraer filtros desde request.GET
-    studio = request.GET.get("studio")
-    mes = request.GET.get("mes")
+    report = get_object_or_404(Report, id=report_id)
+    metric = (
+        report.metrics.filter(type="dynamic_csv_dashboard", is_preview=False)
+        .order_by("-created_at")
+        .first()
+    )
 
-    # Cargar el CSV del reporte y filtrarlo (ejemplo usando pandas)
-    upload = get_object_or_404(Report, id=report_id).upload
-    df = pd.read_csv(upload.file.path)
+    if not metric or not metric.file:
+        return JsonResponse({"error": "No dashboard metric found"}, status=404)
 
-    if studio:
-        df = df[df["studio"].str.contains(studio, case=False, na=False)]
-    if mes:
-        df = df[df["mes"].str.contains(mes, case=False, na=False)]
+    try:
+        dashboard_config = DynamicDashboardConfig.objects.get(metric=metric)
+    except DynamicDashboardConfig.DoesNotExist:
+        return JsonResponse({"error": "Dashboard config not found"}, status=404)
 
-    # Agrupar los datos según lo que necesitas
-    response_data = {
-        "Churned by Studio": df.groupby("studio")["churned"].sum().to_dict(),
-        "Churned by Mes": df.groupby("mes")["churned"].sum().to_dict(),
-    }
+    with default_storage.open(metric.file.name, "rb") as f:
+        df = pd.read_csv(f)
 
-    return JsonResponse(response_data)
+    df.columns = df.columns.str.lower()
+
+    filters = dashboard_config.config.get("filters", [])
+    active_filters = {}
+
+    for col in filters:
+        val = request.GET.get(col)
+        if val:
+            df = df[df[col].astype(str).str.lower() == val.lower()]
+            active_filters[col] = val.lower()
+
+    chart_results = {}
+
+    for chart in dashboard_config.config.get("charts", []):
+        melt_enabled = chart.get("melt", False)
+
+        if melt_enabled:
+            id_vars = filters
+            value_vars = [col for col in df.columns if col not in id_vars]
+            df_long = pd.melt(
+                df,
+                id_vars=id_vars,
+                value_vars=value_vars,
+                var_name="period",
+                value_name="value",
+            )
+        else:
+            df_long = df
+
+        x = chart.get("x", "period")
+        y = chart.get("y", "value")
+        group_by = chart.get("group_by")
+        agg = chart.get("aggregation", "sum")
+        title = chart.get("title")
+
+        if x not in df_long.columns or y not in df_long.columns:
+            continue
+
+        group_cols = [x]
+        if group_by and group_by in df_long.columns and group_by not in active_filters:
+            if group_by != x:
+                group_cols.append(group_by)
+
+        grouped = df_long.groupby(group_cols)[y]
+
+        if agg == "sum":
+            agg_result = grouped.sum()
+        elif agg == "avg":
+            agg_result = grouped.mean()
+        elif agg == "count":
+            agg_result = grouped.count()
+        else:
+            continue
+
+        if isinstance(agg_result, pd.Series):
+            agg_result = agg_result.to_frame(name=y)
+
+        try:
+            agg_result = agg_result.reset_index()
+        except ValueError as e:
+            if "already exists" in str(e):
+                index_names = agg_result.index.names
+                for name in index_names:
+                    if name in agg_result.columns:
+                        agg_result.rename(columns={name: f"{name}_value"}, inplace=True)
+                agg_result = agg_result.reset_index()
+            else:
+                raise
+
+        # 🧠 Paso nuevo: asegurar que todas las fechas aparezcan
+        if "period" in agg_result.columns:
+            all_periods = sorted(df_long["period"].dropna().unique())
+            if (
+                group_by
+                and group_by in df_long.columns
+                and group_by not in active_filters
+            ):
+                groups = agg_result[group_by].unique()
+                full_index = pd.MultiIndex.from_product(
+                    [all_periods, groups], names=["period", group_by]
+                )
+                agg_result = (
+                    agg_result.set_index(["period", group_by])
+                    .reindex(full_index)
+                    .reset_index()
+                )
+            else:
+                agg_result = (
+                    agg_result.set_index("period").reindex(all_periods).reset_index()
+                )
+                if group_by:
+                    agg_result[group_by] = "All"
+
+        # ✅ Reemplazar NaNs por 0 antes de graficar
+        agg_result[y] = agg_result[y].fillna(0)
+
+        chart_results[title] = agg_result.to_dict(orient="records")
+
+    return JsonResponse(chart_results)

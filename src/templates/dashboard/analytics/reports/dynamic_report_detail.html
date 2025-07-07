@@ -32,13 +32,11 @@
   <div id="dashboard-container" class="d-flex flex-column gap-4"></div>
 </div>
 
-
-
 <style>
   .chart-wrapper {
     position: relative;
-    height: 100px;  /* 🎯 prueba con altura fija */
-    max-height: 100px;
+    height: 300px;
+    max-height: 300px;
   }
 
   .chart-wrapper canvas {
@@ -70,25 +68,30 @@
 </div>
 {% endif %}
 
-
+<!-- JSON context safe injection -->
+{{ filters|json_script:"filter-data" }}
 {% endblock content %}
 
 {% block extra_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const container = document.getElementById("dashboard-container");
   const filtersContainer = document.getElementById("filters");
   const filterInputs = {};
+  const filterChoices = JSON.parse(document.getElementById("filter-data").textContent);
+  const reportId = "{{ report.id }}";
 
-  // Render dropdowns
+  // Render dynamic filter dropdowns
+  // Render dynamic filter dropdowns
   for (const [key, values] of Object.entries(filterChoices)) {
     const col = document.createElement("div");
     col.classList.add("col-md-4");
 
     const label = document.createElement("label");
     label.classList.add("form-label");
-    label.textContent = key;
+    label.textContent = key.charAt(0).toUpperCase() + key.slice(1);
 
     const select = document.createElement("select");
     select.classList.add("form-select");
@@ -106,57 +109,117 @@ document.addEventListener("DOMContentLoaded", () => {
     filtersContainer.appendChild(col);
   }
 
+  // ✅ Agregar esta parte después del loop anterior
+  Object.values(filterInputs).forEach(select => {
+    select.addEventListener("change", loadCharts);
+  });
+
+
   // Function to fetch and render charts
   async function loadCharts() {
-    container.innerHTML = ""; // clear previous
+    container.innerHTML = ""; // Clear previous charts
+
     const params = new URLSearchParams();
     for (const [key, input] of Object.entries(filterInputs)) {
       if (input.value) params.append(key, input.value);
     }
 
-    const res = await fetch(`/dashboard/analytics/reports/dynamic/chart-data/${reportId}/?` + params.toString());
-    const data = await res.json();
+    try {
+      const res = await fetch(`/dashboard/analytics/reports/dynamic/chart-data/${reportId}/?` + params.toString());
+      const data = await res.json();
 
-    for (const [title, values] of Object.entries(data)) {
-      const wrapper = document.createElement("div");
-      wrapper.classList.add("card", "shadow-sm", "p-3");
+      if (!Object.keys(data).length) {
+        const msg = document.createElement("p");
+        msg.textContent = "No data available for selected filters.";
+        container.appendChild(msg);
+        return;
+      }
 
-      const chartTitle = document.createElement("h5");
-      chartTitle.textContent = title;
-      wrapper.appendChild(chartTitle);
+      let chartRendered = false;
 
-      const chartWrapper = document.createElement("div");
-      chartWrapper.classList.add("chart-wrapper");
+      for (const [title, values] of Object.entries(data)) {
+        if (!values.length) continue;  // ✅ Ignorar si no hay datos
 
-      const canvas = document.createElement("canvas");
-      canvas.id = `chart-${title.replace(/\s+/g, "-")}`;
-      chartWrapper.appendChild(canvas);
-      wrapper.appendChild(chartWrapper);
-      container.appendChild(wrapper);
+        const sample = values[0] || {};
+        const keys = Object.keys(sample);
+        const valueKey = "value";
 
-      const ctx = canvas.getContext("2d");
-      new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels: Object.keys(values),
-          datasets: [{
-            label: "churned",
-            data: Object.values(values),
-            backgroundColor: "#6aba8a",
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: "top" } }
-        }
-      });
+        const xKey = keys.includes("period") ? "period" : keys.find(k => k !== valueKey);
+        const groupKey = keys.find(k => k !== valueKey && k !== xKey);
+
+        // ⚠️ Filtrar NaN o undefined
+        const validEntries = values.filter(v => v[valueKey] != null && !isNaN(v[valueKey]));
+
+        if (!validEntries.length) continue;
+
+        const groupedData = {};
+        validEntries.forEach(entry => {
+          const group = groupKey ? entry[groupKey] : "All";
+          if (!groupedData[group]) groupedData[group] = { x: [], y: [] };
+          groupedData[group].x.push(entry[xKey]);
+          groupedData[group].y.push(entry[valueKey]);
+        });
+
+        const wrapper = document.createElement("div");
+        wrapper.classList.add("card", "shadow-sm", "p-3");
+
+        const chartTitle = document.createElement("h5");
+        chartTitle.textContent = title;
+        wrapper.appendChild(chartTitle);
+
+        const chartWrapper = document.createElement("div");
+        chartWrapper.classList.add("chart-wrapper");
+
+        const canvas = document.createElement("canvas");
+        canvas.id = `chart-${title.replace(/\s+/g, "-")}`;
+        chartWrapper.appendChild(canvas);
+        wrapper.appendChild(chartWrapper);
+        container.appendChild(wrapper);
+
+        const datasets = Object.entries(groupedData).map(([group, data], i) => ({
+          label: group,
+          data: data.y,
+          backgroundColor: `hsl(${i * 45 % 360}, 60%, 60%)`,
+        }));
+
+        new Chart(canvas.getContext("2d"), {
+          type: "bar",
+          data: {
+            labels: Object.values(groupedData)[0]?.x || [],
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "top" },
+              title: { display: false },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+
+        chartRendered = true;
+      }
+
+      if (!chartRendered) {
+        const msg = document.createElement("p");
+        msg.textContent = "No charts were rendered. Try different filters.";
+        container.appendChild(msg);
+      }
+
+    } catch (error) {
+      console.error("Error loading chart data:", error);
     }
   }
 
-  // Bind filter button
-  document.getElementById("applyFiltersBtn").addEventListener("click", loadCharts);
-  loadCharts();  // Load on first render
+  // Initial load
+  loadCharts();
 });
 </script>
 {% endblock %}
+
