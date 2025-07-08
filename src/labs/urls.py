@@ -15,6 +15,8 @@ from labs.views.dashboard_views import (
     lab_notebook_upload_view,
     upload_new_version_view,
     lab_preview_notebook_view,
+    lab_notebook_detail_view,
+    download_pdf_notebook,
 )
 
 app_name = "labs"
@@ -49,5 +51,15 @@ urlpatterns = [
         "notebook-preview/<slug:notebook_slug>/",
         lab_preview_notebook_view,
         name="lab_preview_notebook",
+    ),
+    path(
+        "notebooks/<slug:notebook_slug>/details/",
+        lab_notebook_detail_view,
+        name="lab_notebook_detail",
+    ),
+    path(
+        "notebooks/<slug:notebook_slug>/pdf/",
+        download_pdf_notebook,
+        name="lab_notebook_pdf",
     ),
 ]

@@ -34,6 +34,6 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 @admin.register(OrganizationSubscription)
 class OrganizationSubscriptionAdmin(admin.ModelAdmin):
-    list_display = ("organization", "subscription", "active")
+    list_display = ("organization", "subscription", "active", "status")
     search_fields = ("organization", "subscription")
-    list_filter = ("subscription", "active")
+    list_filter = ("subscription", "active", "status")

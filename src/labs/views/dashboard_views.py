@@ -3,11 +3,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
 from django.core.files.storage import default_storage
+from django.core.exceptions import PermissionDenied
+from django.conf import settings
 from django.urls import reverse
 from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.template.loader import render_to_string
 from accounts.models import OrganizationMembership
 from accounts.decorators import labs_only
 from analytics.utils.utils import get_user_organization
@@ -15,7 +18,8 @@ from labs.models import LabNotebook, NotebookMetric, NotebookVersion
 from labs.forms import LabNotebookUploadForm
 from labs.tasks import process_lab_notebook_task
 from subscriptions.utils import get_plan_limits
-import os, uuid, logging, json
+import os, uuid, logging, json, base64, requests, traceback
+from weasyprint import HTML
 
 logger = logging.getLogger(__name__)
 
@@ -351,3 +355,190 @@ def lab_preview_notebook_view(request, notebook_slug):
             "metrics": metrics,
         },
     )
+
+
+@login_required
+@labs_only
+def lab_notebook_detail_view(request, notebook_slug):
+    """
+    Vista de detalle para un notebook publicado (Labs).
+    Permite seleccionar la versión publicada y ver sus métricas.
+    """
+    notebook = get_object_or_404(
+        LabNotebook.objects.select_related("organization", "created_by"),
+        slug=notebook_slug,
+        organization=get_user_organization(request.user),
+    )
+    organization = notebook.organization
+    plan_limits = get_plan_limits(organization)
+    all_versions = notebook.versions.order_by("-created_at")
+
+    selected_version_id = request.GET.get("version_id")
+    selected_version = None
+
+    if selected_version_id:
+        selected_version = get_object_or_404(notebook.versions, id=selected_version_id)
+    else:
+        latest_metric = (
+            NotebookMetric.objects.filter(notebook=notebook, is_preview=False)
+            .exclude(version_obj__isnull=True)
+            .order_by("-version_obj__created_at")
+            .first()
+        )
+        selected_version = (
+            latest_metric.version_obj if latest_metric else all_versions.first()
+        )
+
+    if not selected_version:
+        messages.warning(request, "No versions found for this notebook.")
+        return redirect("labs:labs_dashboard_home")
+
+    metrics = (
+        NotebookMetric.objects.filter(
+            notebook=notebook, version_obj=selected_version, is_preview=False
+        )
+        .order_by("position")
+        .select_related("table_data")
+    )
+
+    for metric in metrics:
+        metric.presigned_url = metric.get_presigned_url() if metric.file else None
+        metric.is_published = True
+
+    return render(
+        request,
+        "labs/dashboard/lab_notebook_detail.html",
+        {
+            "notebook": notebook,
+            "selected_version": selected_version,
+            "all_versions": all_versions,
+            "metrics": metrics,
+            "plan_limits": plan_limits,
+        },
+    )
+
+
+@login_required
+@labs_only
+def download_pdf_notebook(request, notebook_slug):
+    """
+    Exporta una versión publicada de un notebook en formato PDF (solo Labs).
+    """
+    try:
+        logger.info(f"[PDF Download] Request received for notebook: {notebook_slug}")
+        user = request.user
+        organization = get_user_organization(user)
+        logger.info(f"[PDF Download] Organization: {organization}")
+
+        if not organization or organization.type != "lab":
+            logger.warning(
+                "[PDF Download] Access denied due to invalid organization or type."
+            )
+            raise PermissionDenied("You do not have access to this notebook.")
+
+        plan_limits = get_plan_limits(organization)
+        if not plan_limits.get("allow_pdf_download", False):
+            logger.warning("[PDF Download] PDF not allowed by current plan.")
+            messages.warning(
+                request,
+                "PDF downloads are only available on Team and Org Pro plans.",
+            )
+            return redirect("labs:lab_notebook_detail", notebook_slug=notebook_slug)
+
+        notebook = get_object_or_404(
+            LabNotebook.objects.select_related("organization", "created_by"),
+            slug=notebook_slug,
+            organization=organization,
+        )
+        logger.info(f"[PDF Download] Notebook found: {notebook.title}")
+
+        version_id = request.GET.get("version_id")
+        if version_id:
+            version = get_object_or_404(notebook.versions, id=version_id)
+            logger.info(f"[PDF Download] Using selected version: {version.version}")
+        else:
+            latest_metric = (
+                NotebookMetric.objects.filter(notebook=notebook, is_preview=False)
+                .exclude(version_obj__isnull=True)
+                .order_by("-version_obj__created_at")
+                .first()
+            )
+            version = latest_metric.version_obj if latest_metric else None
+            logger.info(
+                f"[PDF Download] Using latest version: {version.version if version else 'None'}"
+            )
+
+        if not version:
+            logger.warning("[PDF Download] No valid version found.")
+            messages.warning(request, "No version with published metrics found.")
+            return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
+
+        metrics = (
+            NotebookMetric.objects.filter(
+                notebook=notebook, version_obj=version, is_preview=False
+            )
+            .select_related("table_data")
+            .order_by("position")
+        )
+        logger.info(f"[PDF Download] {metrics.count()} metrics found.")
+
+        for metric in metrics:
+            metric.presigned_url = None
+            metric.base64_image = None
+            if metric.type == "plot" and metric.file:
+                try:
+                    logger.info(f"[PDF Download] Processing plot: {metric.name}")
+                    presigned_url = metric.get_presigned_url(expires_in=60)
+                    response = requests.get(presigned_url)
+                    response.raise_for_status()
+                    ext = metric.file.name.split(".")[-1].lower()
+                    ext = "png" if ext not in ["jpg", "jpeg", "svg"] else ext
+                    encoded = base64.b64encode(response.content).decode()
+                    metric.base64_image = f"data:image/{ext};base64,{encoded}"
+                except Exception as img_exc:
+                    logger.error(
+                        f"[PDF Download] Failed to process image for metric {metric.name}: {img_exc}"
+                    )
+                    metric.base64_image = None
+
+        logo_base64 = None
+        logo_path = os.path.join(settings.BASE_DIR, "static", "img", "logo-green.png")
+        try:
+            with open(logo_path, "rb") as logo_file:
+                encoded_logo = base64.b64encode(logo_file.read()).decode()
+                logo_base64 = f"data:image/png;base64,{encoded_logo}"
+            logger.info("[PDF Download] Logo successfully encoded.")
+        except Exception as logo_exc:
+            logger.warning(f"[PDF Download] Could not encode logo: {logo_exc}")
+
+        html = render_to_string(
+            "labs/dashboard/pdf/pdf_notebook.html",
+            {
+                "notebook": notebook,
+                "organization": organization,
+                "version": version,
+                "metrics": metrics,
+                "logo_base64": logo_base64,
+            },
+            request=request,
+        )
+        logger.info("[PDF Download] HTML rendered successfully.")
+
+        pdf_file = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
+        logger.info("[PDF Download] PDF generated successfully.")
+
+        response = HttpResponse(pdf_file, content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f"inline; filename=Notebook_{notebook.slug}_v{version.version}.pdf"
+        )
+        return response
+
+    except Exception as e:
+        logger.error(
+            f"❌ [PDF Download] Error generating PDF for notebook '{notebook_slug}': {str(e)}"
+        )
+        logger.error(traceback.format_exc())
+        return HttpResponse(
+            "An error occurred while generating the PDF. Please try again later.",
+            status=500,
+        )

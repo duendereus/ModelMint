@@ -1,0 +1,103 @@
+{% extends "labs/dashboard/base.html" %}
+{% load custom_filters %}
+
+{% block title %} {{ notebook.title }} - Notebook Details {% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-1">{{ notebook.title }}</h2>
+
+  <p class="text-muted mb-4">
+    Version: <strong>v{{ selected_version.version }}</strong> |
+    Uploaded: {{ selected_version.created_at|date:"Y-m-d H:i" }} by {{ selected_version.uploaded_by.username }}
+  </p>
+
+  <!-- ✅ Notebook Info Card -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <p><strong>Organization:</strong> {{ notebook.organization.name }}</p>
+      <p><strong>Notebook Description:</strong></p>
+      <p>{{ notebook.description|safe|default:"No description." }}</p>
+    </div>
+    {% if plan_limits.allow_pdf_download %}
+    <a href="{% url 'labs:lab_notebook_pdf' notebook.slug %}?version_id={{ selected_version.id }}"
+      target="_blank"
+      class="btn btn-outline-primary mt-2 mb-4" style="margin-left: 5% !important; margin-right: 5% !important;">
+      📄 Download PDF Report
+    </a>
+    {% endif %}
+
+  </div>
+
+  
+
+  <form method="get" class="mb-4">
+    <div class="row">
+        <div class="col-md-4">
+        <label for="version-select" class="form-label">Select Notebook Version</label>
+        <select id="version-select" name="version_id" class="form-select" onchange="this.form.submit()">
+            {% for v in all_versions %}
+            <option value="{{ v.id }}" {% if v.id == selected_version.id %}selected{% endif %}>
+                v{{ v.version }} – {{ v.created_at|date:"Y-m-d H:i" }}
+            </option>
+            {% endfor %}
+        </select>
+        </div>
+    </div>
+  </form>
+
+
+  <!-- ✅ Metrics Section -->
+  <h3 class="mt-4">Published Metrics</h3>
+
+  {% if metrics %}
+    <div class="row">
+      {% for group in metrics|group_plot_metrics %}
+        {% if group|length == 1 %}
+          {% with metric=group.0 %}
+            <div class="{% if metric.type == 'table' or metric.type == 'text' or metric.type == 'plot' %}col-md-12{% else %}col-md-6{% endif %} mb-4">
+              {% include "dashboard/analytics/includes/metric_card.html" with metric=metric %}
+            </div>
+          {% endwith %}
+        {% else %}
+          <!-- 🎠 Carousel for grouped plots -->
+          <div class="col-md-12 mb-4">
+            <div id="carousel-{{ forloop.counter }}" class="carousel slide" data-bs-ride="false">
+              <div class="carousel-indicators">
+                {% for metric in group %}
+                  <button type="button" data-bs-target="#carousel-{{ forloop.parentloop.counter }}"
+                          data-bs-slide-to="{{ forloop.counter0 }}"
+                          class="{% if forloop.first %}active{% endif %}"
+                          aria-current="{% if forloop.first %}true{% endif %}"
+                          aria-label="Slide {{ forloop.counter }}"></button>
+                {% endfor %}
+              </div>
+
+              <div class="carousel-inner">
+                {% for metric in group %}
+                  <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                    {% include "dashboard/analytics/includes/metric_card.html" with metric=metric %}
+                  </div>
+                {% endfor %}
+              </div>
+
+              <button class="carousel-control-prev" type="button" data-bs-target="#carousel-{{ forloop.counter }}" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon bg-white rounded-circle shadow-sm" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#carousel-{{ forloop.counter }}" data-bs-slide="next">
+                <span class="carousel-control-next-icon bg-white rounded-circle shadow-sm" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+              </button>
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-warning mt-3">
+      No published metrics available for this notebook.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

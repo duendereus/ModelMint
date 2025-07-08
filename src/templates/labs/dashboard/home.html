@@ -55,7 +55,7 @@
                 Uploaded {{ notebook.created_at|date:"M d, Y" }} by {{ notebook.created_by.username }}
               </p>
 
-              <a href="#" class="btn btn-outline-primary mt-2">
+              <a href="{% url 'labs:lab_notebook_detail' notebook.slug %}" class="btn btn-outline-primary mt-2">
                 View Notebook
               </a>
 
