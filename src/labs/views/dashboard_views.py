@@ -233,10 +233,20 @@ def upload_new_version_view(request, notebook_id):
 @require_http_methods(["GET", "POST"])
 def lab_preview_notebook_view(request, notebook_slug):
     notebook = get_object_or_404(
-        LabNotebook.objects.select_related("organization", "created_by"),
+        LabNotebook.objects.select_related("organization", "created_by").filter(
+            active=True
+        ),
         slug=notebook_slug,
         organization=get_user_organization(request.user),
     )
+
+    user = request.user
+    is_creator = notebook.created_by == user
+    is_org_owner = notebook.organization.owner == user
+
+    # 🔒 Redirige si el usuario no tiene permisos para editar (ni creador ni dueño de la org)
+    if not (is_creator or is_org_owner):
+        return redirect("labs:labs_dashboard_home")
 
     all_versions = notebook.versions.order_by("-created_at")
     selected_version_id = request.GET.get("version_id")
@@ -365,7 +375,9 @@ def lab_notebook_detail_view(request, notebook_slug):
     Permite seleccionar la versión publicada y ver sus métricas.
     """
     notebook = get_object_or_404(
-        LabNotebook.objects.select_related("organization", "created_by"),
+        LabNotebook.objects.select_related("organization", "created_by").filter(
+            active=True
+        ),
         slug=notebook_slug,
         organization=get_user_organization(request.user),
     )
@@ -425,20 +437,20 @@ def download_pdf_notebook(request, notebook_slug):
     Exporta una versión publicada de un notebook en formato PDF (solo Labs).
     """
     try:
-        logger.info(f"[PDF Download] Request received for notebook: {notebook_slug}")
+        # logger.info(f"[PDF Download] Request received for notebook: {notebook_slug}")
         user = request.user
         organization = get_user_organization(user)
-        logger.info(f"[PDF Download] Organization: {organization}")
+        # logger.info(f"[PDF Download] Organization: {organization}")
 
         if not organization or organization.type != "lab":
-            logger.warning(
-                "[PDF Download] Access denied due to invalid organization or type."
-            )
+            # logger.warning(
+            #     "[PDF Download] Access denied due to invalid organization or type."
+            # )
             raise PermissionDenied("You do not have access to this notebook.")
 
         plan_limits = get_plan_limits(organization)
         if not plan_limits.get("allow_pdf_download", False):
-            logger.warning("[PDF Download] PDF not allowed by current plan.")
+            # logger.warning("[PDF Download] PDF not allowed by current plan.")
             messages.warning(
                 request,
                 "PDF downloads are only available on Team and Org Pro plans.",
@@ -446,16 +458,18 @@ def download_pdf_notebook(request, notebook_slug):
             return redirect("labs:lab_notebook_detail", notebook_slug=notebook_slug)
 
         notebook = get_object_or_404(
-            LabNotebook.objects.select_related("organization", "created_by"),
+            LabNotebook.objects.select_related("organization", "created_by").filter(
+                active=True
+            ),
             slug=notebook_slug,
             organization=organization,
         )
-        logger.info(f"[PDF Download] Notebook found: {notebook.title}")
+        # logger.info(f"[PDF Download] Notebook found: {notebook.title}")
 
         version_id = request.GET.get("version_id")
         if version_id:
             version = get_object_or_404(notebook.versions, id=version_id)
-            logger.info(f"[PDF Download] Using selected version: {version.version}")
+            # logger.info(f"[PDF Download] Using selected version: {version.version}")
         else:
             latest_metric = (
                 NotebookMetric.objects.filter(notebook=notebook, is_preview=False)
@@ -464,12 +478,12 @@ def download_pdf_notebook(request, notebook_slug):
                 .first()
             )
             version = latest_metric.version_obj if latest_metric else None
-            logger.info(
-                f"[PDF Download] Using latest version: {version.version if version else 'None'}"
-            )
+            # logger.info(
+            #     f"[PDF Download] Using latest version: {version.version if version else 'None'}"
+            # )
 
         if not version:
-            logger.warning("[PDF Download] No valid version found.")
+            # logger.warning("[PDF Download] No valid version found.")
             messages.warning(request, "No version with published metrics found.")
             return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
 
@@ -480,14 +494,14 @@ def download_pdf_notebook(request, notebook_slug):
             .select_related("table_data")
             .order_by("position")
         )
-        logger.info(f"[PDF Download] {metrics.count()} metrics found.")
+        # logger.info(f"[PDF Download] {metrics.count()} metrics found.")
 
         for metric in metrics:
             metric.presigned_url = None
             metric.base64_image = None
             if metric.type == "plot" and metric.file:
                 try:
-                    logger.info(f"[PDF Download] Processing plot: {metric.name}")
+                    # logger.info(f"[PDF Download] Processing plot: {metric.name}")
                     presigned_url = metric.get_presigned_url(expires_in=60)
                     response = requests.get(presigned_url)
                     response.raise_for_status()
@@ -496,9 +510,9 @@ def download_pdf_notebook(request, notebook_slug):
                     encoded = base64.b64encode(response.content).decode()
                     metric.base64_image = f"data:image/{ext};base64,{encoded}"
                 except Exception as img_exc:
-                    logger.error(
-                        f"[PDF Download] Failed to process image for metric {metric.name}: {img_exc}"
-                    )
+                    # logger.error(
+                    #     f"[PDF Download] Failed to process image for metric {metric.name}: {img_exc}"
+                    # )
                     metric.base64_image = None
 
         logo_base64 = None
@@ -507,7 +521,7 @@ def download_pdf_notebook(request, notebook_slug):
             with open(logo_path, "rb") as logo_file:
                 encoded_logo = base64.b64encode(logo_file.read()).decode()
                 logo_base64 = f"data:image/png;base64,{encoded_logo}"
-            logger.info("[PDF Download] Logo successfully encoded.")
+            # logger.info("[PDF Download] Logo successfully encoded.")
         except Exception as logo_exc:
             logger.warning(f"[PDF Download] Could not encode logo: {logo_exc}")
 
@@ -522,10 +536,10 @@ def download_pdf_notebook(request, notebook_slug):
             },
             request=request,
         )
-        logger.info("[PDF Download] HTML rendered successfully.")
+        # logger.info("[PDF Download] HTML rendered successfully.")
 
         pdf_file = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
-        logger.info("[PDF Download] PDF generated successfully.")
+        # logger.info("[PDF Download] PDF generated successfully.")
 
         response = HttpResponse(pdf_file, content_type="application/pdf")
         response["Content-Disposition"] = (
@@ -534,11 +548,49 @@ def download_pdf_notebook(request, notebook_slug):
         return response
 
     except Exception as e:
-        logger.error(
-            f"❌ [PDF Download] Error generating PDF for notebook '{notebook_slug}': {str(e)}"
-        )
-        logger.error(traceback.format_exc())
+        # logger.error(
+        #     f"❌ [PDF Download] Error generating PDF for notebook '{notebook_slug}': {str(e)}"
+        # )
+        # logger.error(traceback.format_exc())
         return HttpResponse(
             "An error occurred while generating the PDF. Please try again later.",
             status=500,
         )
+
+
+@login_required
+@labs_only
+def delete_lab_notebook(request, notebook_slug):
+    """
+    Permite eliminar un notebook si el usuario es el
+    creador o el owner de la organización (Labs).
+    """
+    if request.method != "POST":
+        raise PermissionDenied("Invalid request method.")
+
+    notebook = get_object_or_404(
+        LabNotebook.objects.select_related("organization", "created_by"),
+        slug=notebook_slug,
+        organization=get_user_organization(request.user),
+    )
+
+    user = request.user
+    organization = notebook.organization
+
+    is_creator = notebook.created_by == user
+    is_owner = organization.owner == user
+
+    if not (is_creator or is_owner):
+        raise PermissionDenied("You do not have permission to delete this notebook.")
+
+    notebook_title = notebook.title
+
+    # DELETE PERMANENTLY
+    # notebook.delete()
+
+    # SOFT DELETE
+    notebook.active = False
+    notebook.save()
+
+    messages.success(request, f"The notebook '{notebook_title}' has been deleted.")
+    return redirect("labs:labs_dashboard_home")

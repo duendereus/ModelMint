@@ -27,6 +27,7 @@ class LabNotebook(models.Model):
     file = models.FileField(
         upload_to=upload_to_lab_notebook,
         validators=[validate_html_file_extension],
+        max_length=250,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -99,7 +100,9 @@ class NotebookMetric(models.Model):
     type = models.CharField(max_length=30, choices=Metric.METRIC_TYPES)
     name = models.CharField(max_length=255)
     value = CKEditor5Field(blank=True, null=True)
-    file = models.FileField(upload_to=upload_to_metric_labs, blank=True, null=True)
+    file = models.FileField(
+        upload_to=upload_to_metric_labs, max_length=500, blank=True, null=True
+    )
     position = models.PositiveIntegerField(default=0)
     is_preview = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

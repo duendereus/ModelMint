@@ -32,9 +32,11 @@
             <div class="card-body d-flex flex-column">
               <div class="d-flex justify-content-between align-items-start mb-2">
                 <h5 class="card-title">{{ notebook.title }}</h5>
+                {% if request.user == notebook.created_by or request.user == organization.owner %}
                 <a href="{% url 'labs:lab_preview_notebook' notebook.slug %}" title="Edit and Preview Notebook">
                   <i class="mdi mdi-pencil-box-outline fs-4 text-muted"></i>
                 </a>
+                {% endif %}
               </div>
 
               {# Versiónes disponibles como badges #}
@@ -65,6 +67,20 @@
                   Upload New Version
                 </a>
               {% endif %}
+              
+              {% if is_owner %}
+                <button
+                  type="button"
+                  class="btn btn-outline-danger mt-2 w-100"
+                  data-notebook-title="{{ notebook.title }}"
+                  data-delete-url="{% url 'labs:delete_lab_notebook' notebook.slug %}"
+                  onclick="openDeleteModal(this)"
+                >
+                  🗑 Delete Notebook
+                </button>
+              {% endif %}
+
+
             </div>
 
           </div>

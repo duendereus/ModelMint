@@ -153,6 +153,18 @@ document.getElementById("use-drive-link").addEventListener("click", function(eve
     }
 });
 
+function openDeleteModal(button) {
+    const notebookTitle = button.getAttribute("data-notebook-title");
+    const deleteUrl = button.getAttribute("data-delete-url");
+
+    document.getElementById("modalNotebookTitle").textContent = notebookTitle;
+    document.getElementById("deleteNotebookForm").action = deleteUrl;
+
+    let modal = new bootstrap.Modal(document.getElementById("deleteNotebookModal"));
+    modal.show();
+}
+
+
 
 
 

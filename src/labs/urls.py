@@ -17,6 +17,7 @@ from labs.views.dashboard_views import (
     lab_preview_notebook_view,
     lab_notebook_detail_view,
     download_pdf_notebook,
+    delete_lab_notebook,
 )
 
 app_name = "labs"
@@ -61,5 +62,10 @@ urlpatterns = [
         "notebooks/<slug:notebook_slug>/pdf/",
         download_pdf_notebook,
         name="lab_notebook_pdf",
+    ),
+    path(
+        "notebooks/<slug:notebook_slug>/delete/",
+        delete_lab_notebook,
+        name="delete_lab_notebook",
     ),
 ]
