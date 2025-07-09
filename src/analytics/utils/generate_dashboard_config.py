@@ -72,3 +72,18 @@ def validate_dashboard_config(config: dict) -> bool:
             raise ValueError(f"Invalid chart type: {chart.get('type')}")
 
     return True
+
+
+def pretty_title(y_col, x_col, group_by=None):
+    """
+    Retorna un título legible como:
+    'Asistencia Total por Fecha (por Studio)'
+    """
+
+    def beautify(label):
+        return label.replace("_", " ").capitalize()
+
+    title = f"{beautify(y_col)} por {beautify(x_col)}"
+    if group_by and group_by not in (x_col, y_col):
+        title += f" (por {beautify(group_by)})"
+    return title

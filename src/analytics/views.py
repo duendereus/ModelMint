@@ -27,6 +27,7 @@ from subscriptions.utils import (
     can_view_more_reports,
     can_download_pdf_reports,
 )
+from .utils.generate_dashboard_config import validate_dashboard_config, pretty_title
 import boto3
 from django.views.decorators.http import require_POST, require_GET
 from django.http import JsonResponse
@@ -1150,6 +1151,34 @@ def get_dashboard_config(request, report_id):
 
 
 @staff_required
+@require_POST
+def update_dashboard_config(request, report_id):
+    report = get_object_or_404(Report, id=report_id, type="dynamic")
+    metric = (
+        report.metrics.filter(type="dynamic_csv_dashboard", is_preview=True)
+        .order_by("-created_at")
+        .first()
+    )
+
+    if not metric:
+        return JsonResponse(
+            {"success": False, "error": "No preview metric found"}, status=404
+        )
+
+    try:
+        config = json.loads(request.body)
+        validate_dashboard_config(config)
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=400)
+
+    dashboard_config, _ = DynamicDashboardConfig.objects.get_or_create(metric=metric)
+    dashboard_config.config = config
+    dashboard_config.save()
+
+    return JsonResponse({"success": True})
+
+
+@staff_required
 @require_http_methods(["GET"])
 def staff_preview_dynamic_dashboard_view(request, report_id):
     report = get_object_or_404(
@@ -1297,13 +1326,16 @@ def get_chart_data(request, report_id):
     df.columns = df.columns.str.lower()
 
     filters = dashboard_config.config.get("filters", [])
+    pretty_titles = dashboard_config.config.get("pretty_titles", {})
     active_filters = {}
 
     for col in filters:
-        val = request.GET.get(col)
-        if val:
-            df = df[df[col].astype(str).str.lower() == val.lower()]
-            active_filters[col] = val.lower()
+        vals = request.GET.getlist(col)
+        if vals:
+            lowered_vals = [v.strip().lower() for v in vals]
+            df[col] = df[col].astype(str).str.strip().str.lower()
+            df = df[df[col].isin(lowered_vals)]
+            active_filters[col] = lowered_vals
 
     chart_results = {}
 
@@ -1333,12 +1365,11 @@ def get_chart_data(request, report_id):
             continue
 
         group_cols = [x]
-        if group_by and group_by in df_long.columns and group_by not in active_filters:
-            if group_by != x:
+        if group_by and group_by in df_long.columns:
+            if group_by not in group_cols and group_by not in active_filters:
                 group_cols.append(group_by)
 
         grouped = df_long.groupby(group_cols)[y]
-
         if agg == "sum":
             agg_result = grouped.sum()
         elif agg == "avg":
@@ -1363,32 +1394,46 @@ def get_chart_data(request, report_id):
             else:
                 raise
 
-        # 🧠 Paso nuevo: asegurar que todas las fechas aparezcan
+        # Asegurar todas las fechas (periodos)
         if "period" in agg_result.columns:
             all_periods = sorted(df_long["period"].dropna().unique())
-            if (
-                group_by
-                and group_by in df_long.columns
-                and group_by not in active_filters
-            ):
-                groups = agg_result[group_by].unique()
-                full_index = pd.MultiIndex.from_product(
-                    [all_periods, groups], names=["period", group_by]
-                )
-                agg_result = (
-                    agg_result.set_index(["period", group_by])
-                    .reindex(full_index)
-                    .reset_index()
-                )
+
+            if group_by and group_by in df_long.columns:
+                if group_by not in active_filters:
+                    # Group_by no está filtrado → expandir combinaciones
+                    groups = agg_result[group_by].dropna().unique()
+                    full_index = pd.MultiIndex.from_product(
+                        [all_periods, groups], names=["period", group_by]
+                    )
+                    agg_result = (
+                        agg_result.set_index(["period", group_by])
+                        .reindex(full_index)
+                        .reset_index()
+                    )
+                else:
+                    # group_by sí está filtrado → mantener solo period
+                    agg_result = (
+                        agg_result.set_index("period")
+                        .reindex(all_periods)
+                        .reset_index()
+                    )
             else:
+                # Sin agrupamiento → solo asegurar todos los periodos
                 agg_result = (
                     agg_result.set_index("period").reindex(all_periods).reset_index()
                 )
                 if group_by:
                     agg_result[group_by] = "All"
 
-        # ✅ Reemplazar NaNs por 0 antes de graficar
+        # Rellenar NaNs
         agg_result[y] = agg_result[y].fillna(0)
+
+        # Aplicar pretty_titles si corresponde
+        if group_by and group_by in agg_result.columns and group_by in pretty_titles:
+            mapping = pretty_titles[group_by]
+            agg_result[group_by] = (
+                agg_result[group_by].map(mapping).fillna(agg_result[group_by])
+            )
 
         chart_results[title] = agg_result.to_dict(orient="records")
 

@@ -20,6 +20,11 @@
     </a><br><br>
   {% endif %}
 
+  <button id="clear-filters" class="btn btn-sm btn-outline-secondary mb-3">
+    Limpiar filtros
+  </button>
+
+
   <!-- Filtros -->
   <div class="card shadow-sm mb-4">
     <div class="card-body">
@@ -43,6 +48,18 @@
     width: 100% !important;
     height: 100% !important;
   }
+    .choices__list--dropdown {
+    z-index: 9999 !important;
+    max-height: 300px;
+    overflow-y: auto;
+    position: absolute !important;
+  }
+
+  /* Asegúrate de que el contenedor no limite overflow */
+  #filters, .card-body {
+    overflow: visible !important;
+    position: relative !important;
+}
 </style>
 
 {% if table_headers and table_rows %}
@@ -74,6 +91,16 @@
 
 {% block extra_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<style>
+.choices__list--dropdown {
+  z-index: 9999 !important;
+  max-height: 300px;
+  overflow-y: auto;
+}
+</style>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
@@ -83,8 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const filterChoices = JSON.parse(document.getElementById("filter-data").textContent);
   const reportId = "{{ report.id }}";
 
-  // Render dynamic filter dropdowns
-  // Render dynamic filter dropdowns
+  // Render dynamic filter dropdowns with Choices.js
   for (const [key, values] of Object.entries(filterChoices)) {
     const col = document.createElement("div");
     col.classList.add("col-md-4");
@@ -95,7 +121,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const select = document.createElement("select");
     select.classList.add("form-select");
-    select.innerHTML = `<option value="">-- All --</option>`;
+    select.setAttribute("multiple", true);
+    select.setAttribute("data-filter-key", key);
+
     values.forEach(v => {
       const option = document.createElement("option");
       option.value = v;
@@ -107,21 +135,68 @@ document.addEventListener("DOMContentLoaded", () => {
     col.appendChild(label);
     col.appendChild(select);
     filtersContainer.appendChild(col);
+
+    // ✅ Inicializar Choices.js
+    new Choices(select, {
+      removeItemButton: true,
+      searchEnabled: true,
+      shouldSort: false,
+      itemSelectText: '',
+      placeholderValue: `Selecciona ${key}`,
+    });
   }
 
-  // ✅ Agregar esta parte después del loop anterior
+  // Escuchar cambios
   Object.values(filterInputs).forEach(select => {
     select.addEventListener("change", loadCharts);
   });
 
+  // Botón para limpiar filtros
+  document.getElementById("clear-filters").addEventListener("click", () => {
+    Object.values(filterInputs).forEach(select => {
+      const choicesInstances = {};  // 🔁 Guardamos las instancias aquí
 
-  // Function to fetch and render charts
+      for (const [key, values] of Object.entries(filterChoices)) {
+        // ... (setup del DOM omitido por brevedad)
+
+        const instance = new Choices(select, {
+          removeItemButton: true,
+          searchEnabled: true,
+          shouldSort: false,
+          itemSelectText: '',
+          placeholderValue: `Selecciona ${key}`,
+        });
+
+        choicesInstances[key] = instance;  // 🔁 Guardar referencia aquí
+      }
+
+      if (choicesInstance) {
+        choicesInstance.clearStore();
+        choicesInstance.clearChoices();
+        choicesInstance.setChoices(
+          Array.from(select.options).map(opt => ({ value: opt.value, label: opt.textContent })),
+          "value",
+          "label",
+          true
+        );
+      } else {
+        for (const option of select.options) {
+          option.selected = false;
+        }
+      }
+    });
+    loadCharts();
+  });
+
+  // Renderizar gráficas
   async function loadCharts() {
-    container.innerHTML = ""; // Clear previous charts
+    container.innerHTML = ""; // Limpiar dashboard
 
     const params = new URLSearchParams();
     for (const [key, input] of Object.entries(filterInputs)) {
-      if (input.value) params.append(key, input.value);
+      for (const option of input.selectedOptions) {
+        params.append(key, option.value);
+      }
     }
 
     try {
@@ -138,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
       let chartRendered = false;
 
       for (const [title, values] of Object.entries(data)) {
-        if (!values.length) continue;  // ✅ Ignorar si no hay datos
+        if (!values.length) continue;
 
         const sample = values[0] || {};
         const keys = Object.keys(sample);
@@ -147,17 +222,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const xKey = keys.includes("period") ? "period" : keys.find(k => k !== valueKey);
         const groupKey = keys.find(k => k !== valueKey && k !== xKey);
 
-        // ⚠️ Filtrar NaN o undefined
         const validEntries = values.filter(v => v[valueKey] != null && !isNaN(v[valueKey]));
-
         if (!validEntries.length) continue;
 
+        const allX = [...new Set(validEntries.map(entry => entry[xKey]))].sort();
+
+        // 2. Agrupar por groupKey (por ejemplo, estudio)
         const groupedData = {};
         validEntries.forEach(entry => {
           const group = groupKey ? entry[groupKey] : "All";
-          if (!groupedData[group]) groupedData[group] = { x: [], y: [] };
-          groupedData[group].x.push(entry[xKey]);
-          groupedData[group].y.push(entry[valueKey]);
+          if (!groupedData[group]) groupedData[group] = {};
+          groupedData[group][entry[xKey]] = entry[valueKey];
         });
 
         const wrapper = document.createElement("div");
@@ -178,14 +253,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const datasets = Object.entries(groupedData).map(([group, data], i) => ({
           label: group,
-          data: data.y,
+          data: allX.map(x => data[x] ?? 0),  // Alineado con el eje X global
           backgroundColor: `hsl(${i * 45 % 360}, 60%, 60%)`,
         }));
 
         new Chart(canvas.getContext("2d"), {
           type: "bar",
           data: {
-            labels: Object.values(groupedData)[0]?.x || [],
+            labels: allX,
             datasets: datasets,
           },
           options: {
@@ -217,7 +292,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Initial load
+  // Primera carga
   loadCharts();
 });
 </script>

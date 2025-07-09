@@ -66,6 +66,11 @@ urlpatterns = [
         name="get_dashboard_config",
     ),
     path(
+        "reports/dynamic/<int:report_id>/update-config/",
+        views.update_dashboard_config,
+        name="update_dashboard_config",
+    ),
+    path(
         "staff/preview/dynamic/<int:report_id>/",
         views.staff_preview_dynamic_dashboard_view,
         name="staff_preview_dynamic_dashboard",

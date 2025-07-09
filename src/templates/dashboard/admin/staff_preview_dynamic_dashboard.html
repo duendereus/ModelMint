@@ -32,7 +32,14 @@
   </form>
 
   <div id="dashboard-container" class="mt-4">
-    <div class="alert alert-info">Loading dashboard preview...</div>
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">⚙️ Editar configuración del dashboard</h5>
+        <textarea id="config-editor" class="form-control" rows="16" style="font-family: monospace;"></textarea>
+        <button id="save-config-btn" class="btn btn-primary mt-3">💾 Guardar cambios</button>
+        <small class="d-block text-muted mt-2">Este JSON controla los filtros y gráficas generadas dinámicamente.</small>
+      </div>
+    </div>
   </div>
 
   <div class="mt-4">
@@ -49,27 +56,62 @@
 {% block extra_scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
+    const textarea = document.getElementById("config-editor");
+    const saveBtn = document.getElementById("save-config-btn");
     const container = document.getElementById("dashboard-container");
 
+    // Cargar config actual
     try {
         const url = "{% url 'dashboard:analytics:get_dashboard_config' report.id %}";
         const res = await fetch(url);
         const data = await res.json();
 
-        if (!res.ok) {
-            container.innerHTML = `<div class="alert alert-danger">⚠️ Error: ${data.error || "Unexpected error"}</div>`;
+        if (!res.ok || !data.config) {
+            textarea.value = "// No dashboard config found.";
+            textarea.disabled = true;
+            saveBtn.disabled = true;
             return;
         }
 
-        container.innerHTML = "<pre class='bg-light p-3'>" + JSON.stringify(data.config, null, 2) + "</pre>";
+        textarea.value = JSON.stringify(data.config, null, 2);
     } catch (err) {
-        container.innerHTML = "<div class='alert alert-danger'>🚫 Network error loading dashboard.</div>";
+        textarea.value = "// Error loading config";
+        textarea.disabled = true;
+        saveBtn.disabled = true;
     }
 
-    // Confirmación vía JS
+    // Guardar cambios
+    saveBtn.addEventListener("click", async () => {
+        const csrfToken = "{{ csrf_token }}";
+        let config;
+
+        try {
+            config = JSON.parse(textarea.value);
+        } catch (e) {
+            alert("❌ Invalid JSON. Fix it before saving.");
+            return;
+        }
+
+        const res = await fetch("{% url 'dashboard:analytics:update_dashboard_config' report.id %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify(config),
+        });
+
+        const result = await res.json();
+        if (result.success) {
+            alert("✔️ Configuration saved correctly!.");
+        } else {
+            alert("❌ Error: " + (result.error || "Could not save."));
+        }
+    });
+
+    // Confirmar publicación
     document.getElementById("publish-form").addEventListener("submit", async (e) => {
         e.preventDefault();
-
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
         const response = await fetch("{% url 'dashboard:analytics:confirm_dynamic_dashboard_metric' report.id %}", {
@@ -83,7 +125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (result.success) {
             window.location.href = result.redirect_url;
         } else {
-            alert("❌ Error: " + result.error);
+            alert("❌ Error when trying to confirm and publich report.");
         }
     });
 });
