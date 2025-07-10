@@ -122,3 +122,76 @@
 /* .footer-brand p {
     margin-bottom: 2px; 
 } */
+
+/* Ajuste para la sección de notebook access */
+.notebook-access-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  min-height: 100vh;
+  align-items: center;
+}
+
+/* Columna izquierda */
+.notebook-access-form {
+  flex: 1 1 50%;
+  padding: 4rem;
+  background-color: #72df98;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Columna derecha */
+.notebook-access-info {
+  flex: 1 1 50%;
+  padding: 4rem;
+  background-color: #33b560;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Mobile - columnas apiladas */
+@media (max-width: 768px) {
+  .notebook-access-wrapper {
+    flex-direction: column;
+  }
+
+  .notebook-access-form,
+  .notebook-access-info {
+    flex: 1 1 100%;
+    padding: 2rem 1rem;
+    text-align: center;
+  }
+
+  .notebook-access-info img {
+    max-width: 80%;
+    height: auto;
+  }
+}
+.access-section .left-pane {
+  background-color: #72df98;
+}
+
+.access-section .right-pane {
+  background-color: #33b560;
+}
+
+/* Evitar que el contenido se pegue a los bordes en móviles */
+@media (max-width: 767px) {
+  .access-section .left-pane,
+  .access-section .right-pane {
+    padding: 3rem 1.5rem !important;
+  }
+}
+.access-section {
+  margin: 0;
+  padding: 0;
+}
+
+.access-section .row {
+  margin: 0;
+  padding: 0;
+}

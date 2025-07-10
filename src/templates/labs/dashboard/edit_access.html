@@ -1,0 +1,162 @@
+{% extends "labs/dashboard/base.html" %}
+{% load form_tags %}
+
+{% block title %}Edit Access Settings — {{ notebook.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 720px;">
+  <h2 class="mb-1">🔒 Edit Access Settings</h2>
+  <p class="text-muted mb-4">Control who can access this notebook and how.</p>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <!-- Public checkbox -->
+        <div class="mb-4">
+          <div class="form-check">
+            {{ form.is_public }}
+            <label class="form-check-label" for="{{ form.is_public.id_for_label }}">
+              Make notebook public (anyone with the link can view)
+            </label>
+          </div>
+        </div>
+
+        {% if otp_access_allowed %}
+          <!-- Allowed Emails input -->
+          <div class="mb-4">
+            <label for="email-tags" class="form-label fw-semibold">Allowed Emails:</label>
+            <select id="email-tags" class="form-control" multiple></select>
+            <textarea name="{{ form.allowed_emails_text.html_name }}" id="email-hidden-textarea" class="d-none">
+              {{ form.allowed_emails_text.value|default_if_none:"" }}
+            </textarea>
+            <div class="form-text mt-1">
+              OTP-protected access. Select or enter one email per line.
+            </div>
+          </div>
+        {% else %}
+          <div class="alert alert-info">
+            OTP access is only available on the <strong>Team</strong> or <strong>Org Pro</strong> plans.
+          </div>
+        {% endif %}
+
+        <!-- Expiration -->
+        <div class="mb-4">
+          <label for="{{ form.expires_after_hours.id_for_label }}" class="form-label fw-semibold">
+            Link Expiration (in hours):
+          </label>
+          {{ form.expires_after_hours|add_class:"form-control" }}
+        </div>
+
+        <!-- Submit -->
+        <div class="d-flex justify-content-between">
+          <button type="submit" class="btn btn-success">💾 Save Changes</button>
+          <a href="{% url 'labs:lab_notebook_detail' notebook.slug %}" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- jQuery + Select2 -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<style>
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+  background-color: #e6f2ff;
+  border: 1px solid #007bff;
+  color: #004085;
+  padding: 0.25rem 0.5rem;
+  margin-top: 0.25rem;
+  margin-right: 0.25rem;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+  color: #004085;
+  margin-right: 4px;
+}
+.select2-container--default .select2-results__option--highlighted {
+  background-color: #007bff;
+  color: white;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const emailSuggestions = JSON.parse('{{ email_suggestions_json|escapejs }}');
+  const select = $('#email-tags');
+  const textarea = document.getElementById("email-hidden-textarea");
+
+  // Inicializar Select2
+  select.select2({
+    tags: true,
+    placeholder: "Enter or select emails",
+    width: '100%',
+    data: emailSuggestions.map(email => ({ id: email, text: email })),
+    tokenSeparators: [',', '\n']
+  });
+
+  // Emails iniciales desde el textarea
+  const initialEmails = textarea.value
+    .split(/\r?\n/)
+    .map(email => email.trim())
+    .filter(email => email.length > 0);
+
+  console.log("Initial emails loaded:", initialEmails);
+
+  // Agregar manualmente emails que no estén en las opciones
+  initialEmails.forEach(email => {
+    if (select.find("option[value='" + email + "']").length === 0) {
+      const newOption = new Option(email, email, true, true);
+      select.append(newOption).trigger('change');
+    }
+  });
+
+  // Establecer valores
+  select.val(initialEmails).trigger('change');
+
+  // Sync Select2 -> textarea
+  select.on('change', function () {
+    const values = $(this).val() || [];
+    textarea.value = values.join('\n');
+  });
+
+  // Función simple de validación de email
+  function isValidEmail(email) {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  }
+
+  const form = textarea.closest('form');
+
+  form.addEventListener('submit', function (e) {
+    const values = (select.val() || []).map(email => email.trim());
+    const invalids = values.filter(email => !isValidEmail(email));
+
+    if (invalids.length > 0) {
+      e.preventDefault();
+
+      const modalBody = document.getElementById("invalidEmailList");
+      modalBody.innerHTML = `
+        <p class="mb-2">The following emails are invalid:</p>
+        <ul class="mb-0">
+          ${invalids.map(email => `<li><code>${email}</code></li>`).join("")}
+        </ul>
+      `;
+
+      const modal = new bootstrap.Modal(document.getElementById("invalidEmailModal"));
+      modal.show();
+    } else {
+      // Sync con el textarea antes de enviar
+      textarea.value = values.join('\n');
+    }
+  });
+});
+
+</script>
+{% endblock %}
+

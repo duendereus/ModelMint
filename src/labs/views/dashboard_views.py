@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.contrib import messages
 from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
@@ -9,22 +9,29 @@ from django.urls import reverse
 from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.template.loader import render_to_string
+from django.utils import timezone
 from accounts.models import OrganizationMembership
 from accounts.decorators import labs_only
 from analytics.utils.utils import get_user_organization
-from labs.models import LabNotebook, NotebookMetric, NotebookVersion
-from labs.forms import LabNotebookUploadForm
+from labs.models import (
+    LabNotebook,
+    NotebookMetric,
+    NotebookVersion,
+    NotebookAccessRequest,
+)
+from labs.forms import LabNotebookUploadForm, NotebookAccessForm
 from labs.tasks import process_lab_notebook_task
+from labs.utils.otp import is_otp_expired, generate_and_send_lab_otp
 from subscriptions.utils import get_plan_limits
-import os, uuid, logging, json, base64, requests, traceback
+import os, uuid, logging, json, base64, requests
 from weasyprint import HTML
 
 logger = logging.getLogger(__name__)
 
 
-@login_required
+@login_required(login_url="labs:labs_login")
 @labs_only
 def dashboard_home_labs_view(request):
     """
@@ -75,7 +82,7 @@ def dashboard_home_labs_view(request):
     )
 
 
-@login_required
+@login_required(login_url="labs:labs_login")
 @labs_only
 def lab_notebook_upload_view(request):
     user = request.user
@@ -162,7 +169,7 @@ def lab_notebook_upload_view(request):
     )
 
 
-@login_required
+@login_required(login_url="labs:labs_login")
 @labs_only
 @require_http_methods(["GET", "POST"])
 def upload_new_version_view(request, notebook_id):
@@ -228,7 +235,7 @@ def upload_new_version_view(request, notebook_id):
     )
 
 
-@login_required
+@login_required(login_url="labs:labs_login")
 @labs_only
 @require_http_methods(["GET", "POST"])
 def lab_preview_notebook_view(request, notebook_slug):
@@ -367,22 +374,47 @@ def lab_preview_notebook_view(request, notebook_slug):
     )
 
 
-@login_required
-@labs_only
 def lab_notebook_detail_view(request, notebook_slug):
     """
     Vista de detalle para un notebook publicado (Labs).
-    Permite seleccionar la versión publicada y ver sus métricas.
+    - Si es público, cualquier persona con el link puede verlo.
+    - Si no es público, se requiere:
+        - Ser miembro/dueño/creador, o
+        - Tener sesión OTP activa.
     """
     notebook = get_object_or_404(
         LabNotebook.objects.select_related("organization", "created_by").filter(
             active=True
         ),
         slug=notebook_slug,
-        organization=get_user_organization(request.user),
     )
+
     organization = notebook.organization
     plan_limits = get_plan_limits(organization)
+
+    # --- CONTROL DE ACCESO ---
+    user = request.user
+    is_authenticated = user.is_authenticated
+    is_owner = is_authenticated and organization.owner == user
+    is_member = is_authenticated and organization.members.filter(user=user).exists()
+    is_creator = is_authenticated and notebook.created_by == user
+
+    if not notebook.is_public:
+        if not (is_owner or is_member or is_creator):
+            session_tokens = request.session.get("verified_notebook_tokens", [])
+            valid_token_exists = NotebookAccessRequest.objects.filter(
+                notebook=notebook,
+                session_token__in=session_tokens,
+                is_verified=True,
+                expires_at__gt=timezone.now(),
+            ).exists()
+
+            if not valid_token_exists:
+                return redirect(
+                    "labs:lab_notebook_enter_email", notebook_slug=notebook.slug
+                )
+
+    # --- Obtener versiones ---
     all_versions = notebook.versions.order_by("-created_at")
 
     selected_version_id = request.GET.get("version_id")
@@ -430,46 +462,58 @@ def lab_notebook_detail_view(request, notebook_slug):
     )
 
 
-@login_required
-@labs_only
 def download_pdf_notebook(request, notebook_slug):
     """
     Exporta una versión publicada de un notebook en formato PDF (solo Labs).
+    Soporta acceso vía OTP o membresía si el plan lo permite.
     """
     try:
-        # logger.info(f"[PDF Download] Request received for notebook: {notebook_slug}")
-        user = request.user
-        organization = get_user_organization(user)
-        # logger.info(f"[PDF Download] Organization: {organization}")
-
-        if not organization or organization.type != "lab":
-            # logger.warning(
-            #     "[PDF Download] Access denied due to invalid organization or type."
-            # )
-            raise PermissionDenied("You do not have access to this notebook.")
-
-        plan_limits = get_plan_limits(organization)
-        if not plan_limits.get("allow_pdf_download", False):
-            # logger.warning("[PDF Download] PDF not allowed by current plan.")
-            messages.warning(
-                request,
-                "PDF downloads are only available on Team and Org Pro plans.",
-            )
-            return redirect("labs:lab_notebook_detail", notebook_slug=notebook_slug)
-
         notebook = get_object_or_404(
             LabNotebook.objects.select_related("organization", "created_by").filter(
                 active=True
             ),
             slug=notebook_slug,
-            organization=organization,
         )
-        # logger.info(f"[PDF Download] Notebook found: {notebook.title}")
 
+        organization = notebook.organization
+        plan_limits = get_plan_limits(organization)
+
+        if not plan_limits.get("allow_pdf_download", False):
+            messages.warning(
+                request,
+                "La descarga en PDF solo está disponible en planes Team y Org Pro.",
+            )
+            return redirect("labs:lab_notebook_detail", notebook_slug=notebook_slug)
+
+        # --- Control de acceso ---
+        user = request.user
+        is_authenticated = user.is_authenticated
+        is_owner = is_authenticated and organization.owner == user
+        is_member = is_authenticated and organization.members.filter(user=user).exists()
+        is_creator = is_authenticated and notebook.created_by == user
+
+        if not notebook.is_public:
+            if not (is_owner or is_member or is_creator):
+                session_tokens = request.session.get("verified_notebook_tokens", [])
+                valid_token_exists = NotebookAccessRequest.objects.filter(
+                    notebook=notebook,
+                    session_token__in=session_tokens,
+                    is_verified=True,
+                    expires_at__gt=timezone.now(),
+                ).exists()
+
+                if not valid_token_exists:
+                    messages.error(
+                        request, "🔒 No tienes permiso para descargar este notebook."
+                    )
+                    return redirect(
+                        "labs:lab_notebook_access_request", notebook_slug=notebook.slug
+                    )
+
+        # --- Obtener versión ---
         version_id = request.GET.get("version_id")
         if version_id:
             version = get_object_or_404(notebook.versions, id=version_id)
-            # logger.info(f"[PDF Download] Using selected version: {version.version}")
         else:
             latest_metric = (
                 NotebookMetric.objects.filter(notebook=notebook, is_preview=False)
@@ -478,15 +522,12 @@ def download_pdf_notebook(request, notebook_slug):
                 .first()
             )
             version = latest_metric.version_obj if latest_metric else None
-            # logger.info(
-            #     f"[PDF Download] Using latest version: {version.version if version else 'None'}"
-            # )
 
         if not version:
-            # logger.warning("[PDF Download] No valid version found.")
-            messages.warning(request, "No version with published metrics found.")
+            messages.warning(request, "No se encontró una versión válida.")
             return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
 
+        # --- Obtener métricas ---
         metrics = (
             NotebookMetric.objects.filter(
                 notebook=notebook, version_obj=version, is_preview=False
@@ -494,14 +535,12 @@ def download_pdf_notebook(request, notebook_slug):
             .select_related("table_data")
             .order_by("position")
         )
-        # logger.info(f"[PDF Download] {metrics.count()} metrics found.")
 
         for metric in metrics:
             metric.presigned_url = None
             metric.base64_image = None
             if metric.type == "plot" and metric.file:
                 try:
-                    # logger.info(f"[PDF Download] Processing plot: {metric.name}")
                     presigned_url = metric.get_presigned_url(expires_in=60)
                     response = requests.get(presigned_url)
                     response.raise_for_status()
@@ -509,19 +548,16 @@ def download_pdf_notebook(request, notebook_slug):
                     ext = "png" if ext not in ["jpg", "jpeg", "svg"] else ext
                     encoded = base64.b64encode(response.content).decode()
                     metric.base64_image = f"data:image/{ext};base64,{encoded}"
-                except Exception as img_exc:
-                    # logger.error(
-                    #     f"[PDF Download] Failed to process image for metric {metric.name}: {img_exc}"
-                    # )
+                except Exception:
                     metric.base64_image = None
 
+        # --- Logo ---
         logo_base64 = None
         logo_path = os.path.join(settings.BASE_DIR, "static", "img", "logo-green.png")
         try:
             with open(logo_path, "rb") as logo_file:
                 encoded_logo = base64.b64encode(logo_file.read()).decode()
                 logo_base64 = f"data:image/png;base64,{encoded_logo}"
-            # logger.info("[PDF Download] Logo successfully encoded.")
         except Exception as logo_exc:
             logger.warning(f"[PDF Download] Could not encode logo: {logo_exc}")
 
@@ -536,10 +572,8 @@ def download_pdf_notebook(request, notebook_slug):
             },
             request=request,
         )
-        # logger.info("[PDF Download] HTML rendered successfully.")
 
         pdf_file = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
-        # logger.info("[PDF Download] PDF generated successfully.")
 
         response = HttpResponse(pdf_file, content_type="application/pdf")
         response["Content-Disposition"] = (
@@ -548,17 +582,13 @@ def download_pdf_notebook(request, notebook_slug):
         return response
 
     except Exception as e:
-        # logger.error(
-        #     f"❌ [PDF Download] Error generating PDF for notebook '{notebook_slug}': {str(e)}"
-        # )
-        # logger.error(traceback.format_exc())
         return HttpResponse(
-            "An error occurred while generating the PDF. Please try again later.",
+            "Ocurrió un error al generar el PDF. Intenta más tarde.",
             status=500,
         )
 
 
-@login_required
+@login_required(login_url="labs:labs_login")
 @labs_only
 def delete_lab_notebook(request, notebook_slug):
     """
@@ -594,3 +624,201 @@ def delete_lab_notebook(request, notebook_slug):
 
     messages.success(request, f"The notebook '{notebook_title}' has been deleted.")
     return redirect("labs:labs_dashboard_home")
+
+
+def lab_notebook_enter_email_view(request, notebook_slug):
+    """
+    Muestra un formulario para ingresar el email antes de solicitar OTP.
+    """
+    notebook = get_object_or_404(LabNotebook, slug=notebook_slug, active=True)
+
+    if notebook.is_public:
+        return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
+
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip().lower()
+
+        if not email:
+            messages.warning(request, "Email is required.")
+            return redirect(
+                "labs:lab_notebook_enter_email", notebook_slug=notebook.slug
+            )
+
+        if email not in (notebook.allowed_emails or []):
+            messages.error(
+                request, "This email is not authorized to access this notebook."
+            )
+            return redirect(
+                "labs:lab_notebook_enter_email", notebook_slug=notebook.slug
+            )
+
+        # Redirigir a la vista de solicitud OTP con el email
+        return redirect(
+            f"{reverse('labs:lab_notebook_access_request', args=[notebook.slug])}?email={email}"
+        )
+
+    return render(request, "labs/public/enter_email.html", {"notebook": notebook})
+
+
+def lab_notebook_access_request_view(request, notebook_slug):
+    """
+    Vista pública para solicitar y verificar acceso a un notebook privado mediante OTP.
+    El usuario accede con un link ?email=xyz@example.com si está en allowed_emails.
+    """
+    notebook = get_object_or_404(LabNotebook, slug=notebook_slug, active=True)
+
+    # Si el notebook es público, redirigir directamente
+    if notebook.is_public:
+        return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
+
+    # Validar plan de la organización
+    plan_limits = get_plan_limits(notebook.organization)
+    if not plan_limits.get("otp_access", False):
+        messages.warning(request, "This notebook doesn't allow shared access.")
+        return redirect("labs:labs_dashboard_home")
+
+    # Obtener el email de la URL
+    email = request.GET.get("email", "").strip().lower()
+    if not email:
+        messages.warning(request, "Email required to request notebook access.")
+        return redirect("labs:labs_landing")
+
+    if email not in (notebook.allowed_emails or []):
+        messages.error(request, "Non authorized email to see this notebook.")
+        return redirect("labs:labs_landing")
+
+    now = timezone.now()
+
+    # Buscar OTP vigente
+    access_request = (
+        NotebookAccessRequest.objects.filter(
+            notebook=notebook, email=email, expires_at__gt=now
+        )
+        .order_by("-requested_at")
+        .first()
+    )
+
+    # Si es POST y aún no se ha solicitado OTP, generarlo
+    if request.method == "POST" and not access_request:
+        generate_and_send_lab_otp(
+            email=email,
+            notebook=notebook,
+            expires_after_hours=notebook.expires_after_hours,
+        )
+        messages.success(request, "🔐 An OTP has been sent to you email")
+        url = reverse(
+            "labs:lab_notebook_verify_otp", kwargs={"notebook_slug": notebook.slug}
+        )
+        return HttpResponseRedirect(f"{url}?email={email}")
+
+    return render(
+        request,
+        "labs/public/access_request.html",
+        {
+            "notebook": notebook,
+            "email": email,
+            "access_request": access_request,
+        },
+    )
+
+
+def lab_notebook_verify_otp_view(request, notebook_slug):
+    notebook = get_object_or_404(LabNotebook, slug=notebook_slug, active=True)
+    email = request.GET.get("email", "").strip().lower()
+    error = None
+
+    if request.method == "POST":
+        submitted_otp = request.POST.get("otp", "").strip()
+        now = timezone.now()
+
+        access_request = (
+            NotebookAccessRequest.objects.filter(
+                notebook=notebook,
+                email=email,
+                otp_code=submitted_otp,
+                expires_at__gt=now,
+            )
+            .order_by("-requested_at")
+            .first()
+        )
+
+        if access_request:
+            access_request.is_verified = True
+            access_request.save()
+
+            # Guardar token en la sesión
+            if "verified_notebook_tokens" not in request.session:
+                request.session["verified_notebook_tokens"] = []
+
+            request.session["verified_notebook_tokens"].append(
+                str(access_request.session_token)
+            )
+            request.session.modified = True
+
+            messages.success(request, "✅ OTP verified. Access granted.")
+            return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
+        else:
+            error = "Invalid or expired OTP."
+
+    return render(
+        request,
+        "labs/public/verify_otp.html",
+        {
+            "notebook": notebook,
+            "email": email,
+            "error": error,
+        },
+    )
+
+
+@login_required(login_url="labs:labs_login")
+@labs_only
+def edit_notebook_access_view(request, notebook_slug):
+    notebook = get_object_or_404(
+        LabNotebook.objects.select_related("organization", "created_by"),
+        slug=notebook_slug,
+    )
+
+    user = request.user
+    is_owner = notebook.organization.owner == user
+    is_creator = notebook.created_by == user
+    if not (is_owner or is_creator):
+        raise PermissionDenied("You do not have permission to edit this notebook.")
+
+    if request.method == "POST":
+        form = NotebookAccessForm(request.POST, instance=notebook)
+        if form.is_valid():
+            plan_limits = get_plan_limits(notebook.organization)
+            if not plan_limits.get("otp_access"):
+                # Forzar limpieza de los emails si el plan no permite OTP
+                form.instance.allowed_emails = []
+            form.save()
+            messages.success(request, "✅ Access settings updated.")
+            return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
+    else:
+        form = NotebookAccessForm(instance=notebook)
+
+    # Gather unique allowed emails from other notebooks in the org
+    all_emails = (
+        LabNotebook.objects.filter(organization=notebook.organization)
+        .exclude(id=notebook.id)
+        .values_list("allowed_emails", flat=True)
+    )
+
+    email_suggestions = sorted(
+        set(email.lower() for sublist in all_emails if sublist for email in sublist)
+    )
+    email_suggestions_json = json.dumps(email_suggestions)
+
+    return render(
+        request,
+        "labs/dashboard/edit_access.html",
+        {
+            "notebook": notebook,
+            "form": form,
+            "email_suggestions_json": email_suggestions_json,
+            "otp_access_allowed": get_plan_limits(notebook.organization).get(
+                "otp_access", False
+            ),
+        },
+    )

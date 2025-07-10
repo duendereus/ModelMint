@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Lato:400,700">
+    <meta property="og:title" content="OTP Access - ModelMint Labs">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Lato', sans-serif;
+            background-color: #f2faf2;
+            color: #4d4d4d;
+            margin: 0;
+            padding: 0;
+        }
+
+        #email {
+            max-width: 600px;
+            margin: auto;
+            background-color: #fff;
+            border: 1px solid #bfffd9;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .header {
+            background-color: #2bba64;
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+            border-bottom: 3px solid #0db851;
+        }
+
+        .content {
+            padding: 30px 25px;
+        }
+
+        .content h2 {
+            color: #2bba64;
+        }
+
+        .otp-box {
+            font-size: 32px;
+            font-weight: bold;
+            background-color: #f0fff0;
+            color: #2bba64;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            margin: 20px 0;
+            letter-spacing: 4px;
+        }
+
+        .footer {
+            background-color: #6aba8a;
+            color: #fff;
+            text-align: center;
+            padding: 15px;
+            font-size: 14px;
+            border-radius: 0 0 8px 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="email">
+        <div class="header">
+            <h1>ModelMint Labs</h1>
+            <img alt="Logo" src="https://modelmint.co/static/img/logo-white.9644615fed48.png" width="100" height="100">
+        </div>
+
+        <div class="content">
+            <h2>Tu código de acceso</h2>
+            <p>Has solicitado acceso al notebook:</p>
+            <p><strong>{{ notebook.title }}</strong></p>
+            <p>Ingresa el siguiente código en la plataforma para continuar:</p>
+
+            <div class="otp-box">{{ otp_code }}</div>
+
+            <p>Este código expirará en {{ notebook.expires_after_hours }} hora{{ notebook.expires_after_hours|pluralize }}.</p>
+        </div>
+
+        <div class="footer">
+            <p>© {% now "Y" %} <a href="https://modelmint.co" style="color: white;">ModelMint</a> — Empowering data scientists.</p>
+        </div>
+    </div>
+</body>
+</html>

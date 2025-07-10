@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Verify OTP – Labs{% endblock title %}
+
+{% block content %}
+<section class="signin" style="background-color: #3be37e;">
+  <div class="container">
+    <div class="row min-vh-100 align-items-center justify-content-center">
+      
+      <div class="col-lg-6 col-md-8 col-sm-12">
+        <div class="access-form-wrapper p-5 w-100 shadow rounded-4 bg-white" style="max-width: 500px; margin-top: 75px;">
+          
+          <h2 class="fw-bold mb-4 text-center">🔐 Verify Access</h2>
+          <p class="text-center text-muted">
+            Enter the one-time password (OTP) we sent to <strong>{{ email }}</strong> to access
+            <br><strong>{{ notebook.title }}</strong>.
+          </p>
+
+          {% if error %}
+            <div class="alert alert-danger mt-3 text-center">
+              {{ error }}
+            </div>
+          {% endif %}
+
+          <form method="POST">
+            {% csrf_token %}
+            <div class="form-group mt-4">
+              <input type="text" name="otp" placeholder="One-Time Password" class="form-control form-control-lg text-center" required>
+            </div>
+
+            <button type="submit" class="pix-btn mt-4 w-100">Access Notebook</button>
+          </form>
+
+          <p class="text-center mt-3">
+            Didn't receive the OTP?
+            <a href="{% url 'labs:lab_notebook_access_request' notebook.slug %}?email={{ email }}">Resend</a>
+          </p>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}

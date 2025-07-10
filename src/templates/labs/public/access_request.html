@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Notebook Access{% endblock title %}
+
+{% block content %}
+<section class="access-section">
+  <div class="row g-0 d-flex flex-column flex-lg-row min-vh-100 w-100 m-0">
+
+    <!-- Columna izquierda -->
+    <div class="col-12 col-lg-6 d-flex align-items-center justify-content-center left-pane">
+      <div class="access-form-wrapper text-center p-5 w-100" style="max-width: 500px;">
+        <h2 class="fw-bold mb-3">🔐 Access This Notebook</h2>
+        <p class="mb-2">Enter your email to receive a one-time access link.</p>
+        <p class="fw-bold text-muted mb-4">{{ notebook.title }}</p>
+
+        {% if access_request %}
+          <p class="text-success">
+            ✅ OTP already sent to <strong>{{ email }}</strong>.<br>
+            Check your inbox!
+          </p>
+        {% else %}
+          <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="email" value="{{ email }}">
+            <button type="submit" class="btn btn-success rounded-pill px-4 py-2 shadow-sm">Send Access Link</button>
+          </form>
+        {% endif %}
+
+        <p class="mt-4 text-muted">Have an account? 
+          <a href="{% url 'labs:labs_login' %}" style="color: white">Sign in here</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Columna derecha -->
+    <div class="col-12 col-lg-6 d-flex align-items-center justify-content-center right-pane text-white text-center p-5">
+      <div style="margin-top: 50px !important;">
+        <h2 class="fw-bold mb-3">Welcome to ModelMint Labs</h2>
+        <p class="mb-4">
+          Secure one-time access to view this private Lab Notebook.<br>
+          Collaborate. Review. Launch your data story. 🚀
+        </p>
+        <div class="bg-white text-success fw-bold d-inline-block px-4 py-2 rounded shadow-sm">
+          Collaboration made simple.
+        </div>
+        <div class="mt-5">
+          <img src="{% static 'img/animated/notebook-access-otp.png' %}" alt="Labs Illustration" class="img-fluid" style="max-height: 300px;">
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock content %}
+
+

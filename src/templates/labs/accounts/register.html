@@ -4,98 +4,91 @@
 {% block title %}Labs Signup{% endblock title %}
 
 {% block content %}
-<section class="signin signup" style="background-color: #3be37e !important;">
-  <div class="container mt-5">
-    <div class="row align-items-center">
-      <!-- Columna izquierda: Formulario -->
-      <div class="col-lg-6">
-        <div class="signin-from-wrapper">
-          <div class="signin-from-inner">
-            <form method="POST" action="{% url 'labs:labs_register' %}" class="singn-form">
-              {% csrf_token %}
+<section class="access-section">
+  <div class="row g-0 d-flex flex-column flex-lg-row min-vh-100 w-100 m-0">
 
-              {% if form.non_field_errors %}
-                <div class="alert alert-danger">
-                  {% for error in form.non_field_errors %}
-                    <p>{{ error }}</p>
-                  {% endfor %}
-                </div>
-              {% endif %}
+    <!-- Columna izquierda: Register Form -->
+    <div class="col-12 col-lg-6 d-flex align-items-center justify-content-center left-pane">
+      <div class="access-form-wrapper w-100 p-5 mt-lg-5 mt-0" style="max-width: 500px;">
+        <form method="POST" action="{% url 'labs:labs_register' %}">
+          {% csrf_token %}
 
-              <div class="form-group">
-                <input type="text" name="organization_name" placeholder="Personal Project or Lab Name" autocomplete="off" value="{{ form.organization_name.value|default:'' }}">
-                {% if form.organization_name.errors %}
-                  <div class="text-danger">
-                    {% for error in form.organization_name.errors %}
-                      <p>{{ error }}</p>
-                    {% endfor %}
-                  </div>
-                {% endif %}
-              </div>
+          <h2 class="fw-bold mb-4 text-center">🧪 Create Your Lab</h2>
 
-              <div class="form-group">
-                <input type="text" name="username" placeholder="Username" autocomplete="off" value="{{ form.username.value|default:'' }}">
-                {% if form.username.errors %}
-                  <div class="text-danger">
-                    {% for error in form.username.errors %}
-                      <p>{{ error }}</p>
-                    {% endfor %}
-                  </div>
-                {% endif %}
-              </div>
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+              {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+              {% endfor %}
+            </div>
+          {% endif %}
 
-              <div class="form-group">
-                <input type="text" placeholder="Email" name="email" autocomplete="off" value="{{ form.email.value|default:'' }}">
-                {% if form.email.errors %}
-                  <div class="text-danger">
-                    {% for error in form.email.errors %}
-                      <p>{{ error }}</p>
-                    {% endfor %}
-                  </div>
-                {% endif %}
-              </div>
-
-              <div class="form-group">
-                <input type="password" name="password1" placeholder="Password" autocomplete="new-password">
-                {% if form.password1.errors %}
-                  <div class="text-danger">
-                    {% for error in form.password1.errors %}
-                      <p>{{ error }}</p>
-                    {% endfor %}
-                  </div>
-                {% endif %}
-              </div>
-
-              <div class="form-group">
-                <input type="password" name="password2" placeholder="Confirm Password" autocomplete="new-password">
-                {% if form.password2.errors %}
-                  <div class="text-danger">
-                    {% for error in form.password2.errors %}
-                      <p>{{ error }}</p>
-                    {% endfor %}
-                  </div>
-                {% endif %}
-              </div>
-
-              <button type="submit" class="pix-btn">Create My Lab</button>
-              <p>Already part of Labs? <a href="{% url 'labs:labs_login' %}">Sign in</a></p>
-            </form>
+          <div class="mb-3">
+            <input type="text" name="organization_name" placeholder="Personal Project or Lab Name"
+                   class="form-control rounded-pill py-2 px-4"
+                   value="{{ form.organization_name.value|default:'' }}">
+            {% for error in form.organization_name.errors %}
+              <small class="text-danger">{{ error }}</small>
+            {% endfor %}
           </div>
-        </div>
-      </div>
 
-      <!-- Columna derecha: Mensaje de bienvenida -->
-      <div class="signin-banner signup-banner" style="background-color: #72ec9d !important;">
-        <div class="text-center text-dark px-5 w-100">
-            <h2 class="fw-bold mb-4">Join Labs – ModelMint for Data Scientists</h2>
-            <p style="font-size: 1.1rem;">
-            Upload your Jupyter Notebooks.<br>
-            Instantly generate shareable dashboards.<br>
-            <strong>No HTML. No Streamlit. Just pure Python.</strong>
-            </p>
-            <img src="{% static 'img/animated/signup2.png' %}" alt="Labs Illustration" class="img-fluid mt-4" style="max-height: 500px;">
+          <div class="mb-3">
+            <input type="text" name="username" placeholder="Username"
+                   class="form-control rounded-pill py-2 px-4"
+                   value="{{ form.username.value|default:'' }}">
+            {% for error in form.username.errors %}
+              <small class="text-danger">{{ error }}</small>
+            {% endfor %}
+          </div>
+
+          <div class="mb-3">
+            <input type="email" name="email" placeholder="Email"
+                   class="form-control rounded-pill py-2 px-4"
+                   value="{{ form.email.value|default:'' }}">
+            {% for error in form.email.errors %}
+              <small class="text-danger">{{ error }}</small>
+            {% endfor %}
+          </div>
+
+          <div class="mb-3">
+            <input type="password" name="password1" placeholder="Password"
+                   class="form-control rounded-pill py-2 px-4">
+            {% for error in form.password1.errors %}
+              <small class="text-danger">{{ error }}</small>
+            {% endfor %}
+          </div>
+
+          <div class="mb-3">
+            <input type="password" name="password2" placeholder="Confirm Password"
+                   class="form-control rounded-pill py-2 px-4">
+            {% for error in form.password2.errors %}
+              <small class="text-danger">{{ error }}</small>
+            {% endfor %}
+          </div>
+
+          <button type="submit" class="btn btn-success rounded-pill px-4 py-2 shadow-sm w-100">Create My Lab</button>
+
+          <p class="mt-4 text-center text-muted">
+            Already part of Labs? <a href="{% url 'labs:labs_login' %}" style="color: white;">Sign in</a>
+          </p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Columna derecha: Info -->
+    <div class="col-12 col-lg-6 d-flex align-items-center justify-content-center right-pane text-white text-center p-5">
+      <div style="margin-top: 50px !important;">
+        <h2 class="fw-bold mb-3">Join Labs – ModelMint for Data Scientists</h2>
+        <p class="mb-4">
+          Upload your Jupyter Notebooks.<br>
+          Instantly generate shareable dashboards.<br>
+          <strong>No HTML. No Streamlit. Just pure Python.</strong>
+        </p>
+        <div class="mt-5">
+          <img src="{% static 'img/animated/signup2.png' %}" alt="Labs Illustration" class="img-fluid" style="max-height: 300px;">
         </div>
       </div>
+    </div>
 
   </div>
 </section>
