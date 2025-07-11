@@ -947,7 +947,7 @@ section {
   position: relative;
 }
 .list-items li:before {
-  content: "→";  /* Flecha bonita */
+  content: "→";  
   position: absolute;
   left: 0;
   top: 0;
