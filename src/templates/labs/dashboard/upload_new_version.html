@@ -6,6 +6,17 @@
 <div class="container mt-4">
   <h2 class="mb-3">📤 Upload New Version: {{ notebook.title }}</h2>
 
+  <p class="text-muted mb-4">
+    Plan: <strong>{{ plan_name }}</strong> |
+    Versions: {{ current_versions }} / {{ max_versions }}
+  </p>
+
+  {% if not can_upload_new_version %}
+    <div class="alert alert-warning">
+      ⚠️ You've reached the maximum number of versions allowed for this notebook.
+    </div>
+  {% endif %}
+
   <div class="card">
     <div class="card-body">
       <form method="POST" enctype="multipart/form-data" novalidate>
@@ -13,7 +24,7 @@
 
         <div class="mb-3">
           <label class="form-label">Notebook File (.html)</label>
-          <input type="file" name="html_file" class="form-control" required>
+          <input type="file" name="html_file" class="form-control" required {% if not can_upload_new_version %}disabled{% endif %}>
           <div class="form-text">Export your notebook as HTML before uploading.</div>
         </div>
 
@@ -23,16 +34,18 @@
           <p class="text-muted small">
             Drag & drop complementary data files here to enrich the notebook with structured tables or metrics.
           </p>
-          <div id="csv-dropper" class="border border-dashed rounded p-4 text-center" style="cursor: pointer;">
+          <div id="csv-dropper" class="border border-dashed rounded p-4 text-center {% if not can_upload_new_version %}bg-light text-muted{% endif %}" style="cursor: pointer;">
             <i class="mdi mdi-upload mdi-36px text-muted"></i>
             <p class="mb-1">Drag & Drop CSV or Excel files</p>
             <small class="text-muted">Or click to select</small>
-            <input type="file" name="complementary_files" multiple accept=".csv,.xls,.xlsx" style="display:none;" id="csv-input">
+            <input type="file" name="complementary_files" multiple accept=".csv,.xls,.xlsx" style="display:none;" id="csv-input" {% if not can_upload_new_version %}disabled{% endif %}>
           </div>
         </div>
 
         <div class="d-flex justify-content-between">
-          <button type="submit" class="btn btn-success">🚀 Upload New Version</button>
+          <button type="submit" class="btn btn-success" {% if not can_upload_new_version %}disabled{% endif %}>
+            🚀 Upload New Version
+          </button>
           <a href="{% url 'labs:labs_dashboard_home' %}" class="btn btn-secondary">Cancel</a>
         </div>
       </form>

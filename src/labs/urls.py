@@ -18,10 +18,10 @@ from labs.views.dashboard_views import (
     lab_notebook_detail_view,
     download_pdf_notebook,
     delete_lab_notebook,
-    lab_notebook_verify_otp_view,
-    lab_notebook_access_request_view,
-    edit_notebook_access_view,
     lab_notebook_enter_email_view,
+    lab_notebook_verify_otp_view,
+    lab_notebook_resend_otp,
+    edit_notebook_access_view,
 )
 
 app_name = "labs"
@@ -73,19 +73,19 @@ urlpatterns = [
         name="delete_lab_notebook",
     ),
     path(
-        "notebooks/verify-otp/<slug:notebook_slug>/",
-        lab_notebook_verify_otp_view,
-        name="lab_notebook_verify_otp",
-    ),
-    path(
         "notebooks/<slug:notebook_slug>/enter-email/",
         lab_notebook_enter_email_view,
         name="lab_notebook_enter_email",
     ),
     path(
-        "notebooks/access/<slug:notebook_slug>/",
-        lab_notebook_access_request_view,
-        name="lab_notebook_access_request",
+        "notebooks/verify-otp/<slug:notebook_slug>/",
+        lab_notebook_verify_otp_view,
+        name="lab_notebook_verify_otp",
+    ),
+    path(
+        "notebooks/<slug:notebook_slug>/resend-otp/",
+        lab_notebook_resend_otp,
+        name="lab_notebook_resend_otp",
     ),
     path(
         "notebooks/<slug:notebook_slug>/access-settings/",

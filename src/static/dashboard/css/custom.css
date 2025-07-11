@@ -256,3 +256,23 @@ input[readonly] {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+.container-wide {
+  max-width: 1140px;
+  margin-top: -70px !important;
+  margin-left: 0px !important;
+  margin-right: auto;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+
+.top-header-guest {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    background-color: #2ecc71 !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    height: 75px;
+    position: relative;  /* ← necesario para centrar absoluto */
+}

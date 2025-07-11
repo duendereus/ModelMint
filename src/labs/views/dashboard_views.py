@@ -9,7 +9,12 @@ from django.urls import reverse
 from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
+from django.http import (
+    JsonResponse,
+    HttpResponse,
+    HttpResponseRedirect,
+    HttpResponseForbidden,
+)
 from django.template.loader import render_to_string
 from django.utils import timezone
 from accounts.models import OrganizationMembership
@@ -23,10 +28,15 @@ from labs.models import (
 )
 from labs.forms import LabNotebookUploadForm, NotebookAccessForm
 from labs.tasks import process_lab_notebook_task
-from labs.utils.otp import is_otp_expired, generate_and_send_lab_otp
+from labs.utils.otp import (
+    generate_and_send_lab_otp,
+    generate_otp_code,
+    send_lab_otp_email,
+)
 from subscriptions.utils import get_plan_limits
 import os, uuid, logging, json, base64, requests
 from weasyprint import HTML
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -182,13 +192,29 @@ def upload_new_version_view(request, notebook_id):
         )
         return redirect("dashboard:dashboard_home")
 
-    # Asegura que el notebook pertenezca a la organización del usuario
+    # ✅ Asegura que el notebook pertenezca a la organización del usuario
     notebook = get_object_or_404(
         LabNotebook.objects.filter(active=True, organization=organization),
         id=notebook_id,
     )
 
+    # ✅ Límite de versiones por notebook según plan
+    plan_limits = get_plan_limits(organization)
+    max_versions = plan_limits.get("max_versions_per_notebook", 1)
+    current_versions = notebook.versions.count()
+    can_upload_new_version = current_versions < max_versions
+
     if request.method == "POST":
+        if not can_upload_new_version:
+            messages.error(
+                request,
+                (
+                    f"You've reached the version limit ({max_versions})"
+                    " for this notebook under your current plan."
+                ),
+            )
+            return redirect("labs:labs_dashboard_home")
+
         html_file = request.FILES.get("html_file")
         files = request.FILES.getlist("complementary_files")
 
@@ -196,7 +222,7 @@ def upload_new_version_view(request, notebook_id):
             messages.error(request, "Please upload a valid HTML file.")
             return redirect(request.path)
 
-        # Guardar el HTML en storage temporal (ej. S3 o local)
+        # Guardar el HTML temporalmente
         html_name = f"labs_temp/v{uuid.uuid4().hex}_{html_file.name}"
         stored_html_path = default_storage.save(html_name, html_file)
 
@@ -219,18 +245,29 @@ def upload_new_version_view(request, notebook_id):
                 }
             )
 
-        # ✅ Actualiza temporalmente el archivo del notebook para procesarlo
+        # ✅ Actualiza el archivo del notebook para procesarlo
         notebook.file.name = stored_html_path
         process_lab_notebook_task.delay(notebook.id, file_entries=file_entries)
 
         messages.success(request, "✅ New version uploaded. Processing in background.")
         return redirect("labs:labs_dashboard_home")
 
+    # Mostrar formulario (GET)
+    plan_name = (
+        getattr(organization.subscription.subscription, "name", "Free")
+        if hasattr(organization, "subscription") and organization.subscription
+        else "Free"
+    )
+
     return render(
         request,
         "labs/dashboard/upload_new_version.html",
         {
             "notebook": notebook,
+            "plan_name": plan_name,
+            "current_versions": current_versions,
+            "max_versions": max_versions,
+            "can_upload_new_version": can_upload_new_version,
         },
     )
 
@@ -449,6 +486,8 @@ def lab_notebook_detail_view(request, notebook_slug):
         metric.presigned_url = metric.get_presigned_url() if metric.file else None
         metric.is_published = True
 
+    is_guest = not request.user.is_authenticated
+
     return render(
         request,
         "labs/dashboard/lab_notebook_detail.html",
@@ -458,6 +497,7 @@ def lab_notebook_detail_view(request, notebook_slug):
             "all_versions": all_versions,
             "metrics": metrics,
             "plan_limits": plan_limits,
+            "is_guest": is_guest,
         },
     )
 
@@ -507,7 +547,7 @@ def download_pdf_notebook(request, notebook_slug):
                         request, "🔒 No tienes permiso para descargar este notebook."
                     )
                     return redirect(
-                        "labs:lab_notebook_access_request", notebook_slug=notebook.slug
+                        "labs:labs:lab_notebook_verify_otp", notebook_slug=notebook.slug
                     )
 
         # --- Obtener versión ---
@@ -628,7 +668,7 @@ def delete_lab_notebook(request, notebook_slug):
 
 def lab_notebook_enter_email_view(request, notebook_slug):
     """
-    Muestra un formulario para ingresar el email antes de solicitar OTP.
+    Vista unificada para ingresar email y generar OTP automáticamente si el email está autorizado.
     """
     notebook = get_object_or_404(LabNotebook, slug=notebook_slug, active=True)
 
@@ -652,78 +692,49 @@ def lab_notebook_enter_email_view(request, notebook_slug):
                 "labs:lab_notebook_enter_email", notebook_slug=notebook.slug
             )
 
-        # Redirigir a la vista de solicitud OTP con el email
-        return redirect(
-            f"{reverse('labs:lab_notebook_access_request', args=[notebook.slug])}?email={email}"
+        # Validar plan
+        plan_limits = get_plan_limits(notebook.organization)
+        if not plan_limits.get("otp_access", False):
+            messages.warning(request, "This notebook doesn't allow shared access.")
+            return redirect("labs:labs_dashboard_home")
+
+        now = timezone.now()
+
+        # Buscar OTP vigente, si no existe generarlo
+        access_request = (
+            NotebookAccessRequest.objects.filter(
+                notebook=notebook, email=email, expires_at__gt=now
+            )
+            .order_by("-requested_at")
+            .first()
         )
+
+        if not access_request:
+            generate_and_send_lab_otp(
+                email=email,
+                notebook=notebook,
+                expires_after_hours=notebook.expires_after_hours,
+            )
+            messages.success(request, "🔐 An OTP has been sent to your email.")
+
+        else:
+            messages.info(request, "You already have a valid OTP in your email.")
+
+        # Redirigir directamente a verify_otp
+        verify_url = reverse("labs:lab_notebook_verify_otp", args=[notebook.slug])
+        return HttpResponseRedirect(f"{verify_url}?email={email}")
 
     return render(request, "labs/public/enter_email.html", {"notebook": notebook})
 
 
-def lab_notebook_access_request_view(request, notebook_slug):
-    """
-    Vista pública para solicitar y verificar acceso a un notebook privado mediante OTP.
-    El usuario accede con un link ?email=xyz@example.com si está en allowed_emails.
-    """
-    notebook = get_object_or_404(LabNotebook, slug=notebook_slug, active=True)
-
-    # Si el notebook es público, redirigir directamente
-    if notebook.is_public:
-        return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
-
-    # Validar plan de la organización
-    plan_limits = get_plan_limits(notebook.organization)
-    if not plan_limits.get("otp_access", False):
-        messages.warning(request, "This notebook doesn't allow shared access.")
-        return redirect("labs:labs_dashboard_home")
-
-    # Obtener el email de la URL
-    email = request.GET.get("email", "").strip().lower()
-    if not email:
-        messages.warning(request, "Email required to request notebook access.")
-        return redirect("labs:labs_landing")
-
-    if email not in (notebook.allowed_emails or []):
-        messages.error(request, "Non authorized email to see this notebook.")
-        return redirect("labs:labs_landing")
-
-    now = timezone.now()
-
-    # Buscar OTP vigente
-    access_request = (
-        NotebookAccessRequest.objects.filter(
-            notebook=notebook, email=email, expires_at__gt=now
-        )
-        .order_by("-requested_at")
-        .first()
-    )
-
-    # Si es POST y aún no se ha solicitado OTP, generarlo
-    if request.method == "POST" and not access_request:
-        generate_and_send_lab_otp(
-            email=email,
-            notebook=notebook,
-            expires_after_hours=notebook.expires_after_hours,
-        )
-        messages.success(request, "🔐 An OTP has been sent to you email")
-        url = reverse(
-            "labs:lab_notebook_verify_otp", kwargs={"notebook_slug": notebook.slug}
-        )
-        return HttpResponseRedirect(f"{url}?email={email}")
-
-    return render(
-        request,
-        "labs/public/access_request.html",
-        {
-            "notebook": notebook,
-            "email": email,
-            "access_request": access_request,
-        },
-    )
-
-
 def lab_notebook_verify_otp_view(request, notebook_slug):
     notebook = get_object_or_404(LabNotebook, slug=notebook_slug, active=True)
+
+    # 🔒 Bloquear verificación si el plan no permite OTP
+    plan_limits = get_plan_limits(notebook.organization)
+    if not plan_limits.get("otp_access", False):
+        return HttpResponseForbidden("Shared access is not enabled for this notebook.")
+
     email = request.GET.get("email", "").strip().lower()
     error = None
 
@@ -769,6 +780,78 @@ def lab_notebook_verify_otp_view(request, notebook_slug):
             "error": error,
         },
     )
+
+
+@require_POST
+def lab_notebook_resend_otp(request, notebook_slug):
+    notebook = get_object_or_404(LabNotebook, slug=notebook_slug, active=True)
+    email = request.POST.get("email", "").strip().lower()
+
+    if not email:
+        return JsonResponse({"success": False, "error": "Missing email"}, status=400)
+
+    # 🚫 Validar plan: sin acceso si la organización no tiene otp_access
+    plan_limits = get_plan_limits(notebook.organization)
+    if not plan_limits.get("otp_access", False):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "This notebook doesn't allow shared access.",
+            },
+            status=403,
+        )
+
+    now = timezone.now()
+    one_min_ago = now - timedelta(seconds=60)
+    recent_requests = NotebookAccessRequest.objects.filter(
+        notebook=notebook,
+        email=email,
+        requested_at__gte=one_min_ago,
+    )
+
+    if recent_requests.exists():
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Too many requests. Please wait before requesting another OTP.",
+            },
+            status=429,
+        )
+
+    active_unverified = (
+        NotebookAccessRequest.objects.filter(
+            notebook=notebook,
+            email=email,
+            is_verified=False,
+            expires_at__gt=now,
+        )
+        .order_by("-requested_at")
+        .first()
+    )
+
+    if active_unverified:
+        send_lab_otp_email(
+            email=email, otp_code=active_unverified.otp_code, notebook=notebook
+        )
+        return JsonResponse({"success": True, "reused": True})
+
+    otp_code = generate_otp_code()
+    expires_at = now + timedelta(hours=24)
+
+    NotebookAccessRequest.objects.filter(
+        notebook=notebook, email=email, is_verified=False
+    ).delete()
+
+    access_request = NotebookAccessRequest.objects.create(
+        notebook=notebook,
+        email=email,
+        otp_code=otp_code,
+        expires_at=expires_at,
+    )
+
+    send_lab_otp_email(email=email, otp_code=otp_code, notebook=notebook)
+
+    return JsonResponse({"success": True, "reused": False})
 
 
 @login_required(login_url="labs:labs_login")

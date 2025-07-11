@@ -32,9 +32,10 @@
             <button type="submit" class="pix-btn mt-4 w-100">Access Notebook</button>
           </form>
 
-          <p class="text-center mt-3">
+          <p class="text-center mt-3" id="resend-section">
             Didn't receive the OTP?
-            <a href="{% url 'labs:lab_notebook_access_request' notebook.slug %}?email={{ email }}">Resend</a>
+            <button id="resend-btn" class="btn btn-link p-0 m-0 align-baseline">Resend</button>
+            <span id="resend-timer" style="display: none;">(wait <span id="countdown">30</span>s)</span>
           </p>
 
         </div>
@@ -43,3 +44,81 @@
   </div>
 </section>
 {% endblock content %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const resendBtn = document.getElementById("resend-btn");
+  const resendTimer = document.getElementById("resend-timer");
+  const countdown = document.getElementById("countdown");
+
+  const waitTime = 30;
+  const email = "{{ email }}";
+  const notebookSlug = "{{ notebook.slug }}";
+
+  // ⏳ Desactivar automáticamente durante los primeros 30s al cargar
+  resendBtn.disabled = true;
+  resendTimer.style.display = "inline";
+
+  let timeLeft = waitTime;
+  countdown.textContent = timeLeft;
+  const interval = setInterval(() => {
+    timeLeft--;
+    countdown.textContent = timeLeft;
+    if (timeLeft <= 0) {
+      clearInterval(interval);
+      resendBtn.disabled = false;
+      resendTimer.style.display = "none";
+    }
+  }, 1000);
+
+  resendBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+
+    // Bloquea nuevamente al hacer clic
+    resendBtn.disabled = true;
+    resendTimer.style.display = "inline";
+    timeLeft = waitTime;
+    countdown.textContent = timeLeft;
+
+    const interval = setInterval(() => {
+      timeLeft--;
+      countdown.textContent = timeLeft;
+      if (timeLeft <= 0) {
+        clearInterval(interval);
+        resendBtn.disabled = false;
+        resendTimer.style.display = "none";
+      }
+    }, 1000);
+
+    // Enviar solicitud POST con CSRF
+    fetch(`/labs/notebooks/${notebookSlug}/resend-otp/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      body: `email=${encodeURIComponent(email)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.success) {
+        alert(data.error || "Something went wrong.");
+      }
+    })
+    .catch(err => {
+      alert("Error sending request.");
+    });
+  });
+
+  // Obtener cookie CSRF
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+  }
+});
+</script>
+{% endblock extra_scripts %}
+
+

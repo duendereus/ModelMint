@@ -20,7 +20,7 @@ def is_otp_expired(access_request):
 
 def send_lab_otp_email(email, otp_code, notebook):
     """Envía el código OTP a un correo invitado para acceder al notebook."""
-    subject = f"🔐 Código de acceso a notebook: {notebook.title}"
+    subject = f"🔐 Code to Access Notebook: {notebook.title}"
     from_email = settings.DEFAULT_FROM_EMAIL
     context = {
         "otp_code": otp_code,

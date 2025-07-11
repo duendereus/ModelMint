@@ -29,6 +29,7 @@ LAB_PLAN_LIMITS = {
         "otp_access": False,
         "allow_pdf_download": False,
         "branding": "none",
+        "max_versions_per_notebook": 1,
     },
     "Solo": {
         "max_reports": 5,
@@ -36,6 +37,7 @@ LAB_PLAN_LIMITS = {
         "otp_access": False,
         "allow_pdf_download": False,
         "branding": "none",
+        "max_versions_per_notebook": 5,
     },
     "Team": {
         "max_reports": 10,
@@ -43,6 +45,7 @@ LAB_PLAN_LIMITS = {
         "otp_access": True,
         "allow_pdf_download": True,
         "branding": "partial",
+        "max_versions_per_notebook": 15,
     },
     "Org Pro": {
         "max_reports": float("inf"),
@@ -50,5 +53,6 @@ LAB_PLAN_LIMITS = {
         "otp_access": True,
         "allow_pdf_download": True,
         "branding": "full",
+        "max_versions_per_notebook": float("inf"),
     },
 }

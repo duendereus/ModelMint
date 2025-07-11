@@ -31,12 +31,25 @@
     <body>
         <div class="page-wrapper toggled">
 
+            {% if not is_guest %}
+
             {% include "labs/dashboard/includes/sidebar.html" %}
+
+            {% else %}
+
+            {% include "labs/dashboard/includes/top-header-guest.html" %}
+
+            {% endif %}
 
             <!-- Start Page Content -->
             <main class="page-content bg-light">
+                <div class="mt-4 {% if is_guest %}container-wide px-4{% else %}container{% endif %}">
+
+                {% if not is_guest %}
                 
                 {% include "labs/dashboard/includes/top-header.html" %}
+
+                {% endif %}
 
                 <div class="container-fluid">
                     <div class="layout-specing">
@@ -87,7 +100,7 @@
                 </div>
                 </div>
 
-
+                {% if not is_guest %}
                 <!-- Footer Start -->
                 <footer class="shadow py-3">
                     <div class="container-fluid">
@@ -111,7 +124,9 @@
                         </div><!--end row-->
                     </div><!--end container-->
                 </footer><!--end footer-->
+                {% endif %}
                 <!-- End -->
+            </div>
             </main>
             <!--End page-content" -->
         </div>
