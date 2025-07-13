@@ -35,8 +35,11 @@ def send_verification_email_task(
                     reset_url_name,
                     kwargs={"uidb64": uidb64, "token": token},
                 )
-            except Exception as e:
+            except Exception:
                 reset_url = None  # Optional: log the error
+
+        # ✅ Optional invited_by_name context
+        invited_by_name = kwargs.get("invited_by_name", None)
 
         message = render_to_string(
             email_template,
@@ -47,6 +50,7 @@ def send_verification_email_task(
                 "uid": uidb64,
                 "token": token,
                 "reset_url": reset_url,
+                "invited_by_name": invited_by_name,
             },
         )
 

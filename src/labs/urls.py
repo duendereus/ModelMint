@@ -23,6 +23,7 @@ from labs.views.dashboard_views import (
     lab_notebook_resend_otp,
     edit_notebook_access_view,
 )
+from labs.views.organization_views import invite_lab_member, labs_organization_users
 
 app_name = "labs"
 
@@ -47,6 +48,10 @@ urlpatterns = [
     ),
     path("home/", dashboard_home_labs_view, name="labs_dashboard_home"),
     path("upload/", lab_notebook_upload_view, name="lab_notebook_upload"),
+    path("invite-member/", invite_lab_member, name="invite_lab_member"),
+    path(
+        "organization/users/", labs_organization_users, name="labs_organization_users"
+    ),
     path(
         "notebooks/<int:notebook_id>/upload-version/",
         upload_new_version_view,

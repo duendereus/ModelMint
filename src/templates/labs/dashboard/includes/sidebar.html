@@ -17,10 +17,10 @@
 
         <ul class="sidebar-menu">
             <li class="sidebar-dropdown">
-                <a href="javascript:void(0)"><i class="ti ti-home me-2"></i>Dashboard</a>
+                <a href="javascript:void(0)"><i class="ti ti-home me-2"></i>Notebooks</a>
                 <div class="sidebar-submenu">
                     <ul>
-                        <li><a href="{% url 'labs:labs_dashboard_home' %}">Main Dashboard</a></li>
+                        <li><a href="{% url 'labs:labs_dashboard_home' %}">My Notebooks</a></li>
                     </ul>
                 </div>
             </li>
@@ -32,10 +32,10 @@
                 <div class="sidebar-submenu">
                     <ul>
                         {% if request.user.owned_organization %}
-                            <li><a href="#">Invite Members</a></li>
+                            <li><a href="{% url 'labs:invite_lab_member' %}">Invite Members</a></li>
                         {% endif %}
                         <li>
-                            <a href="#">
+                            <a href="{% url 'labs:labs_organization_users' %}">
                                 Organization Members
                             </a>
                         </li>                        
