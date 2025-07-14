@@ -20,7 +20,12 @@
                 <a href="javascript:void(0)"><i class="ti ti-home me-2"></i>Notebooks</a>
                 <div class="sidebar-submenu">
                     <ul>
-                        <li><a href="{% url 'labs:labs_dashboard_home' %}">My Notebooks</a></li>
+                        <li><a href="{% url 'labs:labs_dashboard_home' %}">
+                            {% if organization.name %}{{organization.name}} 
+                            {% else %} Organization 
+                            {% endif %}
+                            Notebooks</a>
+                        </li>
                     </ul>
                 </div>
             </li>

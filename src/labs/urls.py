@@ -23,7 +23,12 @@ from labs.views.dashboard_views import (
     lab_notebook_resend_otp,
     edit_notebook_access_view,
 )
-from labs.views.organization_views import invite_lab_member, labs_organization_users
+from labs.views.organization_views import (
+    invite_lab_member,
+    labs_organization_users,
+    delete_lab_member_view,
+    edit_lab_member_view,
+)
 
 app_name = "labs"
 
@@ -48,9 +53,18 @@ urlpatterns = [
     ),
     path("home/", dashboard_home_labs_view, name="labs_dashboard_home"),
     path("upload/", lab_notebook_upload_view, name="lab_notebook_upload"),
+    # org views
     path("invite-member/", invite_lab_member, name="invite_lab_member"),
     path(
         "organization/users/", labs_organization_users, name="labs_organization_users"
+    ),
+    path(
+        "members/<int:member_id>/delete/",
+        delete_lab_member_view,
+        name="labs_delete_member",
+    ),
+    path(
+        "members/<int:member_id>/edit/", edit_lab_member_view, name="labs_edit_member"
     ),
     path(
         "notebooks/<int:notebook_id>/upload-version/",

@@ -53,7 +53,11 @@
                 {{ notebook.description|truncatechars:100|safe }}
               </p>
               <p class="text-muted small mt-auto">
-                Uploaded {{ notebook.created_at|date:"M d, Y" }} by {{ notebook.created_by.username }}
+                Uploaded {{ notebook.created_at|date:"M d, Y" }} 
+
+                {% if notebook.created_by %}
+                by <strong>{{ notebook.created_by.username }}</strong> <!-- ({{ notebook.created_by.email }}) -->
+                {% endif %}
               </p>
 
               <a href="{% url 'labs:lab_notebook_detail' notebook.slug %}" class="btn btn-outline-primary mt-2">
@@ -67,7 +71,7 @@
                 </a>
               {% endif %}
               
-              {% if request.user == notebook.created_by or request.user == organization.owner %}
+              {% if request.user == notebook.created_by or request.user == organization.owner %} <!-- request.user == notebook.created_by or -->
                 <button
                   type="button"
                   class="btn btn-outline-danger mt-2 w-100"

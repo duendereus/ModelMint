@@ -1,5 +1,7 @@
 {% extends "labs/dashboard/base.html" %}
 {% load static %}
+{% load lab_extras %}
+
 {% block title %}Lab Members{% endblock title %}
 
 {% block content %}
@@ -21,9 +23,11 @@
                 <th>Email</th>
                 <th>Role</th>
                 <th>Joined At</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
+            <!-- Organization Owner -->
             <tr>
                 <td class="text-center">
                     <img src="{{ owner.profile.profile_picture.url|default:'/media/profile_pictures/default.png' }}"
@@ -35,6 +39,7 @@
                 <td>{{ owner.email }}</td>
                 <td><span class="badge bg-primary">Owner</span></td>
                 <td>{{ owner.created|date:"Y-m-d" }}</td>
+                <td>—</td>
             </tr>
 
             {% for membership in memberships %}
@@ -54,15 +59,93 @@
                 </td>
                 <td>{{ membership.user.profile.name|default:membership.user.username }}</td>
                 <td>{{ membership.user.email }}</td>
-                <td><span class="badge bg-secondary">{{ membership.get_role_display }}</span></td>
+                <td>
+  {% get_is_admin request.user organization as is_admin %}
+  {% if request.user == owner %}
+    {# Owner puede editar a todos #}
+    <form method="POST" action="{% url 'labs:labs_edit_member' membership.id %}">
+      {% csrf_token %}
+      <select name="role" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% for value, label in membership.ROLE_CHOICES %}
+          <option value="{{ value }}" {% if value == membership.role %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  {% elif is_admin and membership.role == "member" %}
+    {# Admin solo puede editar miembros #}
+    <form method="POST" action="{% url 'labs:labs_edit_member' membership.id %}">
+      {% csrf_token %}
+      <select name="role" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% for value, label in membership.ROLE_CHOICES %}
+          <option value="{{ value }}" {% if value == membership.role %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  {% else %}
+    <span class="badge bg-secondary">{{ membership.get_role_display }}</span>
+  {% endif %}
+</td>
+
+
                 <td>{{ membership.joined_at|date:"Y-m-d" }}</td>
+                <td>
+                    {% if request.user != membership.user %}
+                        {% has_role request.user "admin" organization as is_admin %}
+                        {% if request.user == owner %}
+                            {# Owner puede eliminar a cualquiera #}
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-danger"
+                                data-member-name="{{ membership.user.profile.name|default:membership.user.username }}"
+                                data-delete-url="{% url 'labs:labs_delete_member' membership.id %}"
+                                onclick="openDeleteMemberModal(this)">
+                                🗑 Remove
+                            </button>
+                        {% elif is_admin %}
+                            {% if membership.role == "member" %}
+                                {# Admin solo puede eliminar a miembros #}
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-danger"
+                                    data-member-name="{{ membership.user.profile.name|default:membership.user.username }}"
+                                    data-delete-url="{% url 'labs:labs_delete_member' membership.id %}"
+                                    onclick="openDeleteMemberModal(this)">
+                                    🗑 Remove
+                                </button>
+                            {% else %}
+                                —
+                            {% endif %}
+                        {% else %}
+                            —
+                        {% endif %}    
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="5" class="text-center">No lab members found.</td>
+                <td colspan="6" class="text-center">No lab members found.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 {% endblock content %}
+
+{% block extra_scripts %}
+<script>
+  function openDeleteMemberModal(button) {
+    const memberName = button.getAttribute("data-member-name");
+    const deleteUrl = button.getAttribute("data-delete-url");
+
+    document.getElementById("modalMemberName").textContent = memberName;
+    document.getElementById("deleteMemberForm").action = deleteUrl;
+
+    const modal = new bootstrap.Modal(document.getElementById("deleteMemberModal"));
+    modal.show();
+  }
+</script>
+{% endblock extra_scripts %}
+
+

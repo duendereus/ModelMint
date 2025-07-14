@@ -18,7 +18,9 @@ class LabNotebook(models.Model):
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name="created_lab_notebooks",
     )
     title = models.CharField(max_length=255)

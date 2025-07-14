@@ -2,15 +2,17 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
-from django.shortcuts import render, redirect
+from django.views.decorators.http import require_http_methods
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.shortcuts import render
 from accounts.models import User, OrganizationMembership
 from accounts.tasks import send_verification_email_task
 from accounts.decorators import labs_only
 from accounts.utils import generate_random_password
+from analytics.utils.utils import get_user_organization
 from subscriptions.utils import get_plan_limits, can_add_member
 from dashboard.forms import InviteMemberForm
+from helpers.organizations import can_manage_membership
 
 
 @login_required(login_url="labs:labs_login")
@@ -140,3 +142,45 @@ def labs_organization_users(request):
             "max_members": max_members,
         },
     )
+
+
+@login_required(login_url="labs:labs_login")
+@labs_only
+@require_http_methods(["POST"])
+def delete_lab_member_view(request, member_id):
+    organization = get_user_organization(request.user)
+    membership = get_object_or_404(
+        OrganizationMembership, id=member_id, organization=organization
+    )
+
+    if not can_manage_membership(request.user, membership, organization):
+        messages.error(request, "You don’t have permission to remove this member.")
+        return redirect("labs:labs_organization_users")
+
+    membership.delete()
+    messages.success(request, f"✅ {membership.user.email} has been removed.")
+    return redirect("labs:labs_organization_users")
+
+
+@login_required(login_url="labs:labs_login")
+@labs_only
+@require_http_methods(["POST"])
+def edit_lab_member_view(request, member_id):
+    new_role = request.POST.get("role")
+    if new_role not in dict(OrganizationMembership.ROLE_CHOICES):
+        messages.error(request, "Invalid role.")
+        return redirect("labs:labs_organization_users")
+
+    organization = get_user_organization(request.user)
+    membership = get_object_or_404(
+        OrganizationMembership, id=member_id, organization=organization
+    )
+
+    if not can_manage_membership(request.user, membership, organization):
+        messages.error(request, "You don’t have permission to modify this member.")
+        return redirect("labs:labs_organization_users")
+
+    membership.role = new_role
+    membership.save()
+    messages.success(request, f"{membership.user.email} has been updated.")
+    return redirect("labs:labs_organization_users")

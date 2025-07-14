@@ -1,8 +1,9 @@
 import os
 import pandas as pd
 import json
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from accounts.models import OrganizationMembership
 from .models import NotebookMetric, NotebookTableMetric
 
 
@@ -45,3 +46,10 @@ def process_lab_table_metric(sender, instance, created, **kwargs):
 
     except Exception as e:
         print(f"❌ Error processing table metric '{instance.name}': {str(e)}")
+
+
+@receiver(post_delete, sender=OrganizationMembership)
+def delete_user_if_no_memberships(sender, instance, **kwargs):
+    user = instance.user
+    if not user.organization_memberships.exists():
+        user.delete()
