@@ -15,7 +15,8 @@ from django.utils.encoding import force_str, force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from accounts.signals import user_signed_up, email_confirmed
 from accounts.tasks import send_verification_email_task
-from accounts.models import User
+from accounts.models import User, UserProfile
+from accounts.forms import UserForm, UserProfileForm
 from accounts.utils import get_user_organization_type
 
 
@@ -189,3 +190,36 @@ def labs_logout_view(request):
     auth.logout(request)
     messages.info(request, "You have sucesfully logged out!")
     return redirect("labs:labs_login")
+
+
+@login_required(login_url="labs:labs_login")
+@labs_only
+def labs_profile_view(request):
+    """
+    Displays and allows editing of the Labs user's profile.
+    """
+    user = request.user
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+
+    if request.method == "POST":
+        user_form = UserForm(request.POST, instance=user)
+        profile_form = UserProfileForm(request.POST, request.FILES, instance=profile)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            messages.success(request, "Your profile has been updated successfully!")
+            return redirect("labs:labs_profile")
+
+    else:
+        user_form = UserForm(instance=user)
+        profile_form = UserProfileForm(instance=profile)
+
+    return render(
+        request,
+        "labs/accounts/profile.html",
+        {
+            "user_form": user_form,
+            "profile_form": profile_form,
+        },
+    )
