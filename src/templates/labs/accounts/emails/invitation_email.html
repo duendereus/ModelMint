@@ -83,11 +83,14 @@
             <p><strong>{{ invited_by_name }}</strong> has invited you to join the Lab <strong>{{ user.organization_memberships.first.organization.name }}</strong> as <strong>{{ user.organization_memberships.first.get_role_display }}</strong>.</p>
             <p>Click the button below to set your password and activate your Labs account:</p>
 
-            <p style="text-align: center;">
-                <a href="{{ scheme }}://{{ domain }}{% url 'accounts:password_reset_confirm' uidb64=uid token=token %}" class="cta-button">
-                    Set Your Password
-                </a>
-            </p>
+            {% if reset_url %}
+            <a href="{{ scheme }}://{{ domain }}{{ reset_url }}"
+                class="cta-button" style="color: white">
+                Set Your Password
+            </a>
+            {% else %}
+            <p><strong>Error:</strong> Reset URL not generated.</p>
+            {% endif %}
 
             <p>If you did not expect this invitation, you can safely ignore this message.</p>
             <p>Thanks,<br>ModelMint Labs Team</p>

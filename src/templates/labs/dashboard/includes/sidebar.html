@@ -31,9 +31,7 @@
                 <a href="javascript:void(0)"><i class="ti ti-users"></i> Org. Members</a>
                 <div class="sidebar-submenu">
                     <ul>
-                        {% if request.user.owned_organization %}
-                            <li><a href="{% url 'labs:invite_lab_member' %}">Invite Members</a></li>
-                        {% endif %}
+                        <li><a href="{% url 'labs:invite_lab_member' %}">Invite Members</a></li>
                         <li>
                             <a href="{% url 'labs:labs_organization_users' %}">
                                 Organization Members

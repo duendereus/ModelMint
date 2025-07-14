@@ -2,10 +2,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.shortcuts import render
-from accounts.models import User, Organization, OrganizationMembership
+from accounts.models import User, OrganizationMembership
 from accounts.tasks import send_verification_email_task
 from accounts.decorators import labs_only
 from accounts.utils import generate_random_password
@@ -36,7 +36,7 @@ def invite_lab_member(request):
             organization = membership.organization
 
     if not organization:
-        messages.error(request, "You don’t have permission to invite members.")
+        messages.warning(request, "You don’t have permission to invite members.")
         return redirect("labs:labs_dashboard_home")
 
     # ✅ Check member limit
@@ -90,6 +90,7 @@ def invite_lab_member(request):
                 uidb64=uid,
                 token=token,
                 invited_by_name=request.user.profile.name or request.user.username,
+                reset_url_name="labs:labs_password_reset_confirm",
             )
 
             messages.success(request, f"{email} has been invited successfully!")

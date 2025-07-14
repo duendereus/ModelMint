@@ -11,13 +11,12 @@
       {% endif %}
     </div>
 
-    {% if is_owner %}
-      <div>
-        <a href="{% url 'labs:lab_notebook_upload' %}" class="btn btn-success me-2">
-          Upload Notebook
-        </a>
-      </div>
-    {% endif %}
+    
+    <div>
+      <a href="{% url 'labs:lab_notebook_upload' %}" class="btn btn-success me-2">
+        Upload Notebook
+      </a>
+    </div>
   </div>
 
   {% if not notebooks %}
@@ -61,14 +60,14 @@
                 View Notebook
               </a>
 
-              {% if is_owner %}
+              {% if request.user == notebook.created_by or request.user == organization.owner %}
                 <a href="{% url 'labs:lab_notebook_upload_version' notebook.id %}"
                   class="btn btn-outline-secondary mt-2">
                   Upload New Version
                 </a>
               {% endif %}
               
-              {% if is_owner %}
+              {% if request.user == notebook.created_by or request.user == organization.owner %}
                 <button
                   type="button"
                   class="btn btn-outline-danger mt-2 w-100"
