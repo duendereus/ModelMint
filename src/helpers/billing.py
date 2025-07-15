@@ -15,17 +15,22 @@ def serialize_subscription_data(subscription_response):
     """
     Convert Stripe subscription response into a structured dictionary.
     """
-    status = subscription_response.status
-    current_period_start = date_utils.timestamp_as_datetime(
-        subscription_response.current_period_start
-    )
-    current_period_end = date_utils.timestamp_as_datetime(
-        subscription_response.current_period_end
-    )
-    cancel_at_period_end = subscription_response.cancel_at_period_end
+    status = getattr(subscription_response, "status", None)
+    current_period_start = getattr(subscription_response, "current_period_start", None)
+    current_period_end = getattr(subscription_response, "current_period_end", None)
+    cancel_at_period_end = getattr(subscription_response, "cancel_at_period_end", False)
+
     return {
-        "current_period_start": current_period_start,
-        "current_period_end": current_period_end,
+        "current_period_start": (
+            date_utils.timestamp_as_datetime(current_period_start)
+            if current_period_start
+            else None
+        ),
+        "current_period_end": (
+            date_utils.timestamp_as_datetime(current_period_end)
+            if current_period_end
+            else None
+        ),
         "status": status,
         "cancel_at_period_end": cancel_at_period_end,
     }
@@ -146,12 +151,20 @@ def get_checkout_customer_plan(session_id):
     checkout_r = get_checkout_session(session_id, raw=True)
     customer_id = checkout_r.customer
     sub_stripe_id = checkout_r.subscription
-    sub_r = get_subscription(sub_stripe_id, raw=True)
 
-    subscription_data = serialize_subscription_data(sub_r)
+    # ✅ Obtener el objeto real de Stripe (no como dict)
+    sub_obj = stripe.Subscription.retrieve(sub_stripe_id)
+
+    try:
+        price_id = sub_obj["items"]["data"][0]["price"]["id"]
+    except (KeyError, IndexError, TypeError):
+        raise ValueError("Could not retrieve price ID from subscription items.")
+
+    subscription_data = serialize_subscription_data(sub_obj)
+
     return {
         "customer_id": customer_id,
-        "plan_id": sub_r.plan.id,
+        "plan_id": price_id,
         "sub_stripe_id": sub_stripe_id,
         **subscription_data,
     }

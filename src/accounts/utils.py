@@ -45,10 +45,31 @@ def generate_random_password(length=12):
 
 
 def get_user_organization_type(user):
-    if hasattr(user, "owned_organization"):
-        return user.owned_organization.type
-    elif user.organization_memberships.exists():
-        return user.organization_memberships.first().organization.type
+    # ✅ Detectar si es owner de una organización
+    try:
+        org = user.owned_organization
+        if org and org.type:
+            return org.type
+    except user.__class__.owned_organization.RelatedObjectDoesNotExist:
+        pass
+
+    # ✅ Detectar si es miembro de organización tipo lab
+    lab_membership = (
+        user.organization_memberships.select_related("organization")
+        .filter(organization__type="lab")
+        .first()
+    )
+    if lab_membership:
+        return "lab"
+
+    # ✅ Detectar si es miembro de cualquier otra organización
+    any_membership = user.organization_memberships.select_related(
+        "organization"
+    ).first()
+    if any_membership:
+        return any_membership.organization.type
+
+    # ❌ No pertenece a ninguna organización
     return None
 
 

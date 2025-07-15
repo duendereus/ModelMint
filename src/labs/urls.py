@@ -10,7 +10,11 @@ from labs.views.accounts_views import (
     labs_profile_view,
 )
 from labs.views.landing_views import labs_landing_view
-from labs.views.subscription_views import labs_pricing_view
+from labs.views.subscription_views import (
+    labs_organization_subscription_view,
+    labs_organization_subscription_cancel_view,
+    labs_pricing_view,
+)
 from labs.views.dashboard_views import (
     dashboard_home_labs_view,
     lab_notebook_upload_view,
@@ -29,6 +33,10 @@ from labs.views.organization_views import (
     labs_organization_users,
     delete_lab_member_view,
     edit_lab_member_view,
+)
+from labs.views.checkout_views import (
+    labs_checkout_redirect_view,
+    labs_checkout_finalize,
 )
 
 app_name = "labs"
@@ -113,5 +121,27 @@ urlpatterns = [
         "notebooks/<slug:notebook_slug>/access-settings/",
         edit_notebook_access_view,
         name="lab_notebook_access",
+    ),
+    # subscription action views
+    path(
+        "subscription/",
+        labs_organization_subscription_view,
+        name="labs_organization_subscription",
+    ),
+    path(
+        "subscription/cancel/",
+        labs_organization_subscription_cancel_view,
+        name="labs_organization_subscription_cancel",
+    ),
+    # checkout views
+    path(
+        "subscription/checkout/<int:price_id>/",
+        labs_checkout_redirect_view,
+        name="labs_checkout_redirect",
+    ),
+    path(
+        "subscription/checkout/complete/",
+        labs_checkout_finalize,
+        name="labs_checkout_finalize",
     ),
 ]

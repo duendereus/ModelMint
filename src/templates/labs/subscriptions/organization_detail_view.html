@@ -1,0 +1,80 @@
+{% extends 'labs/dashboard/base.html' %}
+
+{% block title %}Your Subscription - {{ block.super }}{% endblock title %}
+
+{% block content %}
+<h1 class="text-lg font-medium">Your Organization's Subscription</h1>
+
+{% if subscription.plan_name %}
+    <div class="card shadow-sm p-4">
+        <h4 class="mb-3">Subscription Details</h4>
+
+        {% if request.user == subscription.organization.owner %}
+            <form class="mb-3" action="" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-info">Refresh</button>
+            </form>
+
+            <div class="mb-3">
+                <a href="{{ subscription.get_cancel_url }}" class="btn btn-danger">Cancel Subscription</a>
+            </div>
+        {% else %}
+            <p class="text-muted">You are a member of this organization but cannot manage the subscription.</p>
+        {% endif %}
+
+        <ul class="list-group">
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <strong>Plan Name:</strong> <span>{{ subscription.plan_name }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <strong>Status:</strong> 
+                <span class="badge 
+                    {% if subscription.status == 'active' %} bg-success 
+                    {% elif subscription.status == 'pending' %} bg-warning 
+                    {% else %} bg-danger {% endif %}">
+                    {{ subscription.status|title }}
+                </span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <strong>Membership Age:</strong> 
+                <span>{{ subscription.original_period_start|timesince }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <strong>Start Date:</strong> 
+                <span>{{ subscription.current_period_start|date:"F j, Y" }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <strong>Ends In:</strong> 
+                <span>
+                    {{ subscription.current_period_end|timeuntil }},
+                    on {{ subscription.current_period_end|date:"F j, Y" }}
+                </span>
+            </li>
+            {% if subscription.cancel_at_period_end %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <strong>Cancelled At Period End?</strong> 
+                <span class="text-success fw-bold">
+                   <i class="mdi mdi-check-circle" style="font-size: large;"></i>
+                </span>
+            </li>
+            {% endif %}
+        </ul>
+
+        {% if subscription.cancel_at_period_end %}
+            <br><hr>
+            <div>
+                <strong>Cancellation scheduled:</strong> Your subscription will remain active until 
+                <strong>{{ subscription.current_period_end|date:"F j, Y" }}</strong>. <br>
+                We're sorry to see you go, but you're welcome back anytime.
+            </div>
+        {% endif %}
+
+    </div>
+{% else %}
+    <p>Your organization does not have an active subscription!</p>
+
+    {% if request.user == subscription.organization.owner %}
+        <p>Select the <a href="{% url 'labs:labs_pricing' %}" target="_blank">subscription</a> that fits your business needs and start growing your organization!</p>
+    {% endif %}
+{% endif %}
+{% endblock content %}

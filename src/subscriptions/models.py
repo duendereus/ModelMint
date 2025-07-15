@@ -248,12 +248,16 @@ class OrganizationSubscription(models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     def get_absolute_url(self):
+        if self.organization.type == "lab":
+            return reverse("labs:labs_organization_subscription")
         return reverse(
             "subscriptions:organization_subscription",
             kwargs={"org_id": self.organization.id},
         )
 
     def get_cancel_url(self):
+        if self.organization.type == "lab":
+            return reverse("labs:labs_organization_subscription_cancel")
         return reverse(
             "subscriptions:organization_subscription_cancel",
             kwargs={"org_id": self.organization.id},

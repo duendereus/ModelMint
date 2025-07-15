@@ -26,22 +26,32 @@ def refresh_active_users_subscriptions(
     if day_start > -1 and day_end > -1:
         qs = qs.by_range(days_start=day_start, days_end=day_end, verbose=verbose)
 
-    complete_count = 0
+    qs = qs.filter(stripe_id__isnull=False).exclude(stripe_id="")  # 🔧 importante
     qs_count = qs.count()
+    complete_count = 0
+
     for obj in qs:
         if verbose:
             print(
-                "Updating organization",
+                "[DEBUG] Updating org:",
                 obj.organization.name,
+                "| Sub ID:",
+                obj.stripe_id,
+                "| Plan:",
                 obj.subscription,
+                "| Current End:",
                 obj.current_period_end,
             )
-        if obj.stripe_id:
+        try:
             sub_data = helpers.billing.get_subscription(obj.stripe_id, raw=False)
+            print(f"[DEBUG] Stripe response for {obj.stripe_id} →", sub_data)
             for k, v in sub_data.items():
                 setattr(obj, k, v)
             obj.save()
             complete_count += 1
+        except Exception as e:
+            print(f"[ERROR] Failed to refresh sub {obj.stripe_id}: {e}")
+
     return complete_count == qs_count
 
 

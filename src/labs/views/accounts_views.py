@@ -21,8 +21,56 @@ from accounts.utils import get_user_organization_type
 
 
 @anonymous_required
-def labs_register_view(request):
+def labs_login_view(request):
+    """Handles login for Labs (data scientists uploading notebooks)."""
     if request.user.is_authenticated:
+        return redirect("labs:labs_dashboard_home")
+
+    # ✅ Guarda el parámetro ?next=... en la sesión si existe
+    next_url = request.GET.get("next")
+    if next_url:
+        request.session["labs_post_login_redirect"] = next_url
+
+    if request.method == "POST":
+        email = request.POST.get("email")
+        password = request.POST.get("password")
+
+        if email and password:
+            user = authenticate(request, email=email, password=password)
+
+            if user is not None:
+                if not user.is_active:
+                    messages.error(
+                        request,
+                        "Your account is inactive. Please check your email for activation.",
+                    )
+                    return redirect("labs:labs_login")
+
+                login(request, user)
+                request.session.save()
+
+                # ✅ Redirige al valor guardado si existe
+                redirect_url = request.session.pop(
+                    "labs_post_login_redirect", reverse("labs:labs_dashboard_home")
+                )
+                return redirect(redirect_url)
+
+            else:
+                messages.error(request, "Invalid credentials, please try again!")
+
+    return render(request, "labs/accounts/login.html")
+
+
+@anonymous_required
+def labs_register_view(request):
+    print("REGISTER VIEW")
+    if request.user.is_authenticated:
+        print(
+            "🧪",
+            request.user,
+            request.user.is_authenticated,
+            request.session.session_key,
+        )
         return redirect("labs:labs_dashboard_home")
 
     if request.method == "POST":
@@ -146,42 +194,6 @@ def labs_password_reset_confirm(request, uidb64, token):
     else:
         messages.error(request, "The reset link is invalid or expired.")
         return redirect("labs:labs_password_reset_request")
-
-
-@anonymous_required
-def labs_login_view(request):
-    """Handles login for Labs (data scientists uploading notebooks)."""
-    if request.user.is_authenticated:
-        return redirect("labs:labs_dashboard_home")  # Usuario ya autenticado
-
-    if request.method == "POST":
-        email = request.POST.get("email")
-        password = request.POST.get("password")
-
-        if email and password:
-            user = authenticate(request, email=email, password=password)
-
-            if user is not None:
-                if not user.is_active:
-                    messages.error(
-                        request,
-                        "Your account is inactive. Please check your email for activation.",
-                    )
-                    return redirect("labs:login")
-
-                login(request, user)
-
-                org_type = get_user_organization_type(user)
-
-                if org_type == "lab":
-                    return redirect("labs:labs_dashboard_home")
-                else:
-                    return redirect("dashboard:dashboard_home")
-
-            else:
-                messages.error(request, "Invalid credentials, please try again!")
-
-    return render(request, "labs/accounts/login.html")
 
 
 @login_required(login_url="labs:labs_login")
