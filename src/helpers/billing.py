@@ -168,3 +168,14 @@ def get_checkout_customer_plan(session_id):
         "sub_stripe_id": sub_stripe_id,
         **subscription_data,
     }
+
+
+def restore_subscription(stripe_id, raw=True):
+    """
+    Reverts a subscription cancellation (cancel_at_period_end = False).
+    """
+    response = stripe.Subscription.modify(
+        stripe_id,
+        cancel_at_period_end=False,
+    )
+    return response if raw else serialize_subscription_data(response)

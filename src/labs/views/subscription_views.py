@@ -14,10 +14,6 @@ from subscriptions.tasks import notify_team_subscription_cancelled
 @login_required
 @labs_only
 def labs_organization_subscription_view(request):
-    """
-    View and refresh a Labs organization's subscription.
-    Only the organization owner can access this view.
-    """
     organization = get_user_organization(request.user)
 
     if not organization or request.user != organization.owner:
@@ -25,9 +21,14 @@ def labs_organization_subscription_view(request):
             "You are not authorized to manage this subscription."
         )
 
-    org_sub_obj, created = OrganizationSubscription.objects.get_or_create(
+    org_sub_obj, _ = OrganizationSubscription.objects.get_or_create(
         organization=organization
     )
+
+    # Si no tiene plan activo, cargamos planes de pricing para mostrarlos
+    object_list = None
+    if not org_sub_obj.plan_name:
+        object_list, _ = get_subscription_prices(for_labs=True)
 
     if request.method == "POST":
         finished = subs_utils.refresh_active_users_subscriptions(
@@ -39,13 +40,15 @@ def labs_organization_subscription_view(request):
             )
         else:
             messages.error(request, "Failed to refresh subscription. Please try again.")
-
         return redirect(org_sub_obj.get_absolute_url())
 
     return render(
         request,
-        "labs/subscriptions/organization_detail_view.html",
-        {"subscription": org_sub_obj},
+        "labs/subscriptions/organization_detail.html",
+        {
+            "subscription": org_sub_obj,
+            "object_list": object_list,
+        },
     )
 
 
@@ -93,7 +96,7 @@ def labs_organization_subscription_cancel_view(request):
 
     return render(
         request,
-        "labs/subscriptions/organization_cancel_view.html",
+        "labs/subscriptions/organization_cancel.html",
         {"subscription": org_sub_obj},
     )
 
@@ -109,3 +112,28 @@ def labs_pricing_view(request):
         "labs/labs_pricing.html",
         {"object_list": object_list},
     )
+
+
+@login_required
+@labs_only
+def labs_organization_subscription_restore_view(request):
+    organization = get_user_organization(request.user)
+
+    if not organization or request.user != organization.owner:
+        return HttpResponseForbidden("Unauthorized.")
+
+    org_sub_obj = organization.subscription
+    if not org_sub_obj or not org_sub_obj.stripe_id:
+        messages.error(request, "No subscription to restore.")
+        return redirect("labs:labs_organization_subscription")
+
+    try:
+        data = billing.restore_subscription(org_sub_obj.stripe_id, raw=False)
+        for k, v in data.items():
+            setattr(org_sub_obj, k, v)
+        org_sub_obj.save()
+        messages.success(request, "Your subscription has been successfully restored.")
+    except Exception as e:
+        messages.error(request, f"Failed to restore subscription: {str(e)}")
+
+    return redirect("labs:labs_organization_subscription")

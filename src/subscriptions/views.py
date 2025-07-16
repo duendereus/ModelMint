@@ -49,7 +49,7 @@ def organization_subscription_view(request, org_id):
 
     return render(
         request,
-        "subscriptions/organization_detail_view.html",
+        "subscriptions/organization_detail.html",
         {"subscription": org_sub_obj},
     )
 
@@ -98,7 +98,7 @@ def organization_subscription_cancel_view(request, org_id):
 
     return render(
         request,
-        "subscriptions/organization_cancel_view.html",
+        "subscriptions/organization_cancel.html",
         {"subscription": org_sub_obj},
     )
 

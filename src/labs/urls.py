@@ -14,6 +14,7 @@ from labs.views.subscription_views import (
     labs_organization_subscription_view,
     labs_organization_subscription_cancel_view,
     labs_pricing_view,
+    labs_organization_subscription_restore_view,
 )
 from labs.views.dashboard_views import (
     dashboard_home_labs_view,
@@ -132,6 +133,11 @@ urlpatterns = [
         "subscription/cancel/",
         labs_organization_subscription_cancel_view,
         name="labs_organization_subscription_cancel",
+    ),
+    path(
+        "labs/subscription/restore/",
+        labs_organization_subscription_restore_view,
+        name="labs_organization_subscription_restore",
     ),
     # checkout views
     path(

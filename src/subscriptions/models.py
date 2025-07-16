@@ -95,7 +95,10 @@ class SubscriptionPrice(models.Model):
     class Meta:
         ordering = ["subscription__order", "order", "featured", "-updated"]
 
+    @property
     def get_checkout_url(self):
+        if self.subscription and self.subscription.is_for_labs:
+            return reverse("labs:labs_checkout_redirect", kwargs={"price_id": self.id})
         return reverse("checkouts:sub-price-checkout", kwargs={"price_id": self.id})
 
     @property
@@ -126,6 +129,12 @@ class SubscriptionPrice(models.Model):
         if not self.subscription:
             return None
         return self.subscription.stripe_id
+
+    @property
+    def features_list(self):
+        if self.subscription:
+            return [f.description for f in self.subscription.features.all()]
+        return []
 
     def save(self, *args, **kwargs):
         if not self.stripe_id and self.product_stripe_id is not None:
