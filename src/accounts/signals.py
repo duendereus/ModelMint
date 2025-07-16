@@ -2,7 +2,7 @@ from django.dispatch import Signal
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.contrib.auth import get_user_model
-from accounts.models import User, UserProfile
+from accounts.models import User, UserProfile, Organization, OrganizationProfile
 from customers.models import OrganizationCustomer
 
 User = get_user_model()
@@ -62,3 +62,14 @@ def save_user_profile(sender, instance, **kwargs):
     Saves the UserProfile whenever the User instance is saved.
     """
     instance.profile.save()
+
+
+@receiver(post_save, sender=Organization)
+def create_organization_profile(sender, instance, created, **kwargs):
+    """
+    Automatically creates an OrganizationProfile
+    when a new Organization is created.
+    """
+    if created and not hasattr(instance, "profile"):
+        OrganizationProfile.objects.create(organization=instance)
+        print(f"✅ OrganizationProfile created for {instance.name}")

@@ -6,7 +6,9 @@ from django.contrib.auth.models import (
 )
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from accounts.utils import validate_phone_number
+from config.storages import OrgLogoStorage
 
 
 class UserManager(BaseUserManager):
@@ -153,6 +155,101 @@ class Organization(models.Model):
         """
         super().save(*args, **kwargs)
         self.clean()
+
+
+# 🔒 Hex color validation (e.g. "#1A2B3C")
+HEX_COLOR_VALIDATOR = RegexValidator(
+    regex=r"^#(?:[0-9a-fA-F]{3}){1,2}$",
+    message="Enter a valid hex color (e.g. #123ABC).",
+)
+
+
+class OrganizationProfile(models.Model):
+    ORGANIZATION_INDUSTRY_CHOICES = [
+        ("tech", "Technology"),
+        ("data_science", "Data Science"),
+        ("ai", "AI"),
+        ("finance", "Finance & Banking"),
+        ("health", "Healthcare"),
+        ("education", "Education"),
+        ("retail", "Retail & E-commerce"),
+        ("media", "Media & Entertainment"),
+        ("consulting", "Consulting & Services"),
+        ("manufacturing", "Manufacturing"),
+        ("real_estate", "Real Estate"),
+        ("non_profit", "Non-Profit"),
+        ("government", "Government"),
+        ("energy", "Energy & Utilities"),
+        ("transportation", "Transportation & Logistics"),
+        ("other", "Other"),
+    ]
+
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="profile"
+    )
+
+    # ✅ Branding / visual identity
+    logo = models.ImageField(
+        storage=OrgLogoStorage(),
+        upload_to="",  # ya lo controla la clase storage
+        blank=True,
+        null=True,
+        help_text="Logo for dashboards, emails, and reports",
+    )
+
+    primary_color = models.CharField(
+        max_length=7,
+        validators=[HEX_COLOR_VALIDATOR],
+        default="#198754",  # Bootstrap success green
+        help_text="Primary branding color",
+    )
+
+    secondary_color = models.CharField(
+        max_length=7,
+        validators=[HEX_COLOR_VALIDATOR],
+        default="#6c757d",  # Bootstrap secondary
+        help_text="Secondary branding color",
+    )
+
+    text_color = models.CharField(
+        max_length=7,
+        validators=[HEX_COLOR_VALIDATOR],
+        default="#000000",
+        help_text="Text color used in dashboards or reports",
+    )
+
+    background_color = models.CharField(
+        max_length=7,
+        validators=[HEX_COLOR_VALIDATOR],
+        default="#ffffff",
+        help_text="Background color for dashboards/reports",
+    )
+
+    # ✅ Optional: public-facing tagline or short description
+    tagline = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Short slogan or description of the organization",
+    )
+
+    website = models.URLField(
+        blank=True, null=True, help_text="Public website or landing page"
+    )
+
+    industry = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        choices=ORGANIZATION_INDUSTRY_CHOICES,
+        help_text="Industry sector of the organization",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Profile of {self.organization.name}"
 
 
 class OrganizationMembership(models.Model):

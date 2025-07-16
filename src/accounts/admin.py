@@ -1,6 +1,12 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from accounts.models import User, UserProfile, Organization, OrganizationMembership
+from accounts.models import (
+    User,
+    UserProfile,
+    Organization,
+    OrganizationProfile,
+    OrganizationMembership,
+)
 from django import forms
 
 
@@ -27,6 +33,43 @@ class OrganizationMembershipAdmin(admin.ModelAdmin):
     autocomplete_fields = ["user", "organization"]
 
 
+class OrganizationProfileInline(admin.StackedInline):
+    """
+    Inline admin to manage OrganizationProfile directly from Organization.
+    """
+
+    model = OrganizationProfile
+    extra = 0
+    can_delete = False
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        (
+            "Branding",
+            {
+                "fields": (
+                    "logo",
+                    "primary_color",
+                    "secondary_color",
+                    "text_color",
+                    "background_color",
+                )
+            },
+        ),
+        (
+            "Organization Info",
+            {
+                "fields": (
+                    "tagline",
+                    "website",
+                    "industry",
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
+
+
 class OrganizationAdminForm(forms.ModelForm):
     """
     Custom form for Organization to prevent invalid memberships.
@@ -48,14 +91,17 @@ class OrganizationAdmin(admin.ModelAdmin):
     list_filter = ("created_at", "type")
     ordering = ("-created_at",)
     readonly_fields = ("created_at",)
-    inlines = [OrganizationMembershipInline]  # Add the inline
+    inlines = [
+        OrganizationMembershipInline,
+        OrganizationProfileInline,
+    ]
 
     def save_model(self, request, obj, form, change):
         """
         Validate constraints before saving.
         """
         if not obj.pk:
-            super().save_model(request, obj, form, change)  # Save first
+            super().save_model(request, obj, form, change)
 
         obj.clean()
         super().save_model(request, obj, form, change)
