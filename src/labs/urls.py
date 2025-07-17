@@ -19,6 +19,7 @@ from labs.views.subscription_views import (
 )
 from labs.views.dashboard_views import (
     dashboard_home_labs_view,
+    dashboard_my_notebooks_view,
     lab_notebook_upload_view,
     upload_new_version_view,
     lab_preview_notebook_view,
@@ -63,6 +64,7 @@ urlpatterns = [
         name="labs_password_reset_confirm",
     ),
     path("home/", dashboard_home_labs_view, name="labs_dashboard_home"),
+    path("my-notebooks/", dashboard_my_notebooks_view, name="my_notebooks"),
     path("upload/", lab_notebook_upload_view, name="lab_notebook_upload"),
     # profile
     path("profile/", labs_profile_view, name="labs_profile"),

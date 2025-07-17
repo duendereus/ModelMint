@@ -94,6 +94,28 @@ def dashboard_home_labs_view(request):
 
 @login_required(login_url="labs:labs_login")
 @labs_only
+def dashboard_my_notebooks_view(request):
+    """
+    Labs Dashboard - My Notebooks View:
+    Muestra únicamente los LabNotebooks subidos por el usuario autenticado.
+    """
+    notebooks = (
+        LabNotebook.objects.filter(created_by=request.user, active=True)
+        .prefetch_related("versions")
+        .order_by("-created_at")
+    )
+
+    return render(
+        request,
+        "labs/dashboard/my_notebooks.html",
+        {
+            "notebooks": notebooks,
+        },
+    )
+
+
+@login_required(login_url="labs:labs_login")
+@labs_only
 def lab_notebook_upload_view(request):
     user = request.user
     organization = get_user_organization(user)
