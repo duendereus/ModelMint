@@ -1,0 +1,89 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}Organization Profile{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Edit Your Organization Profile</h2>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row">
+          <!-- 🖼️ Logo section -->
+          <div class="col-md-3 text-center">
+            <label class="form-label fw-bold">Organization Logo</label>
+            <div class="mb-2">
+              {% if form.logo.value %}
+                <img src="{{ form.logo.value.url }}" 
+                     alt="Organization Logo"
+                     class="img-fluid border rounded"
+                     style="max-width: 100%; height: auto;">
+              {% else %}
+                <img src="{% static 'img/logo-green.png' %}" 
+                     alt="Default Logo"
+                     class="img-fluid border rounded"
+                     style="max-width: 100%; height: auto;">
+              {% endif %}
+            </div>
+            <div class="mb-3">
+              {{ form.logo }}
+              {% if form.logo.errors %}
+                <div class="text-danger small">{{ form.logo.errors }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- 🧾 Tagline, Website, Industry -->
+          <div class="col-md-9">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="id_tagline" class="form-label">Tagline</label>
+                {{ form.tagline }}
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="id_website" class="form-label">Website</label>
+                {{ form.website }}
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="id_industry" class="form-label">Industry</label>
+              {{ form.industry }}
+            </div>
+
+            <hr class="my-4">
+
+            <!-- 🎨 Branding Colors -->
+            <h5 class="mb-3">Branding Colors</h5>
+            <div class="row">
+              <div class="col-md-3 mb-3">
+                <label for="id_primary_color" class="form-label">Primary</label>
+                {{ form.primary_color }}
+              </div>
+              <div class="col-md-3 mb-3">
+                <label for="id_secondary_color" class="form-label">Secondary</label>
+                {{ form.secondary_color }}
+              </div>
+              <div class="col-md-3 mb-3">
+                <label for="id_text_color" class="form-label">Text</label>
+                {{ form.text_color }}
+              </div>
+              <div class="col-md-3 mb-3">
+                <label for="id_background_color" class="form-label">Background</label>
+                {{ form.background_color }}
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <button type="submit" class="btn btn-success">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock content %}

@@ -66,6 +66,9 @@
                             <a class="dropdown-item text-dark" href="{% url 'subscriptions:organization_subscription' org_id=request.user.owned_organization.id %}">
                                 <span class="mb-0 d-inline-block me-1"><i class="ti ti-id-badge"></i></span> My Subscription
                             </a>
+                            <a class="dropdown-item text-dark" href="{% url 'dashboard:organization_profile' %}">
+                                <span class="mb-0 d-inline-block me-1"><i class="ti ti-building-skyscraper"></i></span> Organization Profile
+                            </a>
                         {% endif %}
                         <a class="dropdown-item text-dark" href="{% url 'accounts:logout' %}"><span class="mb-0 d-inline-block me-1"><i class="ti ti-logout"></i></span> Logout</a>
                     </div>

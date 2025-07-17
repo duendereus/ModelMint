@@ -11,13 +11,14 @@ from django.contrib.auth import authenticate, login
 from django.urls import reverse
 from django.shortcuts import render, redirect
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.http import HttpResponseForbidden
 from django.utils.encoding import force_str, force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from accounts.signals import user_signed_up, email_confirmed
 from accounts.tasks import send_verification_email_task
-from accounts.models import User, UserProfile
-from accounts.forms import UserForm, UserProfileForm
-from accounts.utils import get_user_organization_type
+from accounts.models import User, UserProfile, OrganizationProfile
+from accounts.forms import UserForm, UserProfileForm, OrganizationProfileForm
+from analytics.utils.utils import get_user_organization
 
 
 @anonymous_required
@@ -234,4 +235,29 @@ def labs_profile_view(request):
             "user_form": user_form,
             "profile_form": profile_form,
         },
+    )
+
+
+@login_required(login_url="labs:labs_login")
+@labs_only
+def labs_organization_profile_view(request):
+    org = get_user_organization(request.user)
+    if not org or request.user != org.owner:
+        return HttpResponseForbidden("You are not authorized to edit this profile.")
+
+    profile, _ = OrganizationProfile.objects.get_or_create(organization=org)
+
+    if request.method == "POST":
+        form = OrganizationProfileForm(request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Organization profile updated successfully.")
+            return redirect("labs:labs_organization_profile")
+    else:
+        form = OrganizationProfileForm(instance=profile)
+
+    return render(
+        request,
+        "labs/accounts/org_profile.html",
+        {"form": form, "organization": org},
     )

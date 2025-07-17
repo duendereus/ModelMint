@@ -3,17 +3,19 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
 from django.contrib import messages, auth
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
 from .forms import (
     UserRegistrationForm,
     CustomPasswordResetForm,
     CustomSetPasswordForm,
 )
-from .models import UserProfile
+from .models import UserProfile, OrganizationProfile
 from .utils import anonymous_required, get_user_organization_type
 from .tasks import send_verification_email_task
 from .signals import user_signed_up, email_confirmed
-from .forms import UserForm, UserProfileForm
+from .forms import UserForm, UserProfileForm, OrganizationProfileForm
 from .decorators import daas_only
+from analytics.utils.utils import get_user_organization
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
@@ -214,3 +216,28 @@ def profile_view(request):
         "profile_form": profile_form,
     }
     return render(request, "dashboard/accounts/profile.html", context)
+
+
+@login_required
+@daas_only
+def organization_profile_view(request):
+    org = get_user_organization(request.user)
+    if not org or request.user != org.owner:
+        return HttpResponseForbidden("You are not authorized to edit this profile.")
+
+    profile, _ = OrganizationProfile.objects.get_or_create(organization=org)
+
+    if request.method == "POST":
+        form = OrganizationProfileForm(request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Organization profile updated successfully.")
+            return redirect("dashboard:organization_profile")
+    else:
+        form = OrganizationProfileForm(instance=profile)
+
+    return render(
+        request,
+        "dashboard/accounts/org_profile.html",
+        {"form": form, "organization": org},
+    )

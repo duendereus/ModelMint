@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
-from .models import Organization, UserProfile
+from .models import Organization, OrganizationProfile, UserProfile
 from .utils import custom_password_validator
 
 User = get_user_model()
@@ -143,4 +143,36 @@ class UserProfileForm(forms.ModelForm):
             "job_title": forms.TextInput(attrs={"class": "form-control"}),
             "bio": forms.Textarea(attrs={"class": "form-control", "rows": 4}),
             "linkedin": forms.URLInput(attrs={"class": "form-control"}),
+        }
+
+
+class OrganizationProfileForm(forms.ModelForm):
+    class Meta:
+        model = OrganizationProfile
+        fields = [
+            "logo",
+            "tagline",
+            "website",
+            "industry",
+            "primary_color",
+            "secondary_color",
+            "text_color",
+            "background_color",
+        ]
+        widgets = {
+            "tagline": forms.TextInput(attrs={"class": "form-control"}),
+            "website": forms.URLInput(attrs={"class": "form-control"}),
+            "industry": forms.Select(attrs={"class": "form-select"}),
+            "primary_color": forms.TextInput(
+                attrs={"type": "color", "class": "form-control form-control-color"}
+            ),
+            "secondary_color": forms.TextInput(
+                attrs={"type": "color", "class": "form-control form-control-color"}
+            ),
+            "text_color": forms.TextInput(
+                attrs={"type": "color", "class": "form-control form-control-color"}
+            ),
+            "background_color": forms.TextInput(
+                attrs={"type": "color", "class": "form-control form-control-color"}
+            ),
         }

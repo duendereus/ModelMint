@@ -1,6 +1,6 @@
 from django.urls import path, include
 from . import views
-from accounts.views import profile_view
+from accounts.views import profile_view, organization_profile_view
 
 app_name = "dashboard"
 
@@ -15,5 +15,8 @@ urlpatterns = [
     path("invite-member/", views.invite_member, name="invite_member"),
     path("organization/users/", views.organization_users, name="organization_users"),
     path("profile/", profile_view, name="profile"),
+    path(
+        "organization/profile/", organization_profile_view, name="organization_profile"
+    ),
     path("analytics/", include("analytics.urls", namespace="analytics")),
 ]

@@ -8,6 +8,7 @@ from labs.views.accounts_views import (
     labs_login_view,
     labs_logout_view,
     labs_profile_view,
+    labs_organization_profile_view,
 )
 from labs.views.landing_views import labs_landing_view
 from labs.views.subscription_views import (
@@ -65,6 +66,11 @@ urlpatterns = [
     path("upload/", lab_notebook_upload_view, name="lab_notebook_upload"),
     # profile
     path("profile/", labs_profile_view, name="labs_profile"),
+    path(
+        "organization/profile/",
+        labs_organization_profile_view,
+        name="labs_organization_profile",
+    ),
     # org views
     path("invite-member/", invite_lab_member, name="invite_lab_member"),
     path(
