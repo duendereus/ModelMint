@@ -20,12 +20,15 @@
                 <a href="javascript:void(0)"><i class="ti ti-home me-2"></i>Notebooks</a>
                 <div class="sidebar-submenu">
                     <ul>
-                        <li><a href="{% url 'labs:labs_dashboard_home' %}">
-                            <!-- {% if organization.name %}{{organization.name}} 
-                            {% else %} Organization 
-                            {% endif %} -->
-                            All 
-                            Notebooks</a>
+                        <li>
+                            {% if owned_org %}
+                                <a href="{% url 'labs:labs_dashboard_home' %}">{{ owned_org.name }} Notebooks</a>
+                            {% elif member_org %}
+                                <a href="{% url 'labs:labs_dashboard_home' %}">{{ member_org.name }} Notebooks</a>
+                            {% else %}
+                                <a href="{% url 'labs:labs_dashboard_home' %}">All Notebooks</a>
+                            {% endif %}
+                            
                         </li>
                         <li><a href="{% url 'labs:my_notebooks' %}">
                             My Notebooks</a>

@@ -17,15 +17,17 @@
 
         <ul class="list-unstyled mb-0">
             
+            {% if current_plan_name != "Org Pro" %}
             <li class="list-inline-item mb-0 me-2">
-                <a href="#" class="btn btn-outline-primary btn-sm">
-                    <i class="ti ti-file-plus me-1"></i> Some Labs Action 1
+                <a href="{% url 'labs:labs_organization_subscription' %}" class="btn btn-outline-warning btn-sm" title="Upgrade to Org Pro to unlock all features">
+                    <i class="ti ti-arrow-up-right me-1"></i> Upgrade Plan
                 </a>
             </li>
+            {% endif %}
 
             <li class="list-inline-item mb-0 me-2">
-                <a href="#" class="btn btn-outline-dark btn-sm">
-                    <i class="ti ti-files me-1"></i> Some Labs Action 2
+                <a href="{% url 'labs:my_notebooks' %}" class="btn btn-outline-info btn-sm">
+                    <i class="ti ti-files me-1"></i> My Notebooks
                 </a>
             </li>
 

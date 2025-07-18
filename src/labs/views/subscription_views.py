@@ -17,9 +17,14 @@ def labs_organization_subscription_view(request):
     organization = get_user_organization(request.user)
 
     if not organization or request.user != organization.owner:
-        return HttpResponseForbidden(
-            "You are not authorized to manage this subscription."
+        messages.info(
+            request,
+            (
+                f"You are not authorized to manage this subscription. "
+                f"Please contact your organization owner ({organization.owner}) to change your plan"
+            ),
         )
+        return redirect("labs:labs_dashboard_home")
 
     org_sub_obj, _ = OrganizationSubscription.objects.get_or_create(
         organization=organization
