@@ -20,10 +20,17 @@
         </ul>
 
         <div class="action text-left">
+            {% if object.price == 0 %}
+            <a href="{% url 'labs:labs_login' %}"
+            class="pix-btn btn-outline-two">
+                {% if labs_mode %}Launch your Lab!{% else %}Start your data journey!{% endif %}
+            </a>
+            {% else %}
             <a href="{% if labs_mode %}{% url 'labs:labs_checkout_redirect' object.id %}{% else %}{{ object.get_checkout_url }}{% endif %}"
             class="pix-btn btn-outline-two">
                 {% if labs_mode %}Launch your Lab!{% else %}Start your data journey!{% endif %}
             </a>
+            {% endif %}
         </div>
     </div>
 </div>
