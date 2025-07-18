@@ -45,7 +45,7 @@ LAB_PLAN_LIMITS = {
         "otp_access": True,
         "allow_pdf_download": True,
         "branding": "partial",
-        "max_versions_per_notebook": 15,
+        "max_versions_per_notebook": 10,
     },
     "Org Pro": {
         "max_reports": float("inf"),

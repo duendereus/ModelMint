@@ -1,4 +1,4 @@
-<div class="col-lg-4">
+<div class="{% if labs_mode %}col-lg-3{% else %}col-lg-4{% endif %}">
     <div class="pricing-table style-three wow pixFadeLeft" data-wow-delay="0.5s">
         <div class="pricing-header pricing-amount">
             <h2>{{ object.display_sub_name  }}</h2> 
