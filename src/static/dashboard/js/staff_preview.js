@@ -1,10 +1,10 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
     const selectedUploadId = new URLSearchParams(window.location.search).get("upload_id");
     const metricContainer = document.getElementById("metric-list");
     const form = document.getElementById("publish-form");
     const removedIds = new Set();
 
-    // Función para inicializar CKEditor
+    // 🔧 CKEditor helpers
     function initializeCKEditors() {
         document.querySelectorAll(".ckeditor-field").forEach((el) => {
             if (!el.ckeditorInstance) {
@@ -22,7 +22,6 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Función para destruir CKEditor antes de mover
     function destroyCKEditors() {
         document.querySelectorAll(".ckeditor-field").forEach((el) => {
             if (el.ckeditorInstance) {
@@ -33,38 +32,35 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Habilitar drag-and-drop con limpieza y reinstancia de CKEditor
-    Sortable.create(metricContainer, {
-        animation: 150,
-        handle: ".cursor-move",
-        ghostClass: "bg-light",
-        onStart: destroyCKEditors,
-        onEnd: () => {
-            setTimeout(() => {
-                initializeCKEditors();
-            }, 10);  // Pequeño delay para asegurar que el DOM se haya actualizado
-        }
-    });
-
-    // Marcar métricas eliminadas
-    metricContainer.querySelectorAll(".delete-metric").forEach((btn) => {
-        btn.addEventListener("click", function () {
-            const item = btn.closest(".metric-item");
-            const metricId = item.dataset.id;
-            removedIds.add(metricId);
-            item.remove();
+    // 🧱 Drag-and-drop config
+    if (metricContainer) {
+        Sortable.create(metricContainer, {
+            animation: 150,
+            handle: ".cursor-move",
+            ghostClass: "bg-light",
+            onStart: destroyCKEditors,
+            onEnd: () => setTimeout(initializeCKEditors, 10)
         });
-    });
 
-    // Inicialización inicial de CKEditor
+        metricContainer.querySelectorAll(".delete-metric").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const item = btn.closest(".metric-item");
+                const id = item.dataset.id;
+                removedIds.add(id);
+                item.remove();
+            });
+        });
+    }
+
     initializeCKEditors();
 
-    // Manejar publicación del formulario
-    form.addEventListener("submit", function (e) {
+    // 📨 Submit handler
+    form?.addEventListener("submit", (e) => {
         e.preventDefault();
 
         const submitBtn = form.querySelector("button[type='submit']");
-        const originalText = submitBtn.innerHTML;
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+        const originalHTML = submitBtn.innerHTML;
 
         submitBtn.disabled = true;
         submitBtn.innerHTML = `
@@ -72,19 +68,17 @@ document.addEventListener("DOMContentLoaded", function () {
             Publishing...
         `;
 
-        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
-
         const orderedIds = [...document.querySelectorAll(".metric-item")]
-            .map((el) => el.dataset.id)
-            .filter((id) => !removedIds.has(id));
+            .map(el => el.dataset.id)
+            .filter(id => !removedIds.has(id));
 
         const editedTitles = {};
         const editedValues = {};
 
         document.querySelectorAll(".editable-title").forEach((input) => {
+            const id = input.dataset.id;
             const original = input.dataset.original;
             const current = input.value;
-            const id = input.dataset.id;
             if (original !== current) {
                 editedTitles[id] = current;
             }
@@ -92,12 +86,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
         document.querySelectorAll(".editable-value").forEach((input) => {
             const id = input.dataset.id;
-            let current = input.value;
-
-            if (input.ckeditorInstance) {
-                current = input.ckeditorInstance.getData();
-            }
-
+            const current = input.ckeditorInstance
+                ? input.ckeditorInstance.getData()
+                : input.value;
             editedValues[id] = current;
         });
 
@@ -123,15 +114,14 @@ document.addEventListener("DOMContentLoaded", function () {
             } else {
                 alert("❌ Error: " + (data.error || "Unknown error."));
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+                submitBtn.innerHTML = originalHTML;
             }
         })
-        .catch((err) => {
-            console.error("Error:", err);
+        .catch(err => {
+            console.error("❌ Request failed:", err);
             alert("❌ Request failed.");
             submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
+            submitBtn.innerHTML = originalHTML;
         });
     });
 });
-

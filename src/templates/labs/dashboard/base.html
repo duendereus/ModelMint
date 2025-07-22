@@ -25,7 +25,21 @@
         <!-- Style Css -->
         <link href="{% static 'dashboard/css/style.min.css' %}" class="theme-opt" rel="stylesheet" type="text/css" />
         <link href="{% static 'dashboard/css/custom.css' %}" class="theme-opt" rel="stylesheet" type="text/css" />
+        <link href="{% static 'dashboard/css/custom-branding-labs.css' %}" class="theme-opt" rel="stylesheet" type="text/css" />
+        
      
+        {% if branding_enabled %}
+            <style id="custom-branding-vars">
+                :root {
+                    --sidebar-bg: {{ secondary_color }};
+                    --primary-color: {{ primary_color }};
+                    --background-color: {{ background_color }};
+                    --text-color: {{ text_color }};
+                }
+            </style>
+        {% endif %}
+
+
     </head>
 
     <body>
@@ -131,6 +145,9 @@
                             <div class="col">
                                 <div class="text-sm-start text-center mx-md-2">
                                     <p class="mb-0 text-muted" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                        {% if branding_enabled and org_tagline %}
+                                            <span class="text-muted small" style="margin-top: 4px;"><strong>{{ org_tagline }}</strong></span>
+                                        {% endif %}
                                         © <script>document.write(new Date().getFullYear())</script>
                                         <a href="{% url 'labs:labs_landing' %}" target="_blank" class="text-reset" style="display: flex; align-items: center; gap: 6px;">
                                             <img src="{% static 'img/logo-white.svg' %}" alt="site logo" style="max-width: 20px; height: auto;" />

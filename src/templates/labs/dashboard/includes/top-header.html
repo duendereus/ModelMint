@@ -4,12 +4,21 @@
     <div class="header-bar d-flex justify-content-between">
         <div class="d-flex align-items-center">
             <a href="{% url 'labs:labs_dashboard_home' %}" class="logo-icon me-3">
-                <img src="{% static 'img/logo-green.svg' %}" height="30" class="small" alt="">
-                <span class="big">
-                    <img src="{% static 'img/logo-green.svg' %}" height="24" class="logo-light-mode" alt="">
-                    <img src="{% static 'img/logo-green.svg' %}" height="24" class="logo-dark-mode" alt="">
-                </span>
+                {% if org_logo %}
+                    <img src="{{ org_logo }}" height="30" class="small" alt="{{ org_name }}">
+                    <span class="big">
+                        <img src="{{ org_logo }}" height="24" class="logo-light-mode" alt="{{ org_name }}">
+                        <img src="{{ org_logo }}" height="24" class="logo-dark-mode" alt="{{ org_name }}">
+                    </span>
+                {% else %}
+                    <img src="{% static 'img/logo-green.svg' %}" height="30" class="small" alt="">
+                    <span class="big">
+                        <img src="{% static 'img/logo-green.svg' %}" height="24" class="logo-light-mode" alt="">
+                        <img src="{% static 'img/logo-green.svg' %}" height="24" class="logo-dark-mode" alt="">
+                    </span>
+                {% endif %}
             </a>
+
             <a id="close-sidebar" class="btn btn-icon btn-soft-light" style="margin-right: 20px !important;">
                 <i class="ti ti-menu-2"></i>
             </a>

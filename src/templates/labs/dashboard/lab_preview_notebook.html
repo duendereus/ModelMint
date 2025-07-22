@@ -10,7 +10,10 @@
   <p class="text-muted mb-4">
     Organization: <strong>{{ notebook.organization.name }}</strong>
     {% if selected_version %}
-      • Version v{{ selected_version.version }} by {{ selected_version.uploaded_by.email }}
+      • Version v{{ selected_version.version }} 
+      {% if selected_version.uploaded_by %}
+      by {{ selected_version.uploaded_by.email }}
+      {% endif %}
     {% else %}
       • <em class="text-muted">No version associated</em>
     {% endif %}
@@ -88,7 +91,7 @@
 
     <div class="mt-4">
       <button type="submit"
-              class="btn btn-success w-100"
+              class="btn w-100"
               id="publish-btn"
               {% if not metrics %}disabled{% endif %}>
         ✅ Confirm & Publish Notebook

@@ -141,6 +141,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 # custom context processors
                 "accounts.context_processors.organization_context",
+                "labs.context_processors.labs_branding_context",
             ],
         },
     },

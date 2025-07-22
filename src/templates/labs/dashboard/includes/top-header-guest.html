@@ -5,7 +5,11 @@
         <!-- Izquierda -->
         <div class="d-flex align-items-center">
             <a href="{% url 'labs:labs_landing' %}" target="_blank" class="me-3">
-                <img src="{% static 'img/logo-white.svg' %}" height="28" alt="ModelMint Logo">
+                {% if org_logo %}
+                    <img src="{{ org_logo }}" height="28" alt="{{ org_name }}">
+                {% else %}
+                    <img src="{% static 'img/logo-white.svg' %}" height="28" alt="ModelMint Logo">
+                {% endif %}
                 <span style="background-color: white; color: #00c266; font-size: 1rem; font-weight: 600; padding: 2px 6px; border-radius: 6px;">
                     LABS
                 </span>

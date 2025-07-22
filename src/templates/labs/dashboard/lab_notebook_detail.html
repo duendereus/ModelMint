@@ -35,13 +35,14 @@
 
 
             {% if notebook.is_public %}
-            <span class="badge bg-success fs-6 px-3 py-2 mb-2">
-              ✅ Public notebook — accessible by anyone with the link.
-            </span>
+              <span class="badge badge-notebook-public fs-6 px-3 py-2 mb-2">
+                ✅ Public notebook — accessible by anyone with the link.
+              </span>
             {% else %}
-            <span class="badge bg-warning fs-6 px-3 py-2 mb-2">
-              🛡️ Private Notebook — accessible by Org members and allowed emails.
-            </span>
+              <span class="badge badge-notebook-private fs-6 px-3 py-2 mb-2">
+                🛡️ Private Notebook — accessible by Org members and allowed emails.
+              </span>
+
 
             <!-- <p class="mb-1"><strong>Authorized emails:</strong></p>
             {% if notebook.allowed_emails %}

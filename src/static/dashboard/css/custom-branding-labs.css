@@ -1,0 +1,162 @@
+:root {
+    --sidebar-bg: rgb(80, 196, 80);
+    --primary-color: #00c266;
+    --secondary-color: #34a853;
+    --background-color: white;
+    --text-color: #212529;
+    --primary-text-on-secondary: white;
+}
+
+
+body {
+    background-color: var(--background-color) !important;
+    color: var(--text-color);
+}
+
+.btn-primary,
+.btn-success {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+.btn-outline-primary,
+.btn-outline-success {
+    color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+.sidebar-wrapper,
+.top-header,
+.top-header-guest,
+.footer {
+    background-color: var(--sidebar-bg) !important;
+}
+
+.sidebar-wrapper a,
+.top-header a,
+.footer a {
+    color: var(--text-color) !important;
+}
+
+/* Optional branding adjustments */
+.card-title {
+    color: var(--text-color);
+}
+
+/* Branding para botones personalizados */
+
+.btn-outline-primary:hover {
+    background-color: var(--secondary-color);
+    color: var(--primary-text-on-secondary);
+    border-color: var(--secondary-color);
+}
+
+
+.badge-notebook-public {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.badge-notebook-private {
+    background-color: var(--secondary-color);
+    color: var(--primary-text-on-secondary);
+}
+
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    background-color: var(--secondary-color);
+    background-size: 50% 50%;
+    padding: 10px;
+}
+
+.carousel-item {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.card {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    border: 1px solid #eaeaea;
+    border-radius: 10px;
+}
+
+#version-select {
+    border-radius: 6px;
+    border-color: var(--primary-color);
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+h2 {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+p.text-muted strong {
+    color: var(--secondary-color);
+}
+
+.editable-title,
+.editable-value,
+#version-select {
+    border-color: var(--primary-color);
+    border-radius: 6px;
+}
+
+.editable-title:focus,
+.editable-value:focus,
+#version-select:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 194, 102, 0.25);
+}
+
+.metric-item .card {
+    border-left: 4px solid var(--primary-color);
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.2s ease-in-out;
+}
+
+.metric-item .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.metric-item .btn-outline-danger,
+.metric-item .btn-outline-secondary {
+    padding: 4px 6px;
+    border-radius: 50%;
+}
+
+.metric-item .btn-outline-danger:hover {
+    background-color: #ffe5e5;
+    border-color: red;
+}
+
+.metric-item .btn-outline-secondary:hover {
+    background-color: #e9f5ee;
+    border-color: var(--primary-color);
+}
+
+#publish-btn {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 12px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+#publish-btn:disabled {
+    background-color: #ccc;
+    border-color: #ccc;
+    cursor: not-allowed;
+}
+
+button#publish-btn:hover:not(:disabled) {
+    background-color: var(--secondary-color) !important;
+    border-color: var(--secondary-color) !important;
+    color: var(--primary-text-on-secondary) !important;
+}

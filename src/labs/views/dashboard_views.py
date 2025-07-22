@@ -623,6 +623,24 @@ def download_pdf_notebook(request, notebook_slug):
         except Exception as logo_exc:
             logger.warning(f"[PDF Download] Could not encode logo: {logo_exc}")
 
+        profile = getattr(organization, "profile", None)
+        limits = get_plan_limits(organization)
+        branding_level = limits.get("branding", "none")
+
+        branding = {}
+        if branding_level != "none":
+            branding = {
+                "branding_enabled": True,
+                "branding_level": branding_level,
+                "org_logo": profile.logo.url if profile and profile.logo else None,
+                "primary_color": profile.primary_color if profile else "#198754",
+                "secondary_color": profile.secondary_color if profile else "#6c757d",
+                "text_color": profile.text_color if profile else "#000000",
+                "background_color": profile.background_color if profile else "#ffffff",
+                "org_tagline": profile.tagline if profile else "",
+                "org_name": organization.name,
+            }
+
         html = render_to_string(
             "labs/dashboard/pdf/pdf_notebook.html",
             {
@@ -631,6 +649,7 @@ def download_pdf_notebook(request, notebook_slug):
                 "version": version,
                 "metrics": metrics,
                 "logo_base64": logo_base64,
+                **branding,
             },
             request=request,
         )

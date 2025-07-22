@@ -2,283 +2,285 @@
 <html lang="en">
 {% load static custom_filters %}
 
-
-
-
 <head>
-    <meta charset="UTF-8">
-    <title>PDF - {{ notebook.title }}</title>
-    <style>
-        /* Footer general excepto portada */
-        @page {
-            margin: 40px;
-            @bottom-center {
-                content: "ModelMint • Page " counter(page) " of " counter(pages);
-                font-size: 10px;
-                color: #666;
-            }
-        }
+  <meta charset="UTF-8" />
+  <title>PDF - {{ notebook.title }}</title>
+  <style>
+    :root {
+      --primary-color: {{ primary_color|default:"#198754" }};
+      --secondary-color: {{ secondary_color|default:"#6c757d" }};
+      --text-color: {{ text_color|default:"#000000" }};
+      --background-color: {{ background_color|default:"#ffffff" }};
+    }
 
-        /* Portada sin márgenes ni pie de página */
-        @page:first {
-            margin: 0;
-            @bottom-center {
-                content: none;
-            }
-        }
+    @page {
+      margin: 40px;
+      @bottom-center {
+        content: "ModelMint • Page " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
+    }
 
-        @page landscape_page {
-            size: A4 landscape;
-            margin: 40px;
-            @bottom-center {
-                content: "ModelMint • Page " counter(page) " of " counter(pages);
-                font-size: 10px;
-                color: #666;
-            }
-        }
+    @page:first {
+      margin: 0;
+      @bottom-center {
+        content: none;
+      }
+    }
 
-        .landscape {
-            page: landscape_page;
-        }
+    @page landscape_page {
+      size: A4 landscape;
+      margin: 40px;
+      @bottom-center {
+        content: "ModelMint • Page " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
+    }
 
-        body {
-            font-family: "Helvetica", "Arial", sans-serif;
-            font-size: 12px;
-            margin: 0;
-        }
+    body {
+      font-family: "Helvetica", "Arial", sans-serif;
+      font-size: 12px;
+      margin: 0;
+      background-color: var(--background-color);
+      color: var(--text-color);
+    }
 
-        /* ✅ Watermark (si se vuelve a activar) */
-        .watermark {
-            position: fixed;
-            top: 35%;
-            left: 0;
-            width: 100%;
-            text-align: center;
-            opacity: 0.06;
-            font-size: 100px;
-            z-index: -1;
-        }
+    .cover-page {
+      width: 210mm;
+      height: 297mm;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      text-align: center;
+      page-break-after: always;
+    }
 
-        /* ✅ Portada que cubre y centra todo */
-        .cover-page {
-            width: 210mm;
-            height: 297mm;
-            background-color: #f5f5f5;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            page-break-after: always;
-        }
+    .cover-content {
+      max-width: 80%;
+    }
 
-        .cover-content {
-            max-width: 80%;
-        }
+    .cover-logo {
+      height: 60px;
+      margin-bottom: 20px;
+    }
 
-        .cover-logo {
-            height: 60px;
-            margin-bottom: 20px;
-        }
+    .cover-title {
+      font-size: 28px;
+      margin-bottom: 10px;
+      color: var(--primary-color);
+    }
 
-        .cover-title {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
+    .cover-meta {
+      font-size: 14px;
+      margin: 4px 0;
+    }
 
-        .cover-meta {
-            font-size: 14px;
-            margin: 4px 0;
-        }
+    .org-tagline {
+      font-style: italic;
+      font-size: 13px;
+      margin-top: 8px;
+      color: var(--secondary-color);
+    }
 
-        /* Secciones posteriores */
-        h2 {
-            font-size: 16px;
-            margin-top: 30px;
-            margin-bottom: 16px;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 6px;
-        }
+    h2 {
+      font-size: 16px;
+      margin: 30px 0 16px;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 6px;
+      color: var(--primary-color);
+    }
 
-        .metric {
-            margin-bottom: 28px;
-            page-break-inside: avoid;
-        }
+    .report-meta {
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
 
-        .metric-name {
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 6px;
-        }
+    .report-meta p {
+      margin: 2px 0;
+    }
 
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin-top: 10px;
-        }
+    .metric {
+      margin-bottom: 28px;
+      page-break-inside: avoid;
+    }
 
-        th, td {
-            border: 1px solid #aaa;
-            padding: 6px;
-            font-size: 11px;
-            text-align: left;
-        }
+    .metric-name {
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
 
-        img {
-            max-width: 100%;
-            height: auto;
-            margin-top: 10px;
-            border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
+    .muted {
+      color: #999;
+      font-style: italic;
+    }
 
-        .muted {
-            color: #999;
-            font-style: italic;
-        }
+    .table-wrapper {
+      overflow-x: auto;
+      width: 100%;
+    }
 
-        .report-meta {
-            font-size: 12px;
-            margin-bottom: 10px;
-        }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 10px;
+      font-size: 10px;
+      table-layout: auto;
+      word-wrap: break-word;
+    }
 
-        .report-meta p {
-            margin: 2px 0;
-        }
+    th,
+    td {
+      border: 1px solid #aaa;
+      padding: 6px;
+      text-align: left;
+      white-space: normal;
+    }
 
-        .table-wrapper {
-            overflow-x: auto;
-            width: 100%;
-        }
+    .small-table {
+      font-size: 9px;
+    }
 
-        table {
-            font-size: 10px; /* o menos si es necesario */
-            table-layout: auto;
-            word-wrap: break-word;
-        }
+    .small-table th,
+    .small-table td {
+      padding: 2px 4px;
+    }
 
-        td, th {
-            white-space: normal;
-        }
+    .extra-small-table {
+      font-size: 8px;
+    }
 
-        .avoid-page-break {
-            page-break-inside: avoid;
-        }
+    .extra-small-table th,
+    .extra-small-table td {
+      padding: 1px 3px;
+    }
 
-        /* Tabla ligeramente comprimida */
-        .small-table {
-            font-size: 9px;
-            table-layout: auto;
-            word-wrap: break-word;
-        }
-        .small-table th, .small-table td {
-            padding: 2px 4px;
-            white-space: normal;
-        }
+    .landscape {
+      page: landscape_page;
+    }
 
-        /* Tabla MUY comprimida (más de 15 columnas) */
-        .extra-small-table {
-            font-size: 8px;
-            table-layout: auto;
-            word-wrap: break-word;
-        }
-        .extra-small-table th, .extra-small-table td {
-            padding: 1px 3px;
-            white-space: normal;
-        }
-    </style>
+    .avoid-page-break {
+      page-break-inside: avoid;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      margin-top: 10px;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .watermark {
+      position: fixed;
+      top: 35%;
+      width: 100%;
+      text-align: center;
+      opacity: 0.06;
+      font-size: 100px;
+      z-index: -1;
+    }
+  </style>
 </head>
+
 <body>
 
-<!-- ✅ Portada -->
-<div class="cover-page">
+  <!-- ✅ Portada -->
+  <div class="cover-page">
     <div class="cover-content">
-        {% if logo_base64 %}
-            <a href="https://modelmint.co" target="_blank">
-                <img src="{{ logo_base64 }}" alt="ModelMint Logo" class="cover-logo">
-            </a>
-        {% else %}
-            <div class="cover-logo" style="font-size: 12px; color: #888;">
-                ModelMint
-            </div>
-        {% endif %}
+      {% if branding_enabled and org_logo %}
+        <img src="{{ org_logo }}" class="cover-logo" alt="Organization Logo">
+      {% elif logo_base64 %}
+        <img src="{{ logo_base64 }}" class="cover-logo" alt="ModelMint Logo">
+      {% else %}
+        <div class="cover-logo" style="font-size: 12px; color: #888;">ModelMint</div>
+      {% endif %}
 
-        <div class="cover-title">
-            📓 Notebook: {{ notebook.title }}
-        </div>
-        <p class="cover-meta"><strong>Organization:</strong> {{ organization.name }}</p>
+      <div class="cover-title">📓 Notebook: {{ notebook.title }}</div>
+      <p class="cover-meta"><strong>Organization:</strong> {{ organization.name }}</p>
+      {% if org_tagline %}
+        <p class="org-tagline">“{{ org_tagline }}”</p>
+      {% endif %}
+      {% if notebook.created_by %}
         <p class="cover-meta"><strong>Created By:</strong> {{ notebook.created_by.email }}</p>
-        <p class="cover-meta"><strong>Version:</strong> {{ version.version }}</p>
-        <p class="cover-meta"><strong>Created At:</strong> {{ version.created_at|date:"Y-m-d H:i" }}</p>
+      {% endif %}
+      <p class="cover-meta"><strong>Version:</strong> {{ version.version }}</p>
+      <p class="cover-meta"><strong>Created At:</strong> {{ version.created_at|date:"Y-m-d H:i" }}</p>
     </div>
-</div>
+  </div>
 
-<!-- ✅ Descripción -->
-<div class="report-meta">
+  <!-- ✅ Descripción -->
+  <div class="report-meta">
     <h2>📝 Notebook Description</h2>
     <p>{{ notebook.description|safe|default:"No description provided." }}</p>
-</div>
+  </div>
 
-<!-- ✅ Métricas -->
-<h2>📈 Metrics</h2>
+  <!-- ✅ Métricas -->
+  <h2>📈 Metrics</h2>
 
-{% for metric in metrics %}
+  {% for metric in metrics %}
     {% with metric_type=metric.type %}
-        {% if metric_type == "table" and metric.table_data %}
-            {% with col_count=metric.table_data.columns|length %}
-            <div class="metric landscape avoid-page-break">
-                <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
-                <div class="table-wrapper">
-                    <table class="{% if col_count > 15 %}extra-small-table{% elif col_count > 8 %}small-table{% endif %}">
-                        <thead>
-                            <tr>
-                                {% for col in metric.table_data.columns %}
-                                    <th>{{ col }}</th>
-                                {% endfor %}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in metric.table_data.data %}
-                                <tr>
-                                    {% for col in metric.table_data.columns %}
-                                        <td>{{ row|get_item:col }}</td>
-                                    {% endfor %}
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+      {% if metric_type == "table" and metric.table_data %}
+        {% with col_count=metric.table_data.columns|length %}
+          <div class="metric landscape avoid-page-break">
+            <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
+            <div class="table-wrapper">
+              <table class="{% if col_count > 15 %}extra-small-table{% elif col_count > 8 %}small-table{% endif %}">
+                <thead>
+                  <tr>
+                    {% for col in metric.table_data.columns %}
+                      <th>{{ col }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in metric.table_data.data %}
+                    <tr>
+                      {% for col in metric.table_data.columns %}
+                        <td>{{ row|get_item:col }}</td>
+                      {% endfor %}
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
             </div>
-            {% endwith %}
-        {% else %}
-            <div class="metric avoid-page-break">
-                <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
+          </div>
+        {% endwith %}
+      {% else %}
+        <div class="metric avoid-page-break">
+          <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
 
-                {% if metric_type == "single_value" %}
-                    <p style="font-size: 16px;"><strong>{{ metric.value|safe }}</strong></p>
+          {% if metric_type == "single_value" %}
+            <p style="font-size: 16px;"><strong>{{ metric.value|safe }}</strong></p>
 
-                {% elif metric_type == "text" %}
-                    <p>{{ metric.value|safe }}</p>
+          {% elif metric_type == "text" %}
+            <p>{{ metric.value|safe }}</p>
 
-                {% elif metric_type == "plot" %}
-                    {% if metric.base64_image %}
-                        <img src="{{ metric.base64_image }}" alt="Plot Image">
-                    {% elif metric.presigned_url %}
-                        <img src="{{ metric.presigned_url }}" alt="Plot Image">
-                    {% else %}
-                        <p class="muted">Plot not available.</p>
-                    {% endif %}
+          {% elif metric_type == "plot" %}
+            {% if metric.base64_image %}
+              <img src="{{ metric.base64_image }}" alt="Plot Image">
+            {% elif metric.presigned_url %}
+              <img src="{{ metric.presigned_url }}" alt="Plot Image">
+            {% else %}
+              <p class="muted">Plot not available.</p>
+            {% endif %}
 
-                {% else %}
-                    <p class="muted">No data available for this metric.</p>
-                {% endif %}
-            </div>
-        {% endif %}
+          {% else %}
+            <p class="muted">No data available for this metric.</p>
+          {% endif %}
+        </div>
+      {% endif %}
     {% endwith %}
-{% empty %}
+  {% empty %}
     <p class="muted">No metrics available for this notebook.</p>
-{% endfor %}
+  {% endfor %}
 
 </body>
 </html>
+
 
