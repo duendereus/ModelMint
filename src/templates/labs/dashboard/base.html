@@ -15,6 +15,7 @@
 
         <!-- favicon -->
         <link rel="shortcut icon" href="{% static 'img/fav/logo-green.svg' %}" />
+
         <!-- Css -->
         <link href="{% static 'dashboard/libs/simplebar/simplebar.min.css' %}" rel="stylesheet">
         <!-- Bootstrap Css -->
@@ -27,19 +28,17 @@
         <link href="{% static 'dashboard/css/custom.css' %}" class="theme-opt" rel="stylesheet" type="text/css" />
         <link href="{% static 'dashboard/css/custom-branding-labs.css' %}" class="theme-opt" rel="stylesheet" type="text/css" />
         
-     
-        {% if branding_enabled %}
-            <style id="custom-branding-vars">
-                :root {
-                    --sidebar-bg: {{ secondary_color }};
-                    --primary-color: {{ primary_color }};
-                    --background-color: {{ background_color }};
-                    --text-color: {{ text_color }};
-                }
-            </style>
-        {% endif %}
+        <style>
+        :root {
+            --primary-color: {{ primary_color|default:"#fa3f3f" }};
+            --secondary-color: {{ secondary_color|default:"#9e9e9e" }};
+            --text-color: {{ text_color|default:"#ffffff" }};
+            --background-color: {{ background_color|default:"#ffffff" }};
+            --sidebar-bg: {{ primary_color|default:"#fa3f3f" }};
+        }
+        </style>
 
-
+        
     </head>
 
     <body>
@@ -146,15 +145,14 @@
                                 <div class="text-sm-start text-center mx-md-2">
                                     <p class="mb-0 text-muted" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                         {% if branding_enabled and org_tagline %}
-                                            <span class="text-muted small" style="margin-top: 4px;"><strong>{{ org_tagline }}</strong></span>
+                                            <span class="text-muted small" style="margin-top: 4px;"><strong style="color: var(--secondary-color) !important;">{{ org_tagline }}</strong></span>
                                         {% endif %}
-                                        © <script>document.write(new Date().getFullYear())</script>
                                         <a href="{% url 'labs:labs_landing' %}" target="_blank" class="text-reset" style="display: flex; align-items: center; gap: 6px;">
                                             <img src="{% static 'img/logo-white.svg' %}" alt="site logo" style="max-width: 20px; height: auto;" />
-                                            <span style="font-family: 'Poppins', sans-serif; font-weight: bold;">
-                                                Model<span style="color: #00FF7F;">Mint</span>
+                                            <span style="font-family: 'Poppins', sans-serif; font-weight: bold; color: black !important;">
+                                                Model<span style="color: #00FF7F !important;">Mint</span>
                                             </span>
-                                            <span style="background-color: #00FF7F; color: black; font-size: 0.6rem; font-weight: 600; padding: 2px 6px; border-radius: 6px;">
+                                            <span style="background-color: #00FF7F; color: black !important; font-size: 0.6rem; font-weight: 600; padding: 2px 6px; border-radius: 6px;">
                                                 labs
                                             </span>
                                         </a>

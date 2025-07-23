@@ -899,30 +899,33 @@ def lab_notebook_resend_otp(request, notebook_slug):
 @labs_only
 def edit_notebook_access_view(request, notebook_slug):
     notebook = get_object_or_404(
-        LabNotebook.objects.select_related("organization", "created_by"),
+        LabNotebook.objects.select_related("organization__owner", "created_by"),
         slug=notebook_slug,
     )
 
     user = request.user
     is_owner = notebook.organization.owner == user
-    is_creator = notebook.created_by == user
+    is_creator = notebook.created_by == user if notebook.created_by else False
+
     if not (is_owner or is_creator):
         raise PermissionDenied("You do not have permission to edit this notebook.")
+
+    plan_limits = get_plan_limits(notebook.organization)
 
     if request.method == "POST":
         form = NotebookAccessForm(request.POST, instance=notebook)
         if form.is_valid():
-            plan_limits = get_plan_limits(notebook.organization)
             if not plan_limits.get("otp_access"):
-                # Forzar limpieza de los emails si el plan no permite OTP
                 form.instance.allowed_emails = []
             form.save()
             messages.success(request, "✅ Access settings updated.")
             return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
+        else:
+            print("❌ FORM ERRORS:", form.errors)
     else:
         form = NotebookAccessForm(instance=notebook)
 
-    # Gather unique allowed emails from other notebooks in the org
+    # Email suggestions (from other notebooks in org)
     all_emails = (
         LabNotebook.objects.filter(organization=notebook.organization)
         .exclude(id=notebook.id)
@@ -941,8 +944,6 @@ def edit_notebook_access_view(request, notebook_slug):
             "notebook": notebook,
             "form": form,
             "email_suggestions_json": email_suggestions_json,
-            "otp_access_allowed": get_plan_limits(notebook.organization).get(
-                "otp_access", False
-            ),
+            "otp_access_allowed": plan_limits.get("otp_access", False),
         },
     )

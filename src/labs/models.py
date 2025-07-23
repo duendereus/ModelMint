@@ -51,11 +51,14 @@ class LabNotebook(models.Model):
             )
 
         # 2. Validar que created_by sea owner o miembro de la organización
-        is_owner = self.organization.owner == self.created_by
-        is_member = self.organization.members.filter(user=self.created_by).exists()
+        if self.created_by is not None:
+            is_owner = self.organization.owner == self.created_by
+            is_member = self.organization.members.filter(user=self.created_by).exists()
 
-        if not (is_owner or is_member):
-            raise ValidationError("User must be owner or member of the organization.")
+            if not (is_owner or is_member):
+                raise ValidationError(
+                    "User must be owner or member of the organization."
+                )
 
     def save(self, *args, **kwargs):
         if not self.slug:

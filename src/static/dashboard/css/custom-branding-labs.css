@@ -7,16 +7,30 @@
     --primary-text-on-secondary: white;
 }
 
-
+/* Global */
 body {
     background-color: var(--background-color) !important;
-    color: var(--text-color);
+    color: var(--text-color) !important;
 }
 
+a,
+.btn,
+button {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Botones */
 .btn-primary,
 .btn-success {
     background-color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+.btn-primary:hover,
+.btn-success:hover {
+    background-color: var(--secondary-color) !important;
+    border-color: var(--secondary-color) !important;
 }
 
 .btn-outline-primary,
@@ -25,8 +39,16 @@ body {
     border-color: var(--primary-color) !important;
 }
 
+.btn-outline-primary:hover,
+.btn-outline-success:hover {
+    background-color: var(--secondary-color) !important;
+    color: var(--primary-text-on-secondary) !important;
+    border-color: var(--secondary-color) !important;
+}
+
+/* Header + Sidebar + Footer */
+.top-header .header-bar,
 .sidebar-wrapper,
-.top-header,
 .top-header-guest,
 .footer {
     background-color: var(--sidebar-bg) !important;
@@ -35,23 +57,40 @@ body {
 .sidebar-wrapper a,
 .top-header a,
 .footer a {
-    color: var(--text-color) !important;
+    color: var(--primary-text-on-secondary) !important;
 }
 
-/* Optional branding adjustments */
-.card-title {
-    color: var(--text-color);
+/* Dropdown personalizado */
+.dropdown-menu.dd-menu {
+    background-color: var(--sidebar-bg) !important;
+    color: var(--primary-text-on-secondary) !important;
 }
 
-/* Branding para botones personalizados */
-
-.btn-outline-primary:hover {
-    background-color: var(--secondary-color);
-    color: var(--primary-text-on-secondary);
-    border-color: var(--secondary-color);
+.dropdown-menu.dd-menu * {
+    color: var(--primary-text-on-secondary) !important;
 }
 
+.dropdown-menu.dd-menu a.dropdown-item {
+    color: var(--primary-text-on-secondary) !important;
+    background-color: transparent !important;
+}
 
+.dropdown-menu.dd-menu a.dropdown-item:hover,
+.dropdown-menu.dd-menu a.dropdown-item:focus,
+.dropdown-menu.dd-menu .active {
+    background-color: var(--secondary-color) !important;
+    color: var(--primary-text-on-secondary) !important;
+}
+
+.dropdown-menu.dd-menu a.dropdown-item i {
+    color: var(--primary-text-on-secondary) !important;
+}
+
+.dropdown-menu.dd-menu a.dropdown-item:hover i {
+    color: var(--primary-text-on-secondary) !important;
+}
+
+/* Badges */
 .badge-notebook-public {
     background-color: var(--primary-color);
     color: white;
@@ -59,47 +98,41 @@ body {
 
 .badge-notebook-private {
     background-color: var(--secondary-color);
-    color: var(--primary-text-on-secondary);
+    color: white;
 }
 
-.carousel-control-prev-icon,
-.carousel-control-next-icon {
-    background-color: var(--secondary-color);
-    background-size: 50% 50%;
-    padding: 10px;
+/* Títulos */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.card-title {
+    color: var(--primary-color) !important;
+    font-weight: 600;
 }
 
-.carousel-item {
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    padding: 10px;
+/* Descripción, fechas, autores */
+.card .card-text,
+.card .text-muted,
+.card p,
+.card small {
+    color: #212529 !important;
 }
 
-.card {
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-    border: 1px solid #eaeaea;
-    border-radius: 10px;
+/* p.text-muted con strong */
+p.text-muted strong {
+    color: var(--secondary-color);
 }
 
-#version-select {
-    border-radius: 6px;
-    border-color: var(--primary-color);
-}
-
+/* Labels de formularios */
 .form-label {
     font-weight: 600;
     color: var(--primary-color);
 }
 
-h2 {
-    color: var(--primary-color);
-    font-weight: 600;
-}
-
-p.text-muted strong {
-    color: var(--secondary-color);
-}
-
+/* Campos editables y selects */
 .editable-title,
 .editable-value,
 #version-select {
@@ -113,6 +146,13 @@ p.text-muted strong {
     box-shadow: 0 0 0 0.2rem rgba(0, 194, 102, 0.25);
 }
 
+/* Select de versiones */
+#version-select {
+    border-radius: 6px;
+    border-color: var(--primary-color);
+}
+
+/* Metric Cards */
 .metric-item .card {
     border-left: 4px solid var(--primary-color);
     border-radius: 8px;
@@ -140,13 +180,14 @@ p.text-muted strong {
     border-color: var(--primary-color);
 }
 
+/* Publish button */
 #publish-btn {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
     font-weight: 600;
     font-size: 1rem;
     padding: 12px;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    color: white;
 }
 
 #publish-btn:disabled {
@@ -160,3 +201,28 @@ button#publish-btn:hover:not(:disabled) {
     border-color: var(--secondary-color) !important;
     color: var(--primary-text-on-secondary) !important;
 }
+
+/* Carousel */
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    background-color: var(--secondary-color);
+    background-size: 50% 50%;
+    padding: 10px;
+}
+
+.carousel-item {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+/* Card general */
+.card {
+    background-color: white;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    border: 1px solid #eaeaea;
+    border-radius: 10px;
+}
+
+
+

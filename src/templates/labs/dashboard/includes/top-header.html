@@ -53,7 +53,7 @@
                     </button>                    
 
                     <div class="dropdown-menu dd-menu dropdown-menu-end shadow border-0 mt-3 py-3" style="min-width: 200px;">
-                        <a class="dropdown-item d-flex align-items-center text-dark pb-3" href="#">
+                        <a class="dropdown-item d-flex align-items-center pb-3" href="{% url 'labs:labs_profile' %}">
                             {% if request.user.profile.profile_picture %}
                                 <img src="{{ request.user.profile.profile_picture.url }}" class="avatar avatar-md-sm rounded-circle border shadow" alt="">
                             {% else %}
@@ -72,16 +72,16 @@
                                 </small>                                                                
                             </div>                            
                         </a>
-                        <a class="dropdown-item text-dark" href="{% url 'labs:labs_profile' %}"><span class="mb-0 d-inline-block me-1"><i class="ti ti-user"></i></span> My Profile</a>                   
+                        <a class="dropdown-item" href="{% url 'labs:labs_profile' %}"><span class="mb-0 d-inline-block me-1"><i class="ti ti-user"></i></span> My Profile</a>                   
                         {% if request.user.owned_organization %}
-                            <a class="dropdown-item text-dark" href="{% url 'labs:labs_organization_subscription' %}">
+                            <a class="dropdown-item" href="{% url 'labs:labs_organization_subscription' %}">
                                 <span class="mb-0 d-inline-block me-1"><i class="ti ti-id-badge"></i></span> My Subscription
                             </a>
-                            <a class="dropdown-item text-dark" href="{% url 'labs:labs_organization_profile' %}">
+                            <a class="dropdown-item" href="{% url 'labs:labs_organization_profile' %}">
                                 <span class="mb-0 d-inline-block me-1"><i class="ti ti-building-skyscraper"></i></span> Organization Profile
                             </a>
                         {% endif %}
-                        <a class="dropdown-item text-dark" href="{% url 'labs:labs_logout' %}"><span class="mb-0 d-inline-block me-1"><i class="ti ti-logout"></i></span> Logout</a>
+                        <a class="dropdown-item" href="{% url 'labs:labs_logout' %}"><span class="mb-0 d-inline-block me-1"><i class="ti ti-logout"></i></span> Logout</a>
                     </div>
                 </div>
             </li>

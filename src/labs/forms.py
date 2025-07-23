@@ -68,6 +68,7 @@ class NotebookAccessForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+        instance.is_public = self.cleaned_data.get("is_public", False)
         instance.allowed_emails = self.cleaned_data["allowed_emails_text"]
         if commit:
             instance.save()

@@ -276,3 +276,19 @@ input[readonly] {
     height: 75px;
     position: relative;  /* ← necesario para centrar absoluto */
 }
+
+@media (min-width: 960px) {
+    .guest-margin {
+    margin-left: -11% !important;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    }
+}
+
+
+@media (max-width: 760px) {
+  .guest-margin {
+    min-width: 100% !important;
+  }
+}
+
