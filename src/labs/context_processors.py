@@ -21,6 +21,11 @@ def labs_branding_context(request):
     if not organization:
         return {}
 
+    # ✅ Check subscription status properly
+    subscription = getattr(organization, "subscription", None)
+    if not subscription or not subscription.is_active_status:
+        return {}
+
     limits = get_plan_limits(organization)
     if limits.get("branding", "none") == "none":
         return {}

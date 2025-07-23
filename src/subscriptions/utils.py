@@ -44,11 +44,31 @@ def refresh_active_users_subscriptions(
             )
         try:
             sub_data = helpers.billing.get_subscription(obj.stripe_id, raw=False)
-            print(f"[DEBUG] Stripe response for {obj.stripe_id} →", sub_data)
+            if verbose:
+                print(f"[DEBUG] Stripe response for {obj.stripe_id} →", sub_data)
+
+            # 🛡️ Protección contra reactivación indebida
+            if sub_data.get("status") in ["canceled", "incomplete_expired"]:
+                obj.status = sub_data["status"]
+                obj.cancel_at_period_end = True
+                obj.active = False
+                obj.save()
+                continue
+
+            if sub_data.get("cancel_at_period_end") is True:
+                obj.cancel_at_period_end = True
+                obj.active = False
+                obj.status = sub_data["status"]
+                obj.save()
+                continue
+
+            # ✅ Actualización normal
             for k, v in sub_data.items():
                 setattr(obj, k, v)
+            obj.active = True  # Solo si todo está en orden
             obj.save()
             complete_count += 1
+
         except Exception as e:
             print(f"[ERROR] Failed to refresh sub {obj.stripe_id}: {e}")
 

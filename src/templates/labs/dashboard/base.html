@@ -28,6 +28,7 @@
         <link href="{% static 'dashboard/css/custom.css' %}" class="theme-opt" rel="stylesheet" type="text/css" />
         <link href="{% static 'dashboard/css/custom-branding-labs.css' %}" class="theme-opt" rel="stylesheet" type="text/css" />
         
+        {% if branding_enabled %}
         <style>
         :root {
             --primary-color: {{ primary_color|default:"#fa3f3f" }};
@@ -37,6 +38,7 @@
             --sidebar-bg: {{ primary_color|default:"#fa3f3f" }};
         }
         </style>
+        {% endif %}
 
         
     </head>

@@ -169,21 +169,10 @@ class SubscriptionStatus(models.TextChoices):
     PAUSED = "paused", "Paused"
 
 
-class UserSubscriptionQuerySet(models.QuerySet):
-    def by_range(self, days_start=7, days_end=120, verbose=True):
-        now = timezone.now()
-        days_start_from_now = now + datetime.timedelta(days=days_start)
-        days_end_from_now = now + datetime.timedelta(days=days_end)
-        range_start = days_start_from_now.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        range_end = days_end_from_now.replace(
-            hour=23, minute=59, second=59, microsecond=59
-        )
-        if verbose:
-            print(f"Range is {range_start} to {range_end}")
+class OrganizationSubscriptionQuerySet(models.QuerySet):
+    def by_active_trialing(self):
         return self.filter(
-            current_period_end__gte=range_start, current_period_end__lte=range_end
+            status__in=[SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING]
         )
 
     def by_days_left(self, days_left=7):
@@ -204,26 +193,25 @@ class UserSubscriptionQuerySet(models.QuerySet):
             current_period_end__gte=day_start, current_period_end__lte=day_end
         )
 
-    def by_active_trialing(self):
-        active_qs_lookup = Q(status=SubscriptionStatus.ACTIVE) | Q(
-            status=SubscriptionStatus.TRIALING
+    def by_range(self, days_start=7, days_end=120, verbose=True):
+        now = timezone.now()
+        start = now + datetime.timedelta(days=days_start)
+        end = now + datetime.timedelta(days=days_end)
+        range_start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        range_end = end.replace(hour=23, minute=59, second=59, microsecond=59)
+        if verbose:
+            print(f"[Range] {range_start} to {range_end}")
+        return self.filter(
+            current_period_end__gte=range_start, current_period_end__lte=range_end
         )
-        return self.filter(active_qs_lookup)
-
-    def by_user_ids(self, user_ids=None):
-        qs = self
-        if isinstance(user_ids, list):
-            qs = self.filter(user_id__in=user_ids)
-        elif isinstance(user_ids, int):
-            qs = self.filter(user_id__in=[user_ids])
-        elif isinstance(user_ids, str):
-            qs = self.filter(user_id__in=[user_ids])
-        return qs
 
 
-class UserSubscriptionManager(models.Manager):
+class OrganizationSubscriptionManager(models.Manager):
     def get_queryset(self):
-        return UserSubscriptionQuerySet(self.model, using=self._db)
+        return OrganizationSubscriptionQuerySet(self.model, using=self._db)
+
+    def by_active_trialing(self):
+        return self.get_queryset().by_active_trialing()
 
 
 class OrganizationSubscription(models.Model):
@@ -255,6 +243,7 @@ class OrganizationSubscription(models.Model):
     )
     timestamp = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+    objects = OrganizationSubscriptionManager()
 
     def get_absolute_url(self):
         if self.organization.type == "lab":
@@ -274,7 +263,27 @@ class OrganizationSubscription(models.Model):
 
     @property
     def is_active_status(self):
-        return self.status in [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING]
+        """
+        Considera la suscripción activa si está en estado 'active' o 'trialing',
+        o si está programada para cancelarse pero aún no ha llegado su periodo final.
+        """
+        if self.status in [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING]:
+            return True
+        if (
+            self.cancel_at_period_end
+            and self.current_period_end
+            and self.current_period_end > timezone.now()
+        ):
+            return True
+        return False
+
+    @property
+    def is_set_to_cancel(self):
+        """
+        Retorna True si la suscripción está programada
+        para cancelarse al final del periodo actual.
+        """
+        return bool(self.cancel_at_period_end)
 
     @property
     def plan_name(self):
