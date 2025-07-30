@@ -20,7 +20,7 @@ def notify_team_new_subscription(organization_name, plan_name, user_email):
     }
 
     html_message = render_to_string(
-        "checkouts/emails/notify_team_new_subscription.html", context
+        "subscriptions/emails/notify_team_new_subscription.html", context
     )
 
     plain_message = (

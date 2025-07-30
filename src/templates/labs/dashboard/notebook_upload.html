@@ -81,7 +81,7 @@
                 <p class="mt-3 text-muted">
                     Notebook upload is disabled. You’ve reached your plan’s limit of <strong>{{ max_allowed }}</strong> active notebook{{ max_allowed|pluralize }}.
                 </p>
-                <a href="#" class="btn btn-outline-primary w-100 mt-3">
+                <a href="{% url 'labs:labs_organization_subscription' %}" class="btn btn-outline-primary w-100 mt-3">
                     🔼 Upgrade Plan
                 </a>
             </div>
