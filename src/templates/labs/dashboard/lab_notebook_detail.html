@@ -77,19 +77,31 @@
   </div>  
 
   <form method="get" class="mb-4">
-    <div class="row">
-        <div class="col-md-4">
-        <label for="version-select" class="form-label">Select Notebook Version</label>
-        <select id="version-select" name="version_id" class="form-select" onchange="this.form.submit()">
-            {% for v in all_versions %}
-            <option value="{{ v.id }}" {% if v.id == selected_version.id %}selected{% endif %}>
-                v{{ v.version }} – {{ v.created_at|date:"Y-m-d H:i" }}
-            </option>
-            {% endfor %}
+    <div class="row align-items-end">
+      <div class="col-md-6">
+        <label for="version-select" class="form-label fw-bold text-danger">Select Notebook Version</label>
+        <select id="version-select" name="version_id" class="form-select border-danger" onchange="this.form.submit()">
+          {% for v in all_versions %}
+          <option value="{{ v.id }}" {% if v.id == selected_version.id %}selected{% endif %}>
+            v{{ v.version }} – {{ v.created_at|date:"Y-m-d" }}
+          </option>
+          {% endfor %}
         </select>
-        </div>
+      </div>
+      <div class="col-md-6 text-end mt-3 mt-md-0">
+        {% if request.user == notebook.created_by or request.user == notebook.organization.owner %}
+          <a 
+            href="{% url 'labs:lab_preview_notebook' notebook.slug %}?version_id={{ selected_version.id }}"
+            class="btn btn-outline-primary"
+            title="Edit and Preview Notebook"
+          >
+            <i class="bi bi-eye"></i> See Preview
+          </a>
+        {% endif %}
+      </div>
     </div>
   </form>
+
 
 
   <!-- ✅ Metrics Section -->

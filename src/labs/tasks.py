@@ -8,32 +8,21 @@ import os
 
 
 @shared_task
-def process_lab_notebook_task(notebook_id, file_entries=None):
+def process_lab_notebook_task(notebook_id, version_obj_id, file_entries=None):
     try:
         notebook = LabNotebook.objects.get(id=notebook_id)
+        version_obj = NotebookVersion.objects.get(id=version_obj_id)
 
-        # Calcular nueva versión
-        last_version = notebook.versions.order_by("-version").first()
-        next_version = last_version.version + 1 if last_version else 1
-
-        version_obj = NotebookVersion.objects.create(
-            notebook=notebook,
-            version=next_version,
-            uploaded_by=notebook.created_by,
-            html_file=notebook.file,  # Guarda el HTML de esta versión
-        )
-
+        html_path = version_obj.html_file.name
         total_metrics = 0
 
-        # Procesar HTML
-        with default_storage.open(notebook.file.name, "rb") as f:
+        with default_storage.open(html_path, "rb") as f:
             metric_count = process_lab_metrics(f, notebook, version_obj=version_obj)
             total_metrics += metric_count
             print(
-                f"✅ {metric_count} HTML metrics parsed for {notebook.title} (v{next_version})"
+                f"✅ {metric_count} HTML metrics parsed for {notebook.title} (v{version_obj.version})"
             )
 
-        # Procesar archivos complementarios
         VALID_TABLE_EXTENSIONS = {".csv", ".xls", ".xlsx"}
 
         for entry in file_entries or []:
@@ -59,9 +48,9 @@ def process_lab_notebook_task(notebook_id, file_entries=None):
                 total_metrics += 1
 
         print(
-            f"✅ {total_metrics} total metrics stored for {notebook.title} (v{next_version})"
+            f"✅ {total_metrics} total metrics stored for {notebook.title} (v{version_obj.version})"
         )
-        return f"Processed v{next_version} for LabNotebook {notebook_id}"
+        return f"Processed v{version_obj.version} for LabNotebook {notebook_id}"
 
     except Exception as e:
         print(f"❌ Error processing LabNotebook {notebook_id}: {str(e)}")

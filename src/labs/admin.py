@@ -21,20 +21,9 @@ class LabNotebookAdmin(admin.ModelAdmin):
         "is_public",
         "active",
         "created_at",
-        "notebook_file_link",
     )
     list_filter = ("organization", "is_public", "active")
     search_fields = ("title", "slug", "created_by__email")
-
-    def notebook_file_link(self, obj):
-        if obj.file:
-            return format_html(
-                '<a href="{}" target="_blank">📄 Ver archivo</a>',
-                obj.file.url,
-            )
-        return "—"
-
-    notebook_file_link.short_description = "Archivo"
 
 
 @admin.register(NotebookVersion)

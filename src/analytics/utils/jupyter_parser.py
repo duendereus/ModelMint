@@ -72,58 +72,66 @@ def is_probably_junk(text):
 
 
 def find_plt_title_upwards_only(el):
-    def extract_title(text):
+    """
+    Busca un título desde un nodo <img> o elemento gráfico:
+    1. Intenta detectar plt.title(...) u otros métodos en celdas anteriores.
+    2. Si no encuentra, busca en nodos <div class="output_html"> con texto previo.
+    3. Si tampoco, fallback a headings previos (h2, p, etc.) o alt del <img>.
+    """
+
+    def extract_title_from_code(text):
         patterns = [
             r'plt\.title\(\s*["\'](.*?)["\']\s*\)',
             r'ax\.set_title\(\s*["\'](.*?)["\']\s*[,)]',
             r'fig\.suptitle\(\s*["\'](.*?)["\']\s*[,)]',
-            r"title\s*=\s*\{[\"']center[\"']:\s*[\"'](.*?)[\"']\}",  # NEW: df.plot(title=...)
+            r"title\s*=\s*\{[\"']center[\"']:\s*[\"'](.*?)[\"']\}",
         ]
-        titles = []
         for pattern in patterns:
             try:
                 matches = re.findall(pattern, text)
                 if matches:
-                    print(f"[DEBUG title match] Pattern: {pattern} -> {matches}")
-                titles.extend([clean_text_rich(m) for m in matches])
-            except re.error as e:
-                print(f"[DEBUG regex error] Pattern: {pattern} -> {str(e)}")
-        return titles
+                    for t in matches:
+                        cleaned = clean_text_rich(t)
+                        if not is_probably_junk(cleaned):
+                            return cleaned
+            except re.error:
+                continue
+        return None
 
     visited = set()
     node = el
-    for depth in range(10):
+
+    for _ in range(10):
         if not node or node in visited:
             break
         visited.add(node)
 
         if hasattr(node, "get_text"):
-            snippet = node.get_text()[:200].replace("\n", " ").strip()
-            print(f"[DEBUG walk_up] Depth: {depth}, Text: {snippet}")
-            found = extract_title(node.get_text())
-            if found:
-                for t in found:
-                    if (
-                        t.lower().startswith("top")
-                        or t.lower().startswith("ticket")
-                        or "migrar" in t.lower()
-                        or "studio access" in t.lower()
-                    ):
-                        print(f"[DEBUG title found (relevant)] {t}")
-                        return t
-                print(f"[DEBUG title found (fallback)] {found[0]}")
-                return found[0]
+            candidate = extract_title_from_code(node.get_text())
+            if candidate:
+                return candidate
 
-        if hasattr(node, "find_previous"):
-            heading = node.find_previous(["h1", "h2", "h3", "strong"])
-            if heading and heading.get_text(strip=True):
-                htext = clean_text_rich(heading.get_text(strip=True))
-                print(f"[DEBUG heading fallback] Found heading: {htext}")
-                return htext
+        # ✅ Nuevo: buscar div.output_html anterior con posible título
+        if node.name == "div" and "output_html" in node.get("class", []):
+            inner_text = clean_text_rich(node.get_text(strip=True))
+            if not is_probably_junk(inner_text) and len(inner_text) > 5:
+                return inner_text
 
         node = node.parent
 
-    print("[DEBUG title fallback] No title found upwards or from Axes")
+    # Fallback: buscar encabezados anteriores visibles
+    heading = el.find_previous(["h1", "h2", "h3", "strong", "p"])
+    if heading:
+        htext = clean_text_rich(heading.get_text(strip=True))
+        if not is_probably_junk(htext) and len(htext) > 5:
+            return htext
+
+    # Fallback: usar atributo alt si es un <img>
+    if el.name == "img":
+        alt_text = el.get("alt")
+        if alt_text and not is_probably_junk(alt_text):
+            return clean_text_rich(alt_text)
+
     return None
 
 
@@ -151,16 +159,31 @@ def is_cell_wrapper(el):
 def extract_kpis_from_text(text):
     kpis = []
     for line in text.splitlines():
-        if ":" in line:
-            title, value = line.split(":", 1)
-            title, value = clean_text_basic(title), clean_text_basic(value)
-            if (
-                title
-                and value
-                and not is_probably_junk(title)
-                and not is_probably_junk(value)
-            ):
-                kpis.append({"type": "kpi", "title": title, "value": value})
+        if ":" not in line or line.count(":") > 2:
+            continue
+        title, value = line.split(":", 1)
+        title, value = clean_text_basic(title), clean_text_basic(value)
+
+        # Rechaza si es código o valores sospechosos
+        if (
+            not title
+            or not value
+            or is_probably_junk(title)
+            or is_probably_junk(value)
+            or any(
+                x in value
+                for x in ["{", "}", "return", "=", "def ", "lambda", "(", ")"]
+            )
+        ):
+            continue
+
+        # Solo si el título tiene mínimo 5 letras y el valor es razonable
+        if len(title) > 5 and len(value) < 100:
+            print(f"[KPI Detected] Title: '{title}' | Value: '{value}'")
+            kpis.append({"type": "kpi", "title": title, "value": value})
+        else:
+            print(f"[KPI Rejected] Title: '{title}' | Value: '{value}'")
+
     return kpis
 
 
@@ -168,6 +191,7 @@ def parse_jupyter_html(content):
     soup = BeautifulSoup(content, "html.parser")
     results = []
     current_metadata = None
+    pending_metadata = None
     used_imgs = set()
     accumulated_html = []
 
@@ -200,16 +224,55 @@ def parse_jupyter_html(content):
                 metadata = parse_mint_comment(el)
                 if metadata:
                     metadata["anchor"] = el
+                    print(f"[Mint Comment] Metadata: {metadata}")
                     current_metadata = metadata
+                    pending_metadata = metadata
 
         elif is_input_prompt(el):
             flush_text()
 
-        elif el.name in ["pre", "div"] and "output" in " ".join(el.get("class", [])):
-            kpis = extract_kpis_from_text(el.get_text())
-            if kpis:
-                results.extend(kpis)
+        elif (
+            el.name in ["pre", "div"]
+            and "output" in " ".join(el.get("class", []))
+            and current_metadata is None
+            and "jp-RenderedText" in el.get("class", [])
+            and not el.find("table", class_="dataframe")
+        ):
+            possible_kpis = extract_kpis_from_text(el.get_text())
+            if (
+                possible_kpis
+                and len(possible_kpis) == 1
+                and not is_probably_junk(possible_kpis[0]["value"])
+            ):
+                print(f"[Inline KPI] {possible_kpis[0]}")
+                results.append(possible_kpis[0])
                 current_metadata = None
+
+        # ✅ Detectar markdown aunque no haya comentario
+        elif (
+            el.name == "div"
+            and "jp-RenderedMarkdown" in el.get("class", [])
+            and current_metadata is None
+        ):
+            raw_html = el.decode_contents().strip()
+            if raw_html:
+                title_el = el.find(["h1", "h2", "h3", "strong", "p"])
+                title_text = (
+                    clean_text_rich(title_el.get_text(strip=True))
+                    if title_el
+                    else "Text"
+                )
+                html_cleaned = re.sub(
+                    r"<a[^>]+anchor-link[^>]*>.*?</a>", "<br/><br/>", raw_html
+                )
+                print(f"[Markdown Block] Title: {title_text}")
+                results.append(
+                    {
+                        "type": "text",
+                        "title": title_text,
+                        "text": html_cleaned,
+                    }
+                )
 
         elif (
             current_metadata
@@ -253,6 +316,7 @@ def parse_jupyter_html(content):
                 current_metadata["titles"] = titles
                 src = el.get("src", "")
                 if src.startswith("data:image") and src not in used_imgs:
+                    print(f"[Chart] Title: '{title}'")
                     results.append(
                         {
                             "type": "chart",
@@ -262,25 +326,61 @@ def parse_jupyter_html(content):
                     )
                     used_imgs.add(src)
                     current_metadata = None
+                    pending_metadata = None
 
             elif mtype == "kpi":
                 if titles and values and len(titles) == len(values):
                     for t, v in zip(titles, values):
                         if not is_probably_junk(t) and not is_probably_junk(v):
+                            print(f"[KPI from Metadata] {t}: {v}")
                             results.append({"type": "kpi", "title": t, "value": v})
                     current_metadata = None
+
                 elif value_raw and not is_probably_junk(value_raw):
                     title = titles[0] if titles else "KPI"
+                    print(f"[KPI Fallback] {title}: {value_raw}")
                     results.append({"type": "kpi", "title": title, "value": value_raw})
                     current_metadata = None
+
                 else:
-                    extracted = clean_text_basic(el.get_text())
-                    if extracted and not is_probably_junk(extracted):
-                        title = titles[0] if titles else "KPI"
-                        results.append(
-                            {"type": "kpi", "title": title, "value": extracted}
+                    # Solo intentar extraer si hay metadata explícita de tipo KPI
+                    if "value" in current_metadata and current_metadata["value"]:
+                        extracted = clean_text_basic(el.get_text())
+                        if extracted and not is_probably_junk(extracted):
+                            title = titles[0] if titles else "KPI"
+                            print(f"[KPI Extracted from Element] {title}: {extracted}")
+                            results.append(
+                                {"type": "kpi", "title": title, "value": extracted}
+                            )
+                    else:
+                        print(
+                            f"[SKIPPED KPI] No explicit value in metadata, skipping element: {el}"
                         )
-                        current_metadata = None
+                    current_metadata = None
+
+        elif (
+            el.name == "img"
+            and pending_metadata
+            and pending_metadata["type"] == "chart"
+        ):
+            titles = pending_metadata.get("titles", [])
+            title = (
+                titles.pop(0)
+                if titles
+                else (find_plt_title_upwards_only(el) or "Chart")
+            )
+            src = el.get("src", "")
+            if src.startswith("data:image") and src not in used_imgs:
+                print(f"[Chart with Pending Metadata] Title: '{title}'")
+                results.append(
+                    {
+                        "type": "chart",
+                        "title": clean_text_rich(title),
+                        "image_base64": src,
+                    }
+                )
+                used_imgs.add(src)
+                pending_metadata = None
 
     flush_text()
 
@@ -289,6 +389,7 @@ def parse_jupyter_html(content):
         if src.startswith("data:image") and src not in used_imgs:
             title = find_plt_title_upwards_only(img) or "Untitled Chart"
             if not is_probably_junk(title):
+                print(f"[Unannotated Chart] Title: '{title}'")
                 results.append(
                     {
                         "type": "chart",

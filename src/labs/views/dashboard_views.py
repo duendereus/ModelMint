@@ -6,7 +6,7 @@ from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
 from django.conf import settings
 from django.urls import reverse
-from django.db import transaction
+from django.db import transaction, models
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.http import (
@@ -116,6 +116,7 @@ def dashboard_my_notebooks_view(request):
 
 @login_required(login_url="labs:labs_login")
 @labs_only
+@require_http_methods(["GET", "POST"])
 def lab_notebook_upload_view(request):
     user = request.user
     organization = get_user_organization(user)
@@ -146,10 +147,9 @@ def lab_notebook_upload_view(request):
         )
         files = request.FILES.getlist("complementary_files")
 
-        if not files:
-            messages.info(request, "No complementary files uploaded.")
-
         if form.is_valid():
+            html_file = form.cleaned_data["html_file"]
+
             if current_active_notebooks >= max_reports:
                 messages.error(
                     request,
@@ -158,6 +158,13 @@ def lab_notebook_upload_view(request):
                 return redirect("dashboard:labs:notebook_upload")
 
             notebook = form.save(commit=True)
+
+            version_obj = NotebookVersion.objects.create(
+                notebook=notebook,
+                version=1,
+                uploaded_by=user,
+                html_file=html_file,
+            )
 
             VALID_EXTS = {".csv", ".xls", ".xlsx"}
             file_entries = []
@@ -168,7 +175,9 @@ def lab_notebook_upload_view(request):
                     messages.warning(request, f"Skipped unsupported file: {f.name}")
                     continue
 
-                stored_path = default_storage.save(f"labs_temp/{f.name}", f)
+                stored_path = default_storage.save(
+                    f"labs_temp/{uuid.uuid4().hex}_{f.name}", f
+                )
                 file_entries.append(
                     {
                         "stored_path": stored_path,
@@ -177,7 +186,9 @@ def lab_notebook_upload_view(request):
                 )
 
             messages.success(request, "✅ Notebook uploaded successfully.")
-            process_lab_notebook_task.delay(notebook.id, file_entries=file_entries)
+            process_lab_notebook_task.delay(
+                notebook.id, version_obj_id=version_obj.id, file_entries=file_entries
+            )
             return redirect("labs:labs_dashboard_home")
     else:
         form = LabNotebookUploadForm()
@@ -214,13 +225,11 @@ def upload_new_version_view(request, notebook_id):
         )
         return redirect("dashboard:dashboard_home")
 
-    # ✅ Asegura que el notebook pertenezca a la organización del usuario
     notebook = get_object_or_404(
         LabNotebook.objects.filter(active=True, organization=organization),
         id=notebook_id,
     )
 
-    # ✅ Límite de versiones por notebook según plan
     plan_limits = get_plan_limits(organization)
     max_versions = plan_limits.get("max_versions_per_notebook", 1)
     current_versions = notebook.versions.count()
@@ -244,12 +253,20 @@ def upload_new_version_view(request, notebook_id):
             messages.error(request, "Please upload a valid HTML file.")
             return redirect(request.path)
 
-        # Guardar el HTML temporalmente
-        html_name = f"labs_temp/v{uuid.uuid4().hex}_{html_file.name}"
-        stored_html_path = default_storage.save(html_name, html_file)
+        # ✅ Crear nueva versión y guardar archivo directamente
+        last_version = notebook.versions.order_by("-version").first()
+        next_version = last_version.version + 1 if last_version else 1
 
-        file_entries = []
+        version_obj = NotebookVersion.objects.create(
+            notebook=notebook,
+            version=next_version,
+            uploaded_by=user,
+            html_file=html_file,
+        )
+
+        # ✅ Complementarios
         VALID_EXTS = {".csv", ".xls", ".xlsx"}
+        file_entries = []
 
         for f in files:
             ext = os.path.splitext(f.name)[1].lower()
@@ -267,14 +284,14 @@ def upload_new_version_view(request, notebook_id):
                 }
             )
 
-        # ✅ Actualiza el archivo del notebook para procesarlo
-        notebook.file.name = stored_html_path
-        process_lab_notebook_task.delay(notebook.id, file_entries=file_entries)
+        # ✅ Procesar con ID explícito de versión
+        process_lab_notebook_task.delay(
+            notebook.id, version_obj_id=version_obj.id, file_entries=file_entries
+        )
 
         messages.success(request, "✅ New version uploaded. Processing in background.")
         return redirect("labs:labs_dashboard_home")
 
-    # Mostrar formulario (GET)
     plan_name = (
         getattr(organization.subscription.subscription, "name", "Free")
         if hasattr(organization, "subscription") and organization.subscription

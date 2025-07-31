@@ -26,11 +26,6 @@ class LabNotebook(models.Model):
     title = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, blank=True)
     description = CKEditor5Field(blank=True)
-    file = models.FileField(
-        upload_to=upload_to_lab_notebook,
-        validators=[validate_html_file_extension],
-        max_length=250,
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_public = models.BooleanField(default=False)

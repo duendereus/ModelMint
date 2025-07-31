@@ -26,7 +26,7 @@
         <select id="version-select" name="version_id" class="form-select" onchange="this.form.submit()">
           {% for v in all_versions %}
             <option value="{{ v.id }}" {% if v.id == selected_version.id %}selected{% endif %}>
-              v{{ v.version }} – {{ v.created_at|date:"Y-m-d H:i" }}
+              v{{ v.version }} – {{ v.created_at|date:"Y-m-d" }}
             </option>
           {% endfor %}
         </select>
@@ -43,10 +43,12 @@
         <div class="{% if metric.type == 'table' or metric.type == 'text' %}col-md-12{% else %}col-md-6{% endif %} mb-4 metric-item" data-id="{{ metric.id }}">
           <div class="card h-100 border position-relative">
             <div class="card-body">
+              {% if metric.type != 'plot' %}
               <h6 class="card-title">
                 <input type="text" class="form-control form-control-sm editable-title mb-2"
                       value="{{ metric.name }}" data-id="{{ metric.id }}" data-original="{{ metric.name }}" />
               </h6>
+              {% endif %}
 
               {% if metric.type == 'plot' and metric.presigned_url %}
                 <img src="{{ metric.presigned_url }}" class="img-fluid rounded" alt="{{ metric.name }}">

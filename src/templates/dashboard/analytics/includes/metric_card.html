@@ -1,12 +1,23 @@
 {% load custom_filters %}
 <div class="card h-100">
   <div class="card-header bg-light">
-    {% if metric.presigned_url and metric.type in "plot table" %}
+    {% if metric.presigned_url and metric.type == "table" %}
       <h5 class="mb-0 text-dark fw-bold">
         <a href="{{ metric.presigned_url }}" target="_blank" class="text-decoration-none">
           {{ metric.name }} <i class="mdi mdi-download ms-1 text-muted"></i>
         </a>
       </h5>
+    {% elif metric.presigned_url and metric.type == "plot" %}
+      <div class="text-center">
+        <a href="{{ metric.presigned_url }}" 
+          download 
+          target="_blank" 
+          class="btn btn-sm btn-primary px-4"
+          style="pointer-events: auto;"
+          onclick="event.stopPropagation();">
+          ⬇️ Download Image
+        </a>
+      </div>
     {% else %}
       <h5 class="mb-0 text-dark fw-bold">{{ metric.name }}</h5>
     {% endif %}

@@ -16,9 +16,16 @@ class LabNotebookAdminForm(forms.ModelForm):
 
 
 class LabNotebookUploadForm(forms.ModelForm):
+    html_file = forms.FileField(
+        required=True,
+        label="Notebook File (.html)",
+        validators=[validate_html_file_extension],
+        widget=forms.ClearableFileInput(attrs={"class": "form-control"}),
+    )
+
     class Meta:
         model = LabNotebook
-        fields = ["title", "description", "file", "is_public", "expires_after_hours"]
+        fields = ["title", "description", "is_public", "expires_after_hours"]
         widgets = {
             "description": CKEditor5Widget(config_name="default"),
             "expires_after_hours": forms.NumberInput(attrs={"min": 1}),
@@ -32,8 +39,6 @@ class LabNotebookUploadForm(forms.ModelForm):
         if self.instance:
             self.instance.organization = organization
             self.instance.created_by = created_by
-
-        self.fields["file"].validators.append(validate_html_file_extension)
 
 
 class NotebookAccessForm(forms.ModelForm):
