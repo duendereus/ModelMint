@@ -187,13 +187,15 @@ def extract_kpis_from_text(text):
     return kpis
 
 
-def parse_jupyter_html(content):
+def parse_jupyter_html(content, file_map=None):
     soup = BeautifulSoup(content, "html.parser")
     results = []
     current_metadata = None
     pending_metadata = None
     used_imgs = set()
+    used_files = set()
     accumulated_html = []
+    exported_filenames_order = []
 
     def flush_text():
         nonlocal current_metadata, accumulated_html
@@ -211,6 +213,13 @@ def parse_jupyter_html(content):
         current_metadata = None
 
     for el in soup.descendants:
+        if el.name == "div" and "prompt" in " ".join(el.get("class", [])):
+            text = el.get_text(strip=True)
+            if text.startswith("In ["):
+                cell_number = text.replace("In [", "").replace("]:", "").strip()
+                if cell_number.isdigit():
+                    print(f"[📘 Cell #{cell_number}]")
+
         if is_cell_wrapper(el):
             flush_text()
 
@@ -238,7 +247,57 @@ def parse_jupyter_html(content):
             and "jp-RenderedText" in el.get("class", [])
             and not el.find("table", class_="dataframe")
         ):
-            possible_kpis = extract_kpis_from_text(el.get_text())
+            raw_text = clean_text_basic(el.get_text().strip())
+
+            # ✅ Extraer nombres de archivos exportados
+            matches = re.findall(r'to_(csv|excel)\(["\'](.+?)["\']', raw_text)
+            referenced_filenames = set()
+            for _, fname in matches:
+                clean_name = os.path.basename(fname.strip())
+                referenced_filenames.add(clean_name)
+                if clean_name not in exported_filenames_order:
+                    exported_filenames_order.append(clean_name)
+
+            for fname in referenced_filenames:
+                for uploaded_name in file_map:
+                    base_uploaded = os.path.basename(uploaded_name).strip()
+                    if base_uploaded.lower() == fname.lower():
+                        if uploaded_name not in used_files:
+                            print(f"[📄 Table Matched to Export] {fname}")
+                            results.append(
+                                {
+                                    "type": "table",
+                                    "title": clean_metric_name(base_uploaded),
+                                    "file_path": file_map[uploaded_name],
+                                }
+                            )
+                            used_files.add(uploaded_name)
+                        break
+
+            table_matched = False
+            if file_map:
+                for fname, path in file_map.items():
+                    if fname not in used_files:
+                        print(f"[📥 Table Added at End] File: {fname}")
+                        results.append(
+                            {
+                                "type": "table",
+                                "title": clean_metric_name(os.path.basename(fname)),
+                                "file_path": path,
+                            }
+                        )
+                        used_files.add(fname)
+
+            if table_matched:
+                current_metadata = None
+                continue
+
+            else:
+                print(
+                    f"[⚠️ Table skipped] raw_text='{raw_text[:100]}...' | file_map={list(file_map.keys())}"
+                )
+
+            possible_kpis = extract_kpis_from_text(raw_text)
             if (
                 possible_kpis
                 and len(possible_kpis) == 1
@@ -248,31 +307,38 @@ def parse_jupyter_html(content):
                 results.append(possible_kpis[0])
                 current_metadata = None
 
-        # ✅ Detectar markdown aunque no haya comentario
         elif (
             el.name == "div"
             and "jp-RenderedMarkdown" in el.get("class", [])
             and current_metadata is None
         ):
             raw_html = el.decode_contents().strip()
-            if raw_html:
-                title_el = el.find(["h1", "h2", "h3", "strong", "p"])
-                title_text = (
-                    clean_text_rich(title_el.get_text(strip=True))
-                    if title_el
-                    else "Text"
-                )
-                html_cleaned = re.sub(
-                    r"<a[^>]+anchor-link[^>]*>.*?</a>", "<br/><br/>", raw_html
-                )
-                print(f"[Markdown Block] Title: {title_text}")
-                results.append(
-                    {
-                        "type": "text",
-                        "title": title_text,
-                        "text": html_cleaned,
-                    }
-                )
+            temp_soup = BeautifulSoup(raw_html, "html.parser")
+            tags = list(temp_soup.children)
+
+            non_heading_found = any(
+                tag.name not in ["h1", "h2", "a"] and tag.name is not None
+                for tag in tags
+            )
+            if not non_heading_found:
+                print(f"[❌ Skipping header-only block] {raw_html[:50]}...")
+                continue
+
+            title_el = temp_soup.find(["h1", "h2", "h3", "strong", "p"])
+            title_text = (
+                clean_text_rich(title_el.get_text(strip=True)) if title_el else "Text"
+            )
+            html_cleaned = re.sub(
+                r"<a[^>]+anchor-link[^>]*>.*?</a>", "<br/><br/>", raw_html
+            )
+            print(f"[✅ Markdown Block] Title: {title_text}")
+            results.append(
+                {
+                    "type": "text",
+                    "title": title_text,
+                    "text": html_cleaned,
+                }
+            )
 
         elif (
             current_metadata
@@ -307,26 +373,40 @@ def parse_jupyter_html(content):
                 if html:
                     accumulated_html.append(html)
 
-            elif mtype == "chart" and el.name == "img":
+            elif el.name == "img":
+                src = el.get("src", "")
+                if not src.startswith("data:image") or src in used_imgs:
+                    continue
+
+                active_metadata = (
+                    pending_metadata if pending_metadata else current_metadata
+                )
+                if active_metadata and active_metadata.get("type") != "chart":
+                    continue
+
+                titles = active_metadata.get("titles", []) if active_metadata else []
                 title = (
                     titles.pop(0)
                     if titles
                     else (find_plt_title_upwards_only(el) or "Chart")
                 )
-                current_metadata["titles"] = titles
-                src = el.get("src", "")
-                if src.startswith("data:image") and src not in used_imgs:
-                    print(f"[Chart] Title: '{title}'")
-                    results.append(
-                        {
-                            "type": "chart",
-                            "title": clean_text_rich(title),
-                            "image_base64": src,
-                        }
-                    )
-                    used_imgs.add(src)
-                    current_metadata = None
+
+                print(f"[Chart Detected] Title: '{title}'")
+                results.append(
+                    {
+                        "type": "chart",
+                        "title": clean_text_rich(title),
+                        "image_base64": src,
+                    }
+                )
+                used_imgs.add(src)
+
+                if active_metadata:
+                    active_metadata["titles"] = titles
+                if pending_metadata:
                     pending_metadata = None
+                if current_metadata:
+                    current_metadata = None
 
             elif mtype == "kpi":
                 if titles and values and len(titles) == len(values):
@@ -343,7 +423,6 @@ def parse_jupyter_html(content):
                     current_metadata = None
 
                 else:
-                    # Solo intentar extraer si hay metadata explícita de tipo KPI
                     if "value" in current_metadata and current_metadata["value"]:
                         extracted = clean_text_basic(el.get_text())
                         if extracted and not is_probably_junk(extracted):
@@ -352,51 +431,41 @@ def parse_jupyter_html(content):
                             results.append(
                                 {"type": "kpi", "title": title, "value": extracted}
                             )
-                    else:
-                        print(
-                            f"[SKIPPED KPI] No explicit value in metadata, skipping element: {el}"
-                        )
                     current_metadata = None
-
-        elif (
-            el.name == "img"
-            and pending_metadata
-            and pending_metadata["type"] == "chart"
-        ):
-            titles = pending_metadata.get("titles", [])
-            title = (
-                titles.pop(0)
-                if titles
-                else (find_plt_title_upwards_only(el) or "Chart")
-            )
-            src = el.get("src", "")
-            if src.startswith("data:image") and src not in used_imgs:
-                print(f"[Chart with Pending Metadata] Title: '{title}'")
-                results.append(
-                    {
-                        "type": "chart",
-                        "title": clean_text_rich(title),
-                        "image_base64": src,
-                    }
-                )
-                used_imgs.add(src)
-                pending_metadata = None
 
     flush_text()
 
+    # ✅ Procesar gráficas no anotadas
     for img in soup.find_all("img"):
         src = img.get("src", "")
-        if src.startswith("data:image") and src not in used_imgs:
+        if src.startswith("data:image") and src in used_imgs:
+            continue
+        if src.startswith("data:image"):
             title = find_plt_title_upwards_only(img) or "Untitled Chart"
             if not is_probably_junk(title):
-                print(f"[Unannotated Chart] Title: '{title}'")
+                if src not in used_imgs:
+                    print(f"[Unannotated Chart] Title: '{title}'")
+                    results.append(
+                        {
+                            "type": "chart",
+                            "title": clean_text_rich(title),
+                            "image_base64": src,
+                        }
+                    )
+                    used_imgs.add(src)
+
+    # ✅ Agregar tablas no encontradas al final, sin duplicar
+    if file_map:
+        for fname, path in file_map.items():
+            if fname not in used_files:
+                print(f"[📥 Table Added at End] File: {fname}")
                 results.append(
                     {
-                        "type": "chart",
-                        "title": clean_text_rich(title),
-                        "image_base64": src,
+                        "type": "table",
+                        "title": clean_metric_name(os.path.basename(fname)),
+                        "file_path": path,
                     }
                 )
-                used_imgs.add(src)
+                used_files.add(fname)  # Marcar como usado correctamente
 
-    return results
+    return results, exported_filenames_order
