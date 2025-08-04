@@ -187,6 +187,58 @@ def extract_kpis_from_text(text):
     return kpis
 
 
+def find_cell_number_for_element(el):
+    print(
+        f"🔍 Buscando número de celda para elemento: {el.name} (clases={el.get('class', [])})"
+    )
+
+    parent = el
+    depth = 0
+    jp_cell = None
+
+    while parent:
+        depth += 1
+        print(
+            f"  ⬆️ Subiendo nivel {depth}: {parent.name} (clases={parent.get('class', [])})"
+        )
+
+        if (
+            parent.name == "div"
+            and any(c.startswith("jp-Cell") for c in parent.get("class", []))
+            and not any(
+                sub in c
+                for c in parent.get("class", [])
+                for sub in ["outputArea", "inputArea", "outputWrapper"]
+            )
+        ):
+            jp_cell = parent
+            print(f"  📦 Celda completa encontrada: clases={parent.get('class', [])}")
+            break
+
+        parent = parent.parent
+
+    if not jp_cell:
+        print(
+            "  ❌ No se encontró div con clase 'jp-Cell' principal, devolviendo fallback 9997"
+        )
+        return 9997
+
+    prompt_el = jp_cell.find("div", class_="jp-InputPrompt")
+    if prompt_el:
+        text = prompt_el.get_text().replace("\xa0", " ").strip()
+        print(f"  📜 Texto del prompt de entrada: '{text}'")
+        match = re.match(r"In\s*\[(\d+)\]:", text)
+        if match:
+            cell_number = int(match.group(1))
+            print(f"  ✅ Número de celda detectado (input): {cell_number}")
+            return cell_number
+
+    print(
+        "  ❌ No se encontró número de celda en 'jp-InputPrompt', devolviendo fallback 9997"
+    )
+    return 9997
+
+
 def parse_jupyter_html(content, file_map=None):
     soup = BeautifulSoup(content, "html.parser")
     results = []
@@ -207,18 +259,21 @@ def parse_jupyter_html(content, file_map=None):
                     "type": "text",
                     "title": current_metadata.get("titles", ["Text"])[0],
                     "text": text_block,
+                    "cell_number": current_cell_number,
                 }
             )
         accumulated_html.clear()
         current_metadata = None
 
+    current_cell_number = None
     for el in soup.descendants:
+        # Detecta número de celda
         if el.name == "div" and "prompt" in " ".join(el.get("class", [])):
-            text = el.get_text(strip=True)
-            if text.startswith("In ["):
-                cell_number = text.replace("In [", "").replace("]:", "").strip()
-                if cell_number.isdigit():
-                    print(f"[📘 Cell #{cell_number}]")
+            text = el.get_text().replace("\xa0", " ").strip()
+            if re.match(r"In\s*\[\d+\]:", text):
+                cell_number = re.findall(r"\[(\d+)\]", text)[0]
+                current_cell_number = int(cell_number)
+                print(f"[📘 Cell #{current_cell_number}]")
 
         if is_cell_wrapper(el):
             flush_text()
@@ -240,62 +295,77 @@ def parse_jupyter_html(content, file_map=None):
         elif is_input_prompt(el):
             flush_text()
 
-        elif (
-            el.name in ["pre", "div"]
-            and "output" in " ".join(el.get("class", []))
-            and current_metadata is None
-            and "jp-RenderedText" in el.get("class", [])
-            and not el.find("table", class_="dataframe")
+        # 🔹 NUEVO: búsqueda en celdas de entrada de código
+        elif el.name in ["div", "pre"] and "jp-CodeMirrorEditor" in " ".join(
+            el.get("class", [])
         ):
-            raw_text = clean_text_basic(el.get_text().strip())
+            raw_code = clean_text_basic(el.get_text().strip())
+            if raw_code:
+                matches = re.findall(r'to_(csv|excel)\(["\'](.+?)["\']', raw_code)
+            else:
+                matches = []
 
-            # ✅ Extraer nombres de archivos exportados
-            matches = re.findall(r'to_(csv|excel)\(["\'](.+?)["\']', raw_text)
-            referenced_filenames = set()
-            for _, fname in matches:
-                clean_name = os.path.basename(fname.strip())
-                referenced_filenames.add(clean_name)
-                if clean_name not in exported_filenames_order:
-                    exported_filenames_order.append(clean_name)
-
-            for fname in referenced_filenames:
-                for uploaded_name in file_map:
-                    base_uploaded = os.path.basename(uploaded_name).strip()
-                    if base_uploaded.lower() == fname.lower():
-                        if uploaded_name not in used_files:
-                            print(f"[📄 Table Matched to Export] {fname}")
+            if matches:
+                referenced_filenames = set(
+                    os.path.basename(fname.strip()) for _, fname in matches
+                )
+                for clean_name in referenced_filenames:
+                    for uploaded_name in file_map:
+                        base_uploaded = os.path.basename(uploaded_name).strip()
+                        if (
+                            base_uploaded.lower() == clean_name.lower()
+                            and uploaded_name not in used_files
+                        ):
+                            print(
+                                f"[📄 Table Inserted from Code] {clean_name} @ cell {current_cell_number}"
+                            )
                             results.append(
                                 {
                                     "type": "table",
                                     "title": clean_metric_name(base_uploaded),
                                     "file_path": file_map[uploaded_name],
+                                    "cell_number": current_cell_number,
+                                    "inserted_in_place": True,
                                 }
                             )
                             used_files.add(uploaded_name)
-                        break
 
-            table_matched = False
-            if file_map:
-                for fname, path in file_map.items():
-                    if fname not in used_files:
-                        print(f"[📥 Table Added at End] File: {fname}")
+        # 🔹 búsqueda en salidas de celdas
+        elif (
+            el.name in ["pre", "div"]
+            and "output" in " ".join(el.get("class", []))
+            and current_metadata is None
+            and not el.find("table", class_="dataframe")
+        ):
+            raw_text = clean_text_basic(el.get_text().strip())
+            if raw_text:
+                matches = re.findall(r'to_(csv|excel)\(["\'](.+?)["\']', raw_text)
+            else:
+                matches = []
+
+            referenced_filenames = set(
+                os.path.basename(fname.strip()) for _, fname in matches
+            )
+            for clean_name in referenced_filenames:
+                for uploaded_name in file_map:
+                    base_uploaded = os.path.basename(uploaded_name).strip()
+                    if (
+                        base_uploaded.lower() == clean_name.lower()
+                        and uploaded_name not in used_files
+                    ):
+                        print(
+                            f"[📄 Table Inserted In Place] {clean_name} @ cell {current_cell_number}"
+                        )
                         results.append(
                             {
                                 "type": "table",
-                                "title": clean_metric_name(os.path.basename(fname)),
-                                "file_path": path,
+                                "title": clean_metric_name(base_uploaded),
+                                "file_path": file_map[uploaded_name],
+                                "cell_number": current_cell_number,
+                                "inserted_in_place": True,
                             }
                         )
-                        used_files.add(fname)
-
-            if table_matched:
-                current_metadata = None
-                continue
-
-            else:
-                print(
-                    f"[⚠️ Table skipped] raw_text='{raw_text[:100]}...' | file_map={list(file_map.keys())}"
-                )
+                        used_files.add(uploaded_name)
 
             possible_kpis = extract_kpis_from_text(raw_text)
             if (
@@ -303,9 +373,54 @@ def parse_jupyter_html(content, file_map=None):
                 and len(possible_kpis) == 1
                 and not is_probably_junk(possible_kpis[0]["value"])
             ):
-                print(f"[Inline KPI] {possible_kpis[0]}")
+                print(f"[Inline KPI] {possible_kpis[0]} @ cell {current_cell_number}")
+                possible_kpis[0]["cell_number"] = current_cell_number
                 results.append(possible_kpis[0])
                 current_metadata = None
+
+        elif (
+            el.name == "div"
+            and "jp-RenderedMarkdown" in el.get("class", [])
+            and current_metadata is None
+        ):
+            raw_html = el.decode_contents().strip()
+            temp_soup = BeautifulSoup(raw_html, "html.parser")
+            tags = list(temp_soup.children)
+
+            non_heading_found = any(
+                tag.name not in ["h1", "h2", "a"] and tag.name is not None
+                for tag in tags
+            )
+            if not non_heading_found:
+                continue
+
+            title_el = temp_soup.find(["h1", "h2", "h3", "strong", "p"])
+            title_text = (
+                clean_text_rich(title_el.get_text(strip=True)) if title_el else "Text"
+            )
+            html_cleaned = re.sub(
+                r"<a[^>]+anchor-link[^>]*>.*?</a>", "<br/><br/>", raw_html
+            )
+            results.append(
+                {
+                    "type": "text",
+                    "title": title_text,
+                    "text": html_cleaned,
+                    "cell_number": current_cell_number,
+                }
+            )
+
+            possible_kpis = extract_kpis_from_text(raw_text)
+            if (
+                possible_kpis
+                and len(possible_kpis) == 1
+                and not is_probably_junk(possible_kpis[0]["value"])
+            ):
+                print(f"[Inline KPI] {possible_kpis[0]} @ cell {current_cell_number}")
+                results.append(possible_kpis[0])
+                current_metadata = None
+            else:
+                print(f"[⚠️ Table or KPI skipped] raw_text='{raw_text[:100]}...'")
 
         elif (
             el.name == "div"
@@ -337,6 +452,7 @@ def parse_jupyter_html(content, file_map=None):
                     "type": "text",
                     "title": title_text,
                     "text": html_cleaned,
+                    "cell_number": current_cell_number,
                 }
             )
 
@@ -350,8 +466,8 @@ def parse_jupyter_html(content, file_map=None):
             value_raw = (
                 clean_text_rich(current_metadata.get("value", ""))
                 if mtype == "text"
-                else clean_text_basic(current_metadata.get("value", ""))
-            ) or None
+                else clean_text_basic(current_metadata.get("value", "")) or None
+            )
             values = (
                 [
                     clean_text_rich(v) if mtype == "text" else clean_text_basic(v)
@@ -390,13 +506,13 @@ def parse_jupyter_html(content, file_map=None):
                     if titles
                     else (find_plt_title_upwards_only(el) or "Chart")
                 )
-
                 print(f"[Chart Detected] Title: '{title}'")
                 results.append(
                     {
                         "type": "chart",
                         "title": clean_text_rich(title),
                         "image_base64": src,
+                        "cell_number": current_cell_number,
                     }
                 )
                 used_imgs.add(src)
@@ -413,15 +529,27 @@ def parse_jupyter_html(content, file_map=None):
                     for t, v in zip(titles, values):
                         if not is_probably_junk(t) and not is_probably_junk(v):
                             print(f"[KPI from Metadata] {t}: {v}")
-                            results.append({"type": "kpi", "title": t, "value": v})
+                            results.append(
+                                {
+                                    "type": "kpi",
+                                    "title": t,
+                                    "value": v,
+                                    "cell_number": current_cell_number,
+                                }
+                            )
                     current_metadata = None
-
                 elif value_raw and not is_probably_junk(value_raw):
                     title = titles[0] if titles else "KPI"
                     print(f"[KPI Fallback] {title}: {value_raw}")
-                    results.append({"type": "kpi", "title": title, "value": value_raw})
+                    results.append(
+                        {
+                            "type": "kpi",
+                            "title": title,
+                            "value": value_raw,
+                            "cell_number": current_cell_number,
+                        }
+                    )
                     current_metadata = None
-
                 else:
                     if "value" in current_metadata and current_metadata["value"]:
                         extracted = clean_text_basic(el.get_text())
@@ -429,43 +557,53 @@ def parse_jupyter_html(content, file_map=None):
                             title = titles[0] if titles else "KPI"
                             print(f"[KPI Extracted from Element] {title}: {extracted}")
                             results.append(
-                                {"type": "kpi", "title": title, "value": extracted}
+                                {
+                                    "type": "kpi",
+                                    "title": title,
+                                    "value": extracted,
+                                    "cell_number": current_cell_number,
+                                }
                             )
                     current_metadata = None
 
     flush_text()
 
-    # ✅ Procesar gráficas no anotadas
+    # ✅ Gráficas no anotadas
     for img in soup.find_all("img"):
         src = img.get("src", "")
-        if src.startswith("data:image") and src in used_imgs:
-            continue
-        if src.startswith("data:image"):
+        if src.startswith("data:image") and src not in used_imgs:
             title = find_plt_title_upwards_only(img) or "Untitled Chart"
+            cell_num = find_cell_number_for_element(
+                img
+            )  # 🔹 Usar detección real de celda
             if not is_probably_junk(title):
-                if src not in used_imgs:
-                    print(f"[Unannotated Chart] Title: '{title}'")
-                    results.append(
-                        {
-                            "type": "chart",
-                            "title": clean_text_rich(title),
-                            "image_base64": src,
-                        }
-                    )
-                    used_imgs.add(src)
+                print(f"[Unannotated Chart] Title: '{title}' @ cell {cell_num}")
+                results.append(
+                    {
+                        "type": "chart",
+                        "title": clean_text_rich(title),
+                        "image_base64": src,
+                        "cell_number": cell_num,
+                    }
+                )
+                used_imgs.add(src)
 
-    # ✅ Agregar tablas no encontradas al final, sin duplicar
     if file_map:
         for fname, path in file_map.items():
+            base_uploaded = os.path.basename(fname)
             if fname not in used_files:
                 print(f"[📥 Table Added at End] File: {fname}")
                 results.append(
                     {
                         "type": "table",
-                        "title": clean_metric_name(os.path.basename(fname)),
+                        "title": clean_metric_name(base_uploaded),
                         "file_path": path,
+                        "cell_number": 9998,
+                        "inserted_in_place": False,
                     }
                 )
-                used_files.add(fname)  # Marcar como usado correctamente
+                used_files.add(fname)
 
+    # 🔹 Ordenar por número de celda
+    results.sort(key=lambda x: x.get("cell_number", 9999))
     return results, exported_filenames_order
