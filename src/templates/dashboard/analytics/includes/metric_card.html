@@ -18,6 +18,7 @@
           ⬇️ Download Image
         </a>
       </div>
+    {% elif metric.type == "text" %}
     {% else %}
       <h5 class="mb-0 text-dark fw-bold">{{ metric.name }}</h5>
     {% endif %}

@@ -43,7 +43,7 @@
         <div class="{% if metric.type == 'table' or metric.type == 'text' %}col-md-12{% else %}col-md-6{% endif %} mb-4 metric-item" data-id="{{ metric.id }}">
           <div class="card h-100 border position-relative">
             <div class="card-body">
-              {% if metric.type != 'plot' %}
+              {% if metric.type != 'plot' and metric.type != 'text' %}
               <h6 class="card-title">
                 <input type="text" class="form-control form-control-sm editable-title mb-2"
                       value="{{ metric.name }}" data-id="{{ metric.id }}" data-original="{{ metric.name }}" />

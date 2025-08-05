@@ -239,6 +239,40 @@ def find_cell_number_for_element(el):
     return 9997
 
 
+def find_nearest_cell_number(el):
+    """
+    Busca el número de celda más cercano.
+    Si es Markdown, prioriza el prompt anterior (celda previa).
+    """
+    # Buscar hacia arriba primero (prompt In[..] o Out[..])
+    parent = el
+    while parent:
+        prompt_el = parent.find_previous(
+            ["div"], class_=["jp-InputPrompt", "jp-OutputPrompt"]
+        )
+        if prompt_el:
+            text = prompt_el.get_text().replace("\xa0", " ").strip()
+            match = re.search(r"\[(\d+)\]", text)
+            if match:
+                return int(match.group(1))
+        parent = parent.parent
+
+    # Si no encontró, buscar hacia abajo (pero esto rara vez pasa)
+    sibling = el
+    while sibling:
+        prompt_el = sibling.find_next(
+            ["div"], class_=["jp-InputPrompt", "jp-OutputPrompt"]
+        )
+        if prompt_el:
+            text = prompt_el.get_text().replace("\xa0", " ").strip()
+            match = re.search(r"\[(\d+)\]", text)
+            if match:
+                return int(match.group(1))
+        sibling = sibling.next_sibling
+
+    return 9999
+
+
 def parse_jupyter_html(content, file_map=None):
     soup = BeautifulSoup(content, "html.parser")
     results = []
@@ -300,10 +334,11 @@ def parse_jupyter_html(content, file_map=None):
             el.get("class", [])
         ):
             raw_code = clean_text_basic(el.get_text().strip())
-            if raw_code:
-                matches = re.findall(r'to_(csv|excel)\(["\'](.+?)["\']', raw_code)
-            else:
-                matches = []
+            matches = (
+                re.findall(r'to_(csv|excel)\(["\'](.+?)["\']', raw_code)
+                if raw_code
+                else []
+            )
 
             if matches:
                 referenced_filenames = set(
@@ -338,10 +373,11 @@ def parse_jupyter_html(content, file_map=None):
             and not el.find("table", class_="dataframe")
         ):
             raw_text = clean_text_basic(el.get_text().strip())
-            if raw_text:
-                matches = re.findall(r'to_(csv|excel)\(["\'](.+?)["\']', raw_text)
-            else:
-                matches = []
+            matches = (
+                re.findall(r'to_(csv|excel)\(["\'](.+?)["\']', raw_text)
+                if raw_text
+                else []
+            )
 
             referenced_filenames = set(
                 os.path.basename(fname.strip()) for _, fname in matches
@@ -384,6 +420,60 @@ def parse_jupyter_html(content, file_map=None):
             and current_metadata is None
         ):
             raw_html = el.decode_contents().strip()
+            raw_text = clean_text_basic(
+                BeautifulSoup(raw_html, "html.parser").get_text().strip()
+            )
+            temp_soup = BeautifulSoup(raw_html, "html.parser")
+
+            title_el = temp_soup.find(["h1", "h2", "h3", "strong", "p"])
+            title_text = (
+                clean_text_rich(title_el.get_text(strip=True)) if title_el else "Text"
+            )
+            html_cleaned = re.sub(
+                r"<a[^>]+anchor-link[^>]*>.*?</a>", "<br/><br/>", raw_html
+            )
+
+            # lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
+            # if len(lines) == 1:
+            #     if title_el and title_el.name in ["h1", "h2", "h3", "h4", "h5", "h6"]:
+            #         tag_name = title_el.name
+            #     else:
+            #         tag_name = "h2"  # fallback si no detectamos heading
+            #     html_cleaned = f"<{tag_name}>{lines[0]}</{tag_name}>"
+
+            # ✅ Si no hay número de celda actual, buscar el más cercano
+            cell_num = find_nearest_cell_number(el) or current_cell_number
+
+            results.append(
+                {
+                    "type": "text",
+                    "title": title_text,
+                    "text": html_cleaned,
+                    "cell_number": cell_num,
+                }
+            )
+
+            possible_kpis = extract_kpis_from_text(raw_text)
+            if (
+                possible_kpis
+                and len(possible_kpis) == 1
+                and not is_probably_junk(possible_kpis[0]["value"])
+            ):
+                print(f"[Inline KPI] {possible_kpis[0]} @ cell {current_cell_number}")
+                results.append(possible_kpis[0])
+                current_metadata = None
+            else:
+                print(f"[⚠️ Table or KPI skipped] raw_text='{raw_text[:100]}...'")
+
+        elif (
+            el.name == "div"
+            and "jp-RenderedMarkdown" in el.get("class", [])
+            and current_metadata is None
+        ):
+            raw_html = el.decode_contents().strip()
+            raw_text = clean_text_basic(
+                BeautifulSoup(raw_html, "html.parser").get_text().strip()
+            )
             temp_soup = BeautifulSoup(raw_html, "html.parser")
             tags = list(temp_soup.children)
 
@@ -568,14 +658,11 @@ def parse_jupyter_html(content, file_map=None):
 
     flush_text()
 
-    # ✅ Gráficas no anotadas
     for img in soup.find_all("img"):
         src = img.get("src", "")
         if src.startswith("data:image") and src not in used_imgs:
             title = find_plt_title_upwards_only(img) or "Untitled Chart"
-            cell_num = find_cell_number_for_element(
-                img
-            )  # 🔹 Usar detección real de celda
+            cell_num = find_cell_number_for_element(img)
             if not is_probably_junk(title):
                 print(f"[Unannotated Chart] Title: '{title}' @ cell {cell_num}")
                 results.append(
@@ -604,6 +691,12 @@ def parse_jupyter_html(content, file_map=None):
                 )
                 used_files.add(fname)
 
+    # ✅ Normalizar cell_number inválidos antes de ordenar
+    for idx, r in enumerate(results):
+        if not isinstance(r.get("cell_number"), int):
+            print(f"⚠️ Entrada #{idx} con cell_number inválido: {r}")
+            r["cell_number"] = 9999  # valor por defecto
+
     # 🔹 Ordenar por número de celda
-    results.sort(key=lambda x: x.get("cell_number", 9999))
+    results.sort(key=lambda x: x["cell_number"])
     return results, exported_filenames_order
