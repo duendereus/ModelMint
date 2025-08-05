@@ -1,23 +1,32 @@
 import base64
 import uuid
-from django.core.files.base import ContentFile
+import os
+from django.core.files.base import ContentFile, File
+from django.core.files.storage import default_storage
 from analytics.models import Metric
 from .jupyter_parser import parse_jupyter_html
 
 
-def process_jupyter_metrics(html_file, report, upload):
+def process_jupyter_metrics(html_file, report, upload=None, file_entries=None):
     """
-    Procesa un archivo HTML generado desde un
-    Jupyter Notebook y registra las métricas encontradas.
+    Procesa un archivo HTML generado desde un Jupyter
+    Notebook y registra las métricas encontradas.
+    Soporta KPIs, texto, gráficas y tablas vinculadas a archivos complementarios.
     """
     content = html_file.read()
-    results = parse_jupyter_html(content)
+    file_map = {
+        entry["original_name"]: entry["stored_path"] for entry in file_entries or []
+    }
+
+    # Parser devuelve (results, exported_filenames_order)
+    results, _ = parse_jupyter_html(content, file_map=file_map)
     metric_count = 0
 
     type_map = {
         "kpi": "single_value",
         "text": "text",
         "chart": "plot",
+        "table": "table",
     }
 
     for i, block in enumerate(results):
@@ -28,7 +37,9 @@ def process_jupyter_metrics(html_file, report, upload):
         if not model_type:
             continue
 
-        metric = Metric.objects.create(
+        print(f"📌 Parsed metric: type={m_type}, title={title}")
+
+        metric = Metric(
             report=report,
             source_upload=upload,
             type=model_type,
@@ -41,8 +52,15 @@ def process_jupyter_metrics(html_file, report, upload):
             image_data = block["image_base64"].split(",")[-1]
             file_name = f"{uuid.uuid4().hex}.png"
             metric.file.save(file_name, ContentFile(base64.b64decode(image_data)))
-            metric.save()
 
+        elif m_type == "table" and "file_path" in block:
+            with default_storage.open(block["file_path"], "rb") as f:
+                metric.file.save(
+                    os.path.basename(block["file_path"]),
+                    File(f, name=os.path.basename(block["file_path"])),
+                )
+
+        metric.save()
         metric_count += 1
 
     return metric_count

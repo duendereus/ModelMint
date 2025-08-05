@@ -45,7 +45,9 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
 
             # 📊 Procesa métricas del HTML
             with default_storage.open(jupyter_report.file.name, "r") as f:
-                metric_count = process_jupyter_metrics(f, report, jupyter_upload)
+                metric_count = process_jupyter_metrics(
+                    f, report, jupyter_upload, file_entries=file_entries
+                )
                 total_metrics += metric_count
                 print(
                     f"✅ {metric_count} metrics parsed from HTML: {jupyter_report.file.name}"
