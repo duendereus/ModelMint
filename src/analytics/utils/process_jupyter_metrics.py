@@ -12,15 +12,21 @@ def process_jupyter_metrics(html_file, report, upload=None, file_entries=None):
     Procesa un archivo HTML generado desde un Jupyter
     Notebook y registra las métricas encontradas.
     Soporta KPIs, texto, gráficas y tablas vinculadas a archivos complementarios.
+
+    Retorna:
+        tuple: (metric_count, processed_tables)
+            - metric_count: Número de métricas guardadas
+            - processed_tables: Lista de nombres originales de tablas procesadas
     """
     content = html_file.read()
     file_map = {
-        entry["original_name"]: entry["stored_path"] for entry in file_entries or []
+        entry["original_name"]: entry["stored_path"] for entry in (file_entries or [])
     }
 
     # Parser devuelve (results, exported_filenames_order)
     results, _ = parse_jupyter_html(content, file_map=file_map)
     metric_count = 0
+    processed_tables = set()
 
     type_map = {
         "kpi": "single_value",
@@ -59,8 +65,10 @@ def process_jupyter_metrics(html_file, report, upload=None, file_entries=None):
                     os.path.basename(block["file_path"]),
                     File(f, name=os.path.basename(block["file_path"])),
                 )
+            # Guardamos el nombre base para evitar duplicados después
+            processed_tables.add(os.path.basename(block["file_path"]))
 
         metric.save()
         metric_count += 1
 
-    return metric_count
+    return metric_count, processed_tables

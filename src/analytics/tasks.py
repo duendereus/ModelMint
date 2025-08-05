@@ -43,7 +43,7 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
         for jupyter_report in jupyter_reports:
             jupyter_upload = jupyter_report.upload
 
-            # 📊 Procesa métricas del HTML
+            # 📊 Procesa métricas del HTML (parser ya maneja tablas y KPIs)
             with default_storage.open(jupyter_report.file.name, "r") as f:
                 metric_count = process_jupyter_metrics(
                     f, report, jupyter_upload, file_entries=file_entries
@@ -53,33 +53,8 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
                     f"✅ {metric_count} metrics parsed from HTML: {jupyter_report.file.name}"
                 )
 
-        # 📂 Procesa archivos complementarios
-        VALID_TABLE_EXTENSIONS = {".csv", ".xls", ".xlsx"}
-        for entry in file_entries or []:
-            stored_path = entry["stored_path"]
-            original_name = entry["original_name"]
-            ext = os.path.splitext(original_name)[1].lower()
-
-            if ext not in VALID_TABLE_EXTENSIONS:
-                print(f"⚠️ Skipped unsupported file: {original_name}")
-                continue
-
-            # 🧠 Determina el source_upload para archivos (prioriza el upload explícito)
-            source = upload or (
-                jupyter_reports.last().upload if jupyter_reports else None
-            )
-
-            with default_storage.open(stored_path, "rb") as file:
-                Metric.objects.create(
-                    report=report,
-                    source_upload=source,
-                    type="table",
-                    name=clean_metric_name(original_name),
-                    file=file,
-                )
-
-        print(f"✅ Complementary files processed for report {report_id}")
-        return f"Processed {total_metrics} HTML metrics and {len(file_entries or [])} files."
+        print(f"✅ Metrics processing complete for report {report_id}")
+        return f"Processed {total_metrics} HTML metrics."
 
     except Exception as e:
         print(f"❌ Error in process_metrics_task for report {report_id}: {str(e)}")
