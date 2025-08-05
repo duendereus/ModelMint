@@ -25,16 +25,11 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
     Procesa métricas del HTML + archivos complementarios usando los JupyterReport asociados.
     Evita insertar tablas duplicadas: si ya fueron insertadas por el parser,
     no se vuelven a añadir como complementarias.
-
-    `file_entries`: lista de diccionarios con:
-        - stored_path: ubicación del archivo guardado en storage (S3 o local)
-        - original_name: nombre original del archivo (para usar como nombre de métrica)
     """
     try:
         report = Report.objects.get(id=report_id)
         jupyter_reports = report.jupyter_reports.select_related("upload").all()
 
-        # 🧩 Intentar obtener upload explícito si se pasó como argumento
         upload = None
         if upload_id:
             try:
@@ -45,7 +40,6 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
         total_metrics = 0
         processed_tables_all = set()
 
-        # 📊 Procesa métricas del HTML (parser ya maneja tablas y KPIs)
         for jupyter_report in jupyter_reports:
             jupyter_upload = jupyter_report.upload
             with default_storage.open(jupyter_report.file.name, "r") as f:
@@ -58,8 +52,11 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
                     f"✅ {metric_count} metrics parsed from HTML: {jupyter_report.file.name}"
                 )
 
-        # 📂 Procesa archivos complementarios que no hayan sido insertados por el parser
         VALID_TABLE_EXTENSIONS = {".csv", ".xls", ".xlsx"}
+        processed_tables_all_normalized = {
+            t.strip().lower() for t in processed_tables_all
+        }
+
         for entry in file_entries or []:
             stored_path = entry["stored_path"]
             original_name = entry["original_name"]
@@ -69,11 +66,13 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
                 print(f"⚠️ Skipped unsupported file: {original_name}")
                 continue
 
-            if original_name in processed_tables_all:
+            if (
+                os.path.basename(original_name).strip().lower()
+                in processed_tables_all_normalized
+            ):
                 print(f"⏩ Skipping duplicate table: {original_name}")
                 continue
 
-            # 🧠 Determina el source_upload para archivos (prioriza el upload explícito)
             source = upload or (
                 jupyter_reports.last().upload if jupyter_reports else None
             )
