@@ -28,20 +28,13 @@
                     </div><!-- /.banner-content -->
                 </div><!-- /.col-md-5 -->
 
-                <div class="col-lg-6">
-                    <div class="animate-promo-mockup" style="min-height: 100% !important; margin-top: 20% !important;">
-                        <img src="{% static 'img/banner/labs-preview2.png' %}" class="wow pixFadeDown" alt="mpckup" data-wow-duration="1.5s" style="max-height: 100% !important;">
-                        <img src="{% static 'img/banner/labs/02.png' %}" class="wow pixFadeRight" data-wow-delay="0.3s" data-wow-duration="1s" alt="mpckup">
-                        <img src="{% static 'img/banner/labs/03.png' %}" class="wow pixFadeUp" alt="mpckup" data-wow-duration="1.7s">
-                        <img src="{% static 'img/banner/labs/04.png' %}" class="wow pixFadeRight" alt="mpckup">
-                        <img src="{% static 'img/banner/labs/05.png' %}" class="wow pixFadeDown" alt="mpckup" data-wow-duration="2s">
-                        <img src="{% static 'img/banner/labs/06.png' %}" alt="mpckup" data-wow-delay="0.3s">
-                        <img src="{% static 'img/banner/labs/07.png' %}" class="wow pixFadeLeft" alt="mpckup" data-wow-delay="0.6s" data-wow-duration="1.5s">
-                        <img src="{% static 'img/banner/labs/cloud_01.png' %}" alt="mpckup">
-                        <img src="{% static 'img/banner/labs/cloud_02.png' %}" alt="mpckup">
-                        <img src="{% static 'img/banner/labs/cloud_03.png' %}" alt="mpckup">
-                    </div><!-- /.promo-mockup -->
-                </div><!-- /.col-md-7 -->
+                <div class="col-lg-6 d-flex align-items-center justify-content-center">
+                <div class="animate-promo-mockup text-center w-100">
+                    <img src="{% static 'img/animated/labs-landing-info2.png' %}" style="max-height: 100%; object-fit: contain;" alt="mockup">
+                 </div>
+                </div>
+
+                <!-- /.col-md-7 -->
             </div><!-- /.row -->
         </div><!-- /.banner-content-wrap -->
     </div><!-- /.container -->
@@ -50,21 +43,13 @@
 <!--=================================-->
 <!--=         Editor Design         =-->
 <!--=================================-->
-<section class="editor-design-two">
-    <div class="container">
+<section class="editor-design-two mt-lg-n5">
+    <div class="container mt-lg-n5">
         <div class="row">
             <div class="col-lg-6">
                 <div class="editure-feature-image-two">
-                    <div class="animaated-elements">
-                        <img src="media/animated/01.png" alt="main-bg" class="main-bg wow pixFade">
-                        <img src="{% static 'img/animated/labs-landing-info1.png' %}" alt="main-bg" class="elm-clock wow pixFadeLeft" data-wow-delay="0.5s">
-                        <img src="media/animated/03.png" alt="elm-man" class="elm-man wow pixFadeRight" data-wow-delay="0.7s">
-                        <img src="media/animated/04.png" alt="elm-table" class="elm-table wow pixFadeUp" data-wow-delay="0.1s">
-                        <img src="media/animated/05.png" alt="main-bg" class="elm-sm-vase wow pixFade" data-wow-delay="0.9s">
-                        <img src="media/animated/06.png" alt="elm-vase" class="elm-vase wow pixFadeLeft" data-wow-delay="0.9s">
-                        <div class="elm-mass wow pixFadeDown" data-wow-delay="1s">
-                            <img src="media/animated/07.png" alt="massage" class="mass-img">
-                        </div>
+                    <div>
+                        <img src="{% static 'img/animated/labs-landing-info1.png' %}" alt="main-bg" style="padding-top: 5% !important;">
                     </div>
                     <!-- /.animaated-elements -->
 
@@ -145,10 +130,7 @@
 
             <div class="col-lg-6">
                 <div class="animaated-elements-two">
-                    <img src="{% static 'img/animated/labs-landing-info2.png' %}" class="elm-one wow pixFade" alt="informes" style="max-height: 100% !important;">
-                    <img src="media/animated/2.png" class="elm-two wow pixFadeDown" alt="informes">
-                    <img src="media/animated/3.png" class="elm-three wow pixFadeDown" alt="informes">
-                    <img src="media/animated/4.png" class="elm-four wow pixFadeRight" alt="informes">
+                    <img src="{% static 'img/animated/labs-landing-info2.png' %}" alt="informes" style="max-height: 100% !important;">
                 </div>
             </div><!-- /.col-lg-6 -->
 
@@ -156,7 +138,7 @@
     </div><!-- /.container -->
 
     <div class="scroll-circle wow pixFadeRight">
-        <img src="media/background/circle2.png" data-parallax='{"y" : 180}' alt="circle">
+        <img src="{% static 'img/background/circle2.png' %}" data-parallax='{"y" : 180}' alt="circle">
     </div>
 </section><!-- /.genera-informes -->
 

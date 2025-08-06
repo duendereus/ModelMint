@@ -195,3 +195,13 @@
   margin: 0;
   padding: 0;
 }
+
+.banner.banner-two .animate-promo-mockup {
+      width: 100%;
+      max-width: 550px;
+      aspect-ratio: 1 / 1; /* o 16 / 9 si prefieres horizontal */
+      position: relative;
+      margin: 0 auto;
+      margin-top: 75px !important;
+      margin-bottom: -75px !important;
+  }

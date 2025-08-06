@@ -4437,6 +4437,7 @@ select {
     font-size: 40px;
   }
 }
+
 .banner-app-three .banner-app__right-shape {
   position: absolute;
   right: 100px;
@@ -4579,14 +4580,19 @@ select {
 }
 
 .animate-promo-mockup {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
   position: relative;
-  width: 830px;
-  height: 600px;
-  margin-left: -40px;
+  margin: 0 auto;
+  padding: 1rem;
 }
+
 .animate-promo-mockup img {
   position: absolute;
 }
+
 .animate-promo-mockup img:nth-child(1) {
   left: 100px;
   bottom: 100px;
@@ -4780,6 +4786,7 @@ select {
   bottom: -10px;
 }
 
+
 @media (max-width: 1600px) {
   .banner.banner-one .promo-mockup {
     margin-left: -50px;
@@ -4788,11 +4795,15 @@ select {
     max-width: 800px;
   }
   .banner.banner-two .animate-promo-mockup {
-    width: 550px;
-    height: 530px;
+      width: 100%;
+      max-width: 550px;
+      aspect-ratio: 1 / 1; /* o 16 / 9 si prefieres horizontal */
+      position: relative;
+      margin: 0 auto;
+      padding-top: 100px !important;
   }
   .banner.banner-two .animate-promo-mockup img:nth-child(3) {
-    right: -160px;
+     right: 0;
   }
   .banner.banner-two .animate-promo-mockup img:nth-child(5) {
     left: 62%;
