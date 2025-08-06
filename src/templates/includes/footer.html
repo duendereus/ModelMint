@@ -1,4 +1,23 @@
 {% load static %}
+{% if request.path|slice:":6" == "/labs/" %}
+<footer id="footer">
+    <div class="container">
+        <div class="site-info">
+            <div class="footer-brand">
+                <img src="{% static 'img/logo-green.png' %}" width="50" height="50">
+                <p>© {% now "Y" %} <a href="{% url 'labs:labs_landing' %}">
+                    <span style="font-family: 'Poppins', sans-serif; font-size: 2rem; font-weight: bold; color: black;">
+                                Model<span style="color: #00FF7F;">Mint</span>
+                            </span>
+                            <span style="background-color: #00FF7F; color: black; font-size: 0.65rem; font-weight: 600; padding: 2px 6px; border-radius: 6px;">
+                                labs
+                            </span>
+                </a></p>
+            </div>
+        </div>
+    </div>
+</footer>
+{% else %}
 <footer id="footer">
     <div class="container">
         <div class="site-info">
@@ -8,4 +27,5 @@
             </div>
         </div>
     </div>
-</footer>
+</footer>¿
+{% endif %}

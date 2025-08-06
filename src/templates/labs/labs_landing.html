@@ -4,54 +4,239 @@
 {% block title %}Labs{% endblock title %}
 
 {% block content %}
-<section class="banner banner-one" style="height: 900px !important;">
-  <div class="circle-shape" data-parallax='{"y" : 230}'>
-    <img src="{% static 'img/banner/circle-shape.png' %}" alt="circle">
-  </div>
+<!--==========================-->
+<!--=         Banner         =-->
+<!--==========================-->
+<section class="banner banner-two">
+    <div class="vector-bg"><img src="{% static 'img/banner/labs/top-shape.png' %}" alt="circle"></div>
+    <div class="container">
+        <div class="banner-content-wrap">
+            <div class="row align-items-center">
+                <div class="col-lg-6 pix-order-2">
+                    <div class="banner-content">
+                        <h1 class="banner-title wow pixFadeUp" data-wow-delay="0.3s">
+                            Turn Your <span>Jupyter Notebooks</span> into Stunning, <span>Shareable Labs</span>
+                        </h1>
 
-  <div class="container">
-    <div class="banner-content-wrap">
-      <div class="row align-items-center">
-        <div class="col-lg-6">
-          <div class="banner-content">
-            <h1 class="banner-title wow pixFadeUp" data-wow-delay="0.3s">
-              Turn your <span>Notebooks</span> into monetizable <span>Labs</span>
-            </h1>
-            <p class="description wow pixFadeUp" data-wow-delay="0.5s">
-              Share your data analyses as valuable products — no extra code, dashboards, or deployment required.
-            </p>
-            <a href="{% url 'accounts:register' %}" class="pxs-btn banner-btn wow pixFadeUp" data-wow-delay="0.6s">
-              Create Your Lab
-            </a>
-          </div>
-        </div>
+                        <p class="description wow pixFadeUp" data-wow-delay="0.5s">
+                            Transform your raw data science work into beautiful, <br> 
+                            interactive reports — without coding dashboards, <br>
+                            fighting with exports, or building custom deployments.
+                        </p>
 
-        <div class="col-lg-6 d-flex justify-content-center align-items-center" style="padding-left: 10% !important;">
-          <div class="promo-mockup" style="
-              max-width: 750px;
-              width: 120% !important;
-              background-color: white;
-              border-radius: 12px;
-              box-shadow: 0 10px 30px rgba(0,0,0,0.07);
-              transition: transform 0.3s ease;
-          ">
-            <img src="{% static 'img/banner/labs-preview2.png' %}" alt="Labs preview" style="width: 120%; max-height: 650px; border-radius: 8px;">
-          </div>
-        </div>
-      </div>
+                        <a href="{% url 'labs:labs_register' %}" class="pxs-btn banner-btn color-two wow pixFadeUp" data-wow-delay="0.6s">🚀 Launch Your Lab Now</a>
+                    </div><!-- /.banner-content -->
+                </div><!-- /.col-md-5 -->
+
+                <div class="col-lg-6">
+                    <div class="animate-promo-mockup" style="min-height: 100% !important; margin-top: 20% !important;">
+                        <img src="{% static 'img/banner/labs-preview2.png' %}" class="wow pixFadeDown" alt="mpckup" data-wow-duration="1.5s" style="max-height: 100% !important;">
+                        <img src="{% static 'img/banner/labs/02.png' %}" class="wow pixFadeRight" data-wow-delay="0.3s" data-wow-duration="1s" alt="mpckup">
+                        <img src="{% static 'img/banner/labs/03.png' %}" class="wow pixFadeUp" alt="mpckup" data-wow-duration="1.7s">
+                        <img src="{% static 'img/banner/labs/04.png' %}" class="wow pixFadeRight" alt="mpckup">
+                        <img src="{% static 'img/banner/labs/05.png' %}" class="wow pixFadeDown" alt="mpckup" data-wow-duration="2s">
+                        <img src="{% static 'img/banner/labs/06.png' %}" alt="mpckup" data-wow-delay="0.3s">
+                        <img src="{% static 'img/banner/labs/07.png' %}" class="wow pixFadeLeft" alt="mpckup" data-wow-delay="0.6s" data-wow-duration="1.5s">
+                        <img src="{% static 'img/banner/labs/cloud_01.png' %}" alt="mpckup">
+                        <img src="{% static 'img/banner/labs/cloud_02.png' %}" alt="mpckup">
+                        <img src="{% static 'img/banner/labs/cloud_03.png' %}" alt="mpckup">
+                    </div><!-- /.promo-mockup -->
+                </div><!-- /.col-md-7 -->
+            </div><!-- /.row -->
+        </div><!-- /.banner-content-wrap -->
+    </div><!-- /.container -->
+</section><!-- /.banner banner-two -->
+
+<!--=================================-->
+<!--=         Editor Design         =-->
+<!--=================================-->
+<section class="editor-design-two">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="editure-feature-image-two">
+                    <div class="animaated-elements">
+                        <img src="media/animated/01.png" alt="main-bg" class="main-bg wow pixFade">
+                        <img src="{% static 'img/animated/labs-landing-info1.png' %}" alt="main-bg" class="elm-clock wow pixFadeLeft" data-wow-delay="0.5s">
+                        <img src="media/animated/03.png" alt="elm-man" class="elm-man wow pixFadeRight" data-wow-delay="0.7s">
+                        <img src="media/animated/04.png" alt="elm-table" class="elm-table wow pixFadeUp" data-wow-delay="0.1s">
+                        <img src="media/animated/05.png" alt="main-bg" class="elm-sm-vase wow pixFade" data-wow-delay="0.9s">
+                        <img src="media/animated/06.png" alt="elm-vase" class="elm-vase wow pixFadeLeft" data-wow-delay="0.9s">
+                        <div class="elm-mass wow pixFadeDown" data-wow-delay="1s">
+                            <img src="media/animated/07.png" alt="massage" class="mass-img">
+                        </div>
+                    </div>
+                    <!-- /.animaated-elements -->
+
+                </div>
+            </div><!-- /.col-lg-6 -->
+            <div class="col-lg-6">
+                <div class="editor-content color-two">
+                    <div class="section-title style-two color-two">
+                        <h2 class="title wow pixFadeUp" data-wow-delay="0.3s">
+                            Your Data Science, Delivered Beautifully
+                        </h2>
+
+                        <p class="wow pixFadeUp" data-wow-delay="0.5s">
+                            From messy outputs to polished, <br>
+                            client-ready reports in seconds.
+                        </p>
+                    </div>
+
+                    <div class="description wow pixFadeUp" data-wow-delay="0.7s">
+                        <p>
+                            Upload your Jupyter Notebook exports (HTML) + any supporting files, 
+                            and we’ll auto-generate clean, professional reports for your team or clients.
+                            Share them securely, control access, and look good doing it.
+                        </p>
+
+                        <ul>
+                            <li>
+                                <b>📊 Instant Beautiful Reports</b> — No design skills required.
+                            </li>
+                            <li>
+                                <b>🔐 Secure Sharing Controls </b> — External access, OTP links, or private mode.
+                            </li>
+                            <li>
+                                <b>⚡ Fast & Lightweight </b> — Works with your existing workflow. 
+                                No need to change or learn something else.
+                            </li>
+                        </ul>
+
+                        <!-- <a href="#" class="pix-btn color-two wow pixFadeUp" data-wow-delay="0.9s">Discover More</a> -->
+                    </div>
+                </div><!-- /.editor-content -->
+            </div><!-- /.col-lg-6 -->
+        </div><!-- /.row -->
+    </div><!-- /.container -->
+</section><!-- /.editor-design -->
+
+<!--===================================-->
+<!--=         Genera Informes         =-->
+<!--===================================-->
+<section class="genera-informes-two">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6 pix-order-two">
+                <div class="genera-informes-content">
+                    <div class="section-title style-two">
+                        <h2 class="title wow pixFadeUp">
+                           One Upload. Endless Possibilities.
+                        </h2>
+
+                        <p class="wow pixFadeUp" data-wow-delay="0.3s">
+                            From notebook to next-level reporting and versioning in minutes. <br> <br>
+
+                            <span style="font-size: 0.9rem !important;">Spend your time on insights, not formatting.
+                            We take care of the layout, branding, and sharing — so you can focus on your science.</span>
+                        </p>
+                    </div><!-- /.section-title style-two -->
+                    <ul class="list-items color-two wow pixFadeUp" data-wow-delay="0.4s">
+                        <li>Zero setup, zero maintenance.</li>
+                        <li>Branded reports for your org.</li>
+                        <li>Multiple versions per notebook for iteration tracking.</li>
+                    </ul>
+
+                    <!-- <a href="#" class="pix-btn btn-outline-two wow pixFadeUp" data-wow-delay="0.5s">Discover More</a> -->
+                </div>
+                <!-- /.genera-informes -->
+
+            </div><!-- /.col-lg-6 -->
+
+            <div class="col-lg-6">
+                <div class="animaated-elements-two">
+                    <img src="{% static 'img/animated/labs-landing-info2.png' %}" class="elm-one wow pixFade" alt="informes" style="max-height: 100% !important;">
+                    <img src="media/animated/2.png" class="elm-two wow pixFadeDown" alt="informes">
+                    <img src="media/animated/3.png" class="elm-three wow pixFadeDown" alt="informes">
+                    <img src="media/animated/4.png" class="elm-four wow pixFadeRight" alt="informes">
+                </div>
+            </div><!-- /.col-lg-6 -->
+
+        </div><!-- /.row -->
+    </div><!-- /.container -->
+
+    <div class="scroll-circle wow pixFadeRight">
+        <img src="media/background/circle2.png" data-parallax='{"y" : 180}' alt="circle">
     </div>
-  </div>
+</section><!-- /.genera-informes -->
 
-  <div class="bg-shape">
-    <img src="{% static 'img/banner/shape-bg.png' %}" alt="">
-  </div>
-</section>
+
+<!--==========================-->
+<!--=         Countup        =-->
+<!--==========================-->
+<!-- <section class="countup">
+    <div class="bg-map" data-bg-image="media/background/map.png">
+
+    </div>
+    <div class="container">
+        <div class="section-title color-two text-center">
+            <h3 class="sub-title wow pixFadeUp">Fun Facts</h3>
+            <h2 class="title wow pixFadeUp" data-wow-delay="0.3s">
+                We Always try to Understand<br>
+                Users expectation
+            </h2>
+        </div>
+
+        <div class="countup-wrapper">
+            <div class="row">
+                <div class="col-lg-3 col-md-6 col-sm-6">
+                    <div class="fun-fact wow pixFadeUp" data-wow-delay="0.3s">
+                        <div class="counter">
+                            <h4 class="count" data-counter="14">14 </h4>
+                            <span>K+</span>
+                        </div>
+
+                        <p>Total Download</p>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6 col-sm-6">
+                    <div class="fun-fact color-two wow pixFadeUp" data-wow-delay="0.5s">
+                        <div class="counter">
+                            <h4 class="count" data-counter="13">13 </h4>
+                            <span>M+</span>
+                        </div>
+                        <p>Total Download</p>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6 col-sm-6">
+                    <div class="fun-fact color-three wow pixFadeUp" data-wow-delay="0.7s">
+                        <div class="counter">
+                            <h4 class="count" data-counter="244">244 </h4>
+                            <span>+</span>
+                        </div>
+                        <p>Total Download</p>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6 col-sm-6">
+                    <div class="fun-fact color-four wow pixFadeUp" data-wow-delay="0.9s">
+                        <div class="counter">
+                            <h4 class="count" data-counter="53">53 </h4>
+                            <span>M+</span>
+                        </div>
+                        <p>Total Download</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-container text-center wow pixFadeUp" data-wow-delay="1s">
+            <a href="#" class="pix-btn btn-outline-two">See All Review</a>
+        </div>
+    </div>
+
+    <div class="scroll-circle wow pixFadeRight">
+        <img src="media/background/circle3.png" data-parallax='{"y" : -230}' alt="circle">
+    </div>
+</section> -->
 
 <section class="pricing-hosting">
     <div class="container-fluid">
         <div class="section-title text-center">
-            <h2 class="title">Choose Your Lab Plan</h2>
-            <p>Deploy and share your ML models without extra dashboards or infrastructure.</p>
+            <h2 class="title">Choose the Lab Plan That Fits Your Team</h2>
+            <p>Whether you’re a solo data scientist, a small team, or a fast-growing data-driven org — we’ve got you covered.</p>
         </div>
 
         <div class="row justify-content-center">
