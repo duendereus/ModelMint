@@ -55,6 +55,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const waitTime = 30;
   const email = "{{ email }}";
   const notebookSlug = "{{ notebook.slug }}";
+  const organizationSlug = "{{ notebook.organization.slug }}";
 
   // ⏳ Desactivar automáticamente durante los primeros 30s al cargar
   resendBtn.disabled = true;
@@ -92,7 +93,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 1000);
 
     // Enviar solicitud POST con CSRF
-    fetch(`/labs/notebooks/${notebookSlug}/resend-otp/`, {
+    fetch(`/labs/notebooks/${organizationSlug}/${notebookSlug}/resend-otp/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",

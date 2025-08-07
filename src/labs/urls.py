@@ -87,47 +87,47 @@ urlpatterns = [
         "members/<int:member_id>/edit/", edit_lab_member_view, name="labs_edit_member"
     ),
     path(
-        "notebooks/<int:notebook_id>/upload-version/",
+        "notebooks/<slug:organization_slug>/<int:notebook_id>/upload-version/",
         upload_new_version_view,
         name="lab_notebook_upload_version",
     ),
     path(
-        "notebook-preview/<slug:notebook_slug>/",
+        "notebook-preview/<slug:organization_slug>/<slug:notebook_slug>/",
         lab_preview_notebook_view,
         name="lab_preview_notebook",
     ),
     path(
-        "notebooks/<slug:notebook_slug>/details/",
+        "notebooks/<slug:organization_slug>/<slug:notebook_slug>/details/",
         lab_notebook_detail_view,
         name="lab_notebook_detail",
     ),
     path(
-        "notebooks/<slug:notebook_slug>/pdf/",
+        "notebooks/<slug:organization_slug>/<slug:notebook_slug>/pdf/",
         download_pdf_notebook,
         name="lab_notebook_pdf",
     ),
     path(
-        "notebooks/<slug:notebook_slug>/delete/",
+        "notebooks/<slug:organization_slug>/<slug:notebook_slug>/delete/",
         delete_lab_notebook,
         name="delete_lab_notebook",
     ),
     path(
-        "notebooks/<slug:notebook_slug>/enter-email/",
+        "notebooks/<slug:organization_slug>/<slug:notebook_slug>/enter-email/",
         lab_notebook_enter_email_view,
         name="lab_notebook_enter_email",
     ),
     path(
-        "notebooks/verify-otp/<slug:notebook_slug>/",
+        "notebooks/verify-otp/<slug:organization_slug>/<slug:notebook_slug>/",
         lab_notebook_verify_otp_view,
         name="lab_notebook_verify_otp",
     ),
     path(
-        "notebooks/<slug:notebook_slug>/resend-otp/",
+        "notebooks/<slug:organization_slug>/<slug:notebook_slug>/resend-otp/",
         lab_notebook_resend_otp,
         name="lab_notebook_resend_otp",
     ),
     path(
-        "notebooks/<slug:notebook_slug>/access-settings/",
+        "notebooks/<slug:organization_slug>/<slug:notebook_slug>/access-settings/",
         edit_notebook_access_view,
         name="lab_notebook_access",
     ),

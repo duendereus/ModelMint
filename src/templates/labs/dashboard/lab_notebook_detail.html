@@ -27,7 +27,7 @@
       <div class="row mt-3">
         <div class="col-md-12">
              {% if request.user == notebook.created_by or request.user == notebook.organization.owner %}
-              <a href="{% url 'labs:lab_notebook_access' notebook.slug %}"
+              <a href="{% url 'labs:lab_notebook_access' notebook.organization.slug notebook.slug %}"
                 class="btn btn-outline-secondary btn-sm ms-2 float-end">
                 <i class="mdi mdi-pencil"></i> Edit Access Settings
               </a>
@@ -67,7 +67,7 @@
     </div>
 
     {% if plan_limits.allow_pdf_download %}
-      <a href="{% url 'labs:lab_notebook_pdf' notebook.slug %}?version_id={{ selected_version.id }}"
+      <a href="{% url 'labs:lab_notebook_pdf' notebook.organization.slug notebook.slug %}?version_id={{ selected_version.id }}"
         target="_blank"
         class="btn btn-outline-primary mt-2 mb-4"
         style="margin-left: 5% !important; margin-right: 5% !important;">
@@ -91,7 +91,7 @@
       <div class="col-md-6 text-end mt-3 mt-md-0">
         {% if request.user == notebook.created_by or request.user == notebook.organization.owner %}
           <a 
-            href="{% url 'labs:lab_preview_notebook' notebook.slug %}?version_id={{ selected_version.id }}"
+            href="{% url 'labs:lab_preview_notebook' notebook.organization.slug notebook.slug %}?version_id={{ selected_version.id }}"
             class="btn btn-outline-primary"
             title="Edit and Preview Notebook"
           >

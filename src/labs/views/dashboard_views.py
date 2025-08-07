@@ -215,7 +215,7 @@ def lab_notebook_upload_view(request):
 @login_required(login_url="labs:labs_login")
 @labs_only
 @require_http_methods(["GET", "POST"])
-def upload_new_version_view(request, notebook_id):
+def upload_new_version_view(request, organization_slug, notebook_id):
     user = request.user
     organization = get_user_organization(user)
 
@@ -227,6 +227,7 @@ def upload_new_version_view(request, notebook_id):
 
     notebook = get_object_or_404(
         LabNotebook.objects.filter(active=True, organization=organization),
+        organization__slug=organization_slug,
         id=notebook_id,
     )
 
@@ -314,12 +315,13 @@ def upload_new_version_view(request, notebook_id):
 @login_required(login_url="labs:labs_login")
 @labs_only
 @require_http_methods(["GET", "POST"])
-def lab_preview_notebook_view(request, notebook_slug):
+def lab_preview_notebook_view(request, organization_slug, notebook_slug):
     notebook = get_object_or_404(
         LabNotebook.objects.select_related("organization", "created_by").filter(
             active=True
         ),
         slug=notebook_slug,
+        organization__slug=organization_slug,
         organization=get_user_organization(request.user),
     )
 
@@ -450,7 +452,7 @@ def lab_preview_notebook_view(request, notebook_slug):
     )
 
 
-def lab_notebook_detail_view(request, notebook_slug):
+def lab_notebook_detail_view(request, organization_slug, notebook_slug):
     """
     Vista de detalle para un notebook publicado (Labs).
     - Si es público, cualquier persona con el link puede verlo.
@@ -463,6 +465,7 @@ def lab_notebook_detail_view(request, notebook_slug):
             active=True
         ),
         slug=notebook_slug,
+        organization__slug=organization_slug,
     )
 
     organization = notebook.organization
@@ -487,7 +490,9 @@ def lab_notebook_detail_view(request, notebook_slug):
 
             if not valid_token_exists:
                 return redirect(
-                    "labs:lab_notebook_enter_email", notebook_slug=notebook.slug
+                    "labs:lab_notebook_enter_email",
+                    organization_slug=notebook.organization.slug,
+                    notebook_slug=notebook.slug,
                 )
 
     # --- Obtener versiones ---
@@ -541,7 +546,7 @@ def lab_notebook_detail_view(request, notebook_slug):
     )
 
 
-def download_pdf_notebook(request, notebook_slug):
+def download_pdf_notebook(request, organization_slug, notebook_slug):
     """
     Exporta una versión publicada de un notebook en formato PDF (solo Labs).
     Soporta acceso vía OTP o membresía si el plan lo permite.
@@ -552,6 +557,7 @@ def download_pdf_notebook(request, notebook_slug):
                 active=True
             ),
             slug=notebook_slug,
+            organization__slug=organization_slug,
         )
 
         organization = notebook.organization
@@ -562,7 +568,11 @@ def download_pdf_notebook(request, notebook_slug):
                 request,
                 "La descarga en PDF solo está disponible en planes Team y Org Pro.",
             )
-            return redirect("labs:lab_notebook_detail", notebook_slug=notebook_slug)
+            return redirect(
+                "labs:lab_notebook_detail",
+                organization_slug=notebook.organization.slug,
+                notebook_slug=notebook_slug,
+            )
 
         # --- Control de acceso ---
         user = request.user
@@ -586,7 +596,9 @@ def download_pdf_notebook(request, notebook_slug):
                         request, "🔒 No tienes permiso para descargar este notebook."
                     )
                     return redirect(
-                        "labs:labs:lab_notebook_verify_otp", notebook_slug=notebook.slug
+                        "labs:labs:lab_notebook_verify_otp",
+                        organization_slug=notebook.organization.slug,
+                        notebook_slug=notebook.slug,
                     )
 
         # --- Obtener versión ---
@@ -604,7 +616,11 @@ def download_pdf_notebook(request, notebook_slug):
 
         if not version:
             messages.warning(request, "No se encontró una versión válida.")
-            return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
+            return redirect(
+                "labs:lab_notebook_detail",
+                organization_slug=notebook.organization.slug,
+                notebook_slug=notebook.slug,
+            )
 
         # --- Obtener métricas ---
         metrics = (
@@ -688,7 +704,7 @@ def download_pdf_notebook(request, notebook_slug):
 
 @login_required(login_url="labs:labs_login")
 @labs_only
-def delete_lab_notebook(request, notebook_slug):
+def delete_lab_notebook(request, organization_slug, notebook_slug):
     """
     Permite eliminar un notebook si el usuario es el
     creador o el owner de la organización (Labs).
@@ -699,6 +715,7 @@ def delete_lab_notebook(request, notebook_slug):
     notebook = get_object_or_404(
         LabNotebook.objects.select_related("organization", "created_by"),
         slug=notebook_slug,
+        organization__slug=organization_slug,
         organization=get_user_organization(request.user),
     )
 
@@ -724,14 +741,23 @@ def delete_lab_notebook(request, notebook_slug):
     return redirect("labs:labs_dashboard_home")
 
 
-def lab_notebook_enter_email_view(request, notebook_slug):
+def lab_notebook_enter_email_view(request, organization_slug, notebook_slug):
     """
     Vista unificada para ingresar email y generar OTP automáticamente si el email está autorizado.
     """
-    notebook = get_object_or_404(LabNotebook, slug=notebook_slug, active=True)
+    notebook = get_object_or_404(
+        LabNotebook,
+        slug=notebook_slug,
+        organization__slug=organization_slug,
+        active=True,
+    )
 
     if notebook.is_public:
-        return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
+        return redirect(
+            "labs:lab_notebook_detail",
+            organization_slug=notebook.organization.slug,
+            notebook_slug=notebook.slug,
+        )
 
     if request.method == "POST":
         email = request.POST.get("email", "").strip().lower()
@@ -739,7 +765,9 @@ def lab_notebook_enter_email_view(request, notebook_slug):
         if not email:
             messages.warning(request, "Email is required.")
             return redirect(
-                "labs:lab_notebook_enter_email", notebook_slug=notebook.slug
+                "labs:lab_notebook_enter_email",
+                organization_slug=notebook.organization.slug,
+                notebook_slug=notebook.slug,
             )
 
         if email not in (notebook.allowed_emails or []):
@@ -747,7 +775,9 @@ def lab_notebook_enter_email_view(request, notebook_slug):
                 request, "This email is not authorized to access this notebook."
             )
             return redirect(
-                "labs:lab_notebook_enter_email", notebook_slug=notebook.slug
+                "labs:lab_notebook_enter_email",
+                organization_slug=notebook.organization.slug,
+                notebook_slug=notebook.slug,
             )
 
         # Validar plan
@@ -779,14 +809,22 @@ def lab_notebook_enter_email_view(request, notebook_slug):
             messages.info(request, "You already have a valid OTP in your email.")
 
         # Redirigir directamente a verify_otp
-        verify_url = reverse("labs:lab_notebook_verify_otp", args=[notebook.slug])
+        verify_url = reverse(
+            "labs:lab_notebook_verify_otp",
+            args=[notebook.organization.slug, notebook.slug],
+        )
         return HttpResponseRedirect(f"{verify_url}?email={email}")
 
     return render(request, "labs/public/enter_email.html", {"notebook": notebook})
 
 
-def lab_notebook_verify_otp_view(request, notebook_slug):
-    notebook = get_object_or_404(LabNotebook, slug=notebook_slug, active=True)
+def lab_notebook_verify_otp_view(request, organization_slug, notebook_slug):
+    notebook = get_object_or_404(
+        LabNotebook,
+        organization__slug=organization_slug,
+        slug=notebook_slug,
+        active=True,
+    )
 
     # 🔒 Bloquear verificación si el plan no permite OTP
     plan_limits = get_plan_limits(notebook.organization)
@@ -825,7 +863,11 @@ def lab_notebook_verify_otp_view(request, notebook_slug):
             request.session.modified = True
 
             messages.success(request, "✅ OTP verified. Access granted.")
-            return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
+            return redirect(
+                "labs:lab_notebook_detail",
+                organization_slug=notebook.organization.slug,
+                notebook_slug=notebook.slug,
+            )
         else:
             error = "Invalid or expired OTP."
 
@@ -841,8 +883,13 @@ def lab_notebook_verify_otp_view(request, notebook_slug):
 
 
 @require_POST
-def lab_notebook_resend_otp(request, notebook_slug):
-    notebook = get_object_or_404(LabNotebook, slug=notebook_slug, active=True)
+def lab_notebook_resend_otp(request, organization_slug, notebook_slug):
+    notebook = get_object_or_404(
+        LabNotebook,
+        organization__slug=organization_slug,
+        slug=notebook_slug,
+        active=True,
+    )
     email = request.POST.get("email", "").strip().lower()
 
     if not email:
@@ -914,9 +961,10 @@ def lab_notebook_resend_otp(request, notebook_slug):
 
 @login_required(login_url="labs:labs_login")
 @labs_only
-def edit_notebook_access_view(request, notebook_slug):
+def edit_notebook_access_view(request, organization_slug, notebook_slug):
     notebook = get_object_or_404(
         LabNotebook.objects.select_related("organization__owner", "created_by"),
+        organization__slug=organization_slug,
         slug=notebook_slug,
     )
 
@@ -936,7 +984,11 @@ def edit_notebook_access_view(request, notebook_slug):
                 form.instance.allowed_emails = []
             form.save()
             messages.success(request, "✅ Access settings updated.")
-            return redirect("labs:lab_notebook_detail", notebook_slug=notebook.slug)
+            return redirect(
+                "labs:lab_notebook_detail",
+                organization_slug=notebook.organization.slug,
+                notebook_slug=notebook.slug,
+            )
         else:
             print("❌ FORM ERRORS:", form.errors)
     else:
