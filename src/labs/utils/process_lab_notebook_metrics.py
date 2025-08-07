@@ -9,6 +9,7 @@ from labs.models import NotebookMetric
 
 
 def process_lab_metrics(html_file, notebook, version_obj, file_entries=None):
+    MAX_NAME_LENGTH = 255
     content = html_file.read()
     file_map = {
         entry["original_name"]: entry["stored_path"] for entry in file_entries or []
@@ -39,11 +40,14 @@ def process_lab_metrics(html_file, notebook, version_obj, file_entries=None):
 
         print(f"📌 Parsed metric: type={m_type}, title={title}")
 
+        name_raw = block["title"]
+        name_safe = name_raw[:MAX_NAME_LENGTH].strip()
+
         metric = NotebookMetric(
             notebook=notebook,
             version_obj=version_obj,
             type=model_type,
-            name=title,
+            name=name_safe,
             value=block.get("value") or block.get("text"),
         )
 
