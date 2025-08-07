@@ -5,6 +5,7 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 from django.utils.translation import gettext_lazy as _
+from django.utils.text import slugify
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from accounts.utils import validate_phone_number
@@ -125,6 +126,7 @@ class Organization(models.Model):
         ("lab", "Labs (Data Scientists)"),
     ]
     name = models.CharField(max_length=255, unique=True)
+    slug = models.SlugField(max_length=255, blank=True, null=True)
     owner = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="owned_organization"
     )
@@ -153,6 +155,9 @@ class Organization(models.Model):
         """
         Save the Organization instance and validate constraints.
         """
+        if not self.slug or self._state.adding:
+            self.slug = slugify(self.name)
+
         super().save(*args, **kwargs)
         self.clean()
 

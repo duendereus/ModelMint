@@ -917,7 +917,6 @@ def staff_preview_report_view(request, report_id):
             latest_preview.source_upload if latest_preview else report.upload
         )
         if not fallback_upload:
-            # Renderizar una plantilla con error amigable o redirigir a una vista segura
             messages.info(
                 request, "No preview metrics or uploads found for this report."
             )
