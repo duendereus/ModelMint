@@ -126,7 +126,7 @@ class Organization(models.Model):
         ("lab", "Labs (Data Scientists)"),
     ]
     name = models.CharField(max_length=255, unique=True)
-    slug = models.SlugField(max_length=255, blank=True, null=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     owner = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="owned_organization"
     )
@@ -155,8 +155,14 @@ class Organization(models.Model):
         """
         Save the Organization instance and validate constraints.
         """
-        if not self.slug or self._state.adding:
-            self.slug = slugify(self.name)
+        if not self.slug:
+            base_slug = slugify(self.name)
+            slug = base_slug
+            counter = 1
+            while Organization.objects.filter(slug=slug).exclude(id=self.id).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
 
         super().save(*args, **kwargs)
         self.clean()
