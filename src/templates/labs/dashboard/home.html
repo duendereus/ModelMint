@@ -66,13 +66,13 @@
                 {% endif %}
               </p>
 
-              <a href="{% url 'labs:lab_notebook_detail' notebook.slug %}" class="btn btn-outline-primary mt-2">
+              <a href="{% url 'labs:lab_notebook_detail' notebook.slug %}" class="btn btn-outline-primary mt-2 w-100">
                 View Notebook
               </a>
 
               {% if request.user == notebook.created_by or request.user == organization.owner %}
                 <a href="{% url 'labs:lab_notebook_upload_version' notebook.id %}"
-                  class="btn btn-outline-secondary mt-2">
+                  class="btn btn-outline-secondary mt-2 w-100">
                   Upload New Version
                 </a>
               {% endif %}
