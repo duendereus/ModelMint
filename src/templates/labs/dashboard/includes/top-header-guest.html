@@ -3,28 +3,32 @@
 <div
   class="top-header-guest border-bottom py-2 px-4 {% if branding_enabled %}has-branding{% endif %}"
   {% if branding_enabled %}
-    style="--brand-primary: {{ primary_color }};
-           --brand-text: {{ text_color }};
-           --brand-secondary: {{ secondary_color }};"
+    style="--brand-primary: {{ primary_color }}; --brand-text: {{ text_color }}; --brand-secondary: {{ secondary_color }};"
   {% endif %}
 >
-  <div class="d-flex justify-content-between align-items-center h-100">
-    <div class="d-flex align-items-center">
-      <a href="{% url 'labs:labs_landing' %}" target="_blank" class="me-3">
+  <div class="guest-bar">
+    <!-- Izquierda -->
+    <div class="brand-left">
+      <a href="{% url 'labs:labs_landing' %}" target="_blank" class="d-inline-flex align-items-center gap-2">
         {% if org_logo %}
-          <img src="{{ org_logo }}" height="28" alt="{{ org_name }}">
+          <img class="org-logo" src="{{ org_logo }}" alt="{{ org_name }}">
         {% else %}
-          <img src="{% static 'img/logo-white.svg' %}" height="28" alt="ModelMint Logo">
+          <img class="org-logo" src="{% static 'img/logo-white.svg' %}" alt="ModelMint Logo">
         {% endif %}
-
-        <span class="labs-badge">LABS</span>
+        <span class="labs-badge">labs</span>
       </a>
+    </div>
 
+    <!-- Centro -->
+    <div class="brand-title">
       {% if notebook.organization %}
-        <div class="position-absolute top-50 start-50 translate-middle small fw-semibold org-title">
-          <strong>{{ notebook.organization.name }}</strong>
-        </div>
+        <strong>{{ notebook.organization.name }}</strong>
       {% endif %}
     </div>
+
+    <!-- Derecha (espaciador opcional; puede quedar vacío) -->
+    <div></div>
   </div>
 </div>
+
+
