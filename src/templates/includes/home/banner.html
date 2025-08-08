@@ -1,7 +1,7 @@
 {% load static %}
 <section class="banner banner-one" style="height: 1000px !important;">
     <div class="circle-shape" data-parallax='{"y" : 230}'>
-        <img src="{% static 'img/banner/circle-shape.png' %}" alt="circle">
+        <img src="{% static 'img/banner/circle-shape.png' %}" alt="circle" loading="lazy">
     </div>
 
     <div class="container">
@@ -32,7 +32,7 @@
                         box-shadow: 0 10px 30px rgba(0,0,0,0.07);
                         transition: transform 0.3s ease;
                     ">
-                        <img src="{% static 'img/banner/before-after.png' %}" alt="before-after graphic" style="width: 120%; border-radius: 8px;">
+                        <img src="{% static 'img/banner/before-after.png' %}" loading="lazy alt=" before-after graphic" style="width: 120%; border-radius: 8px;">
                     </div>
                 </div>                
             </div>
@@ -40,6 +40,6 @@
     </div>
 
     <div class="bg-shape">
-        <img src="{% static 'img/banner/shape-bg.png' %}" alt="">
+        <img src="{% static 'img/banner/shape-bg.png' %}" alt="" loading="lazy">
     </div>
 </section>
