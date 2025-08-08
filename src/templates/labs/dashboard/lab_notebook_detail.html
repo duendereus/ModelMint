@@ -9,7 +9,7 @@
 
   <p class="text-muted mb-4">
     Version: <strong>v{{ selected_version.version }}</strong> |
-    Uploaded: {{ selected_version.created_at|date:"Y-m-d H:i" }} 
+    Uploaded: {{ selected_version.created_at|date:"Y-m-d" }} 
     
     {% if selected_version.uploaded_by %}
       by {{ selected_version.uploaded_by.username }}
