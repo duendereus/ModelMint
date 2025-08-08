@@ -426,10 +426,89 @@ def extract_kpis_from_text(text):
     return kpis
 
 
+PRINT_LINE_RE = re.compile(
+    r"""^\s*(?:[•\-\*\u2022]?\s*)        # bullet opcional
+        (?P<title>[^:\n\r]{3,100}?)      # título legible
+        \s*[:：]\s*                       # dos puntos (ascii o fullwidth)
+        (?P<value>[^\n\r]{1,120})\s*$    # valor corto
+    """,
+    re.X,
+)
+
+
+def extract_print_block_kpis(text):
+    """
+    Acepta viñetas y espacios raros. Devuelve [{'type':'kpi','title':..., 'value':...}, ...]
+    """
+    kpis = []
+    for raw in text.splitlines():
+        line = clean_text_rich(raw).strip()
+        if not line:
+            continue
+        m = PRINT_LINE_RE.match(line)
+        if not m:
+            continue
+        title = clean_text_basic(m.group("title"))
+        value = clean_text_basic(m.group("value"))
+        # filtros suaves: evita código o basura
+        if is_probably_junk(title) or is_probably_junk(value):
+            continue
+        if len(title) > 100 or len(value) > 150:
+            continue
+        # evita capturar líneas de código con '=' o 'def', etc.
+        if any(
+            x in value for x in ["{", "}", "return", "=", "def ", "lambda", "(", ")"]
+        ):
+            continue
+        kpis.append({"type": "kpi", "title": title, "value": value})
+    return kpis
+
+
+def is_text_output(el):
+    if el.name != "div":
+        return False
+    classes = " ".join(el.get("class") or [])
+    # Solo RenderedText o bloques marcados explícitamente como text/plain
+    if "RenderedText" in classes:
+        return True
+    if el.get("data-mime-type") == "text/plain":
+        return True
+    return False
+
+
+INFO_DF_RE = re.compile(
+    r"^<class\s+'pandas\.core\.frame\.DataFrame'>|^RangeIndex:\s+\d+ entries.*?memory usage:",
+    re.IGNORECASE | re.DOTALL,
+)
+
+STATSMODELS_SUMMARY_RE = re.compile(
+    r"(ExponentialSmoothing|ARIMA|SARIMAX|OLS|Holt).*(Model Results|Results)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def is_noise_text_block(raw_text: str) -> bool:
+    t = raw_text.strip()
+    if not t:
+        return True
+    if INFO_DF_RE.search(t):
+        return True
+    if STATSMODELS_SUMMARY_RE.search(t):
+        return True
+    # opcional: descartar tochos sin bullets ni pares clave:valor
+    lines = [l.strip() for l in t.splitlines() if l.strip()]
+    has_bullets = any(l.startswith(("•", "-", "*")) for l in lines)
+    has_pairs = sum(1 for l in lines if ":" in l) >= 2
+    too_long = len(t) > 2000 and not (has_bullets or has_pairs)
+    return too_long
+
+
 # -----------------------
 # PARSER PRINCIPAL
 # -----------------------
-def parse_jupyter_html(content, file_map=None, return_modified_html=False):
+def parse_jupyter_html(
+    content, file_map=None, return_modified_html=False, group_print_kpis_mode="auto"
+):
     """
     Devuelve:
       - results: lista de artefactos (charts/kpis/text/tables)
@@ -450,18 +529,124 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
 
     nearest_cache = {}
 
+    # --------------------------
+    # Helpers locales de orden
+    # --------------------------
+    dom_seq = 0
+
+    def bump_seq():
+        nonlocal dom_seq
+        dom_seq += 1
+        return dom_seq
+
+    def base_num():
+        return current_cell_number if isinstance(current_cell_number, int) else 8000
+
+    def compute_markdown_sort_key(el, fallback_base=None, debug=False):
+        prev_p = el.find_previous("div", class_=["jp-InputPrompt", "jp-OutputPrompt"])
+        next_p = el.find_next("div", class_=["jp-InputPrompt", "jp-OutputPrompt"])
+        prev_n = _extract_prompt_number(prev_p)
+        next_n = _extract_prompt_number(next_p)
+
+        if prev_n is not None:
+            s_key = float(prev_n) + 0.50
+        elif next_n is not None:
+            s_key = float(next_n) - 0.50
+        elif isinstance(fallback_base, (int, float)):
+            s_key = float(fallback_base) + 0.50
+        else:
+            s_key = 9998.50
+
+        if debug:
+            return s_key, prev_n, next_n
+        return s_key
+
+    def sanitize_title(raw):
+        """
+        Limpia residuos tipo: '", fontsize=14, pad=20, color="#b3b3b3'
+        u otros argumentos capturados por regex laxas y compacta espacios/saltos.
+        """
+        if not raw:
+            return raw
+        txt = str(raw)
+
+        # Si viene algo como: "Título", fontsize=14, ...
+        txt = re.sub(r'(["\'])\s*,.*$', r"\1", txt)
+
+        # Quita comillas envolventes si quedaron
+        if (txt.startswith('"') and txt.endswith('"')) or (
+            txt.startswith("'") and txt.endswith("'")
+        ):
+            txt = txt[1:-1]
+
+        # Normaliza unicode y elimina saltos raros; luego compacta cualquier whitespace
+        txt = clean_text_rich(txt)
+        txt = re.sub(r"\s+", " ", txt)
+
+        return txt.strip()
+
+    def build_metrics_block_html(raw_text):
+        # Normaliza texto y fuerza que los bullets "•" se conviertan en saltos reales
+        text = clean_text_rich(raw_text).strip()
+        text = re.sub(r"\s*[•\u2022]\s*", "\n• ", text)
+
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        if not lines:
+            return None, None
+
+        # Si la 1ª línea ya parece lista de métricas (tiene bullet o ":") -> sin título
+        first = lines[0]
+        if first.startswith(("•", "-", "*")) or ":" in first:
+            title = ""  # <<--- sin título
+            body_lines = lines
+        else:
+            title = first
+            body_lines = lines[1:]
+
+        # Extrae pares clave:valor; también separa sub-segmentos dentro de una misma línea
+        items = []
+        for l in body_lines:
+            segs = re.split(r"[•\u2022]\s*", l)  # divide por bullets embebidos
+            for seg in segs:
+                seg = seg.lstrip("-* ").strip()
+                if ":" in seg:
+                    items.append(seg)
+
+        if not items:
+            # sin pares -> deja el texto plano
+            html = "<pre>" + clean_text_rich(raw_text) + "</pre>"
+            return title, html
+
+        # Construye la lista. Dejamos \n al final de cada <li> para un salto real.
+        li_html = "".join(f"<li>{i}</li>\n" for i in items)
+        # Si no hay título, no ponemos <h3>
+        html = f"<ul>\n{li_html}</ul>"
+        if title:
+            html = f"<h3>{title}</h3>\n{html}"
+        return title, html
+
+    # --------------------------
+    # Vaciar bloques de texto
+    # --------------------------
     def flush_text():
         nonlocal current_metadata, accumulated_html, current_cell_number, locked_cell_number
         if current_metadata and current_metadata["type"] == "text" and accumulated_html:
+            # Une el contenido acumulado y elimina anchor-links sin meter saltos extras
             html_block = "\n".join(accumulated_html).strip()
-            html_block = ANCHOR_LINK_RE.sub("<br/><br/>", html_block)
+            html_block = ANCHOR_LINK_RE.sub("", html_block)
 
+            # KPIs embebidos simples (opcional)
             kpis = extract_kpis_from_text(
                 BeautifulSoup(html_block, "html.parser").get_text()
             )
             if kpis:
-                results.extend(kpis)
+                for k in kpis:
+                    k["cell_number"] = base_num()
+                    k["sort_key"] = float(base_num()) + 0.55  # debajo de la celda
+                    k["dom_seq"] = bump_seq()
+                    results.append(k)
 
+            # Determina la celda de inserción
             cell_num = (
                 locked_cell_number
                 if isinstance(locked_cell_number, int)
@@ -472,6 +657,7 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                 )
             )
 
+            # Agrega el bloque de texto final
             results.append(
                 {
                     "type": "text",
@@ -479,20 +665,27 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                     "text": html_block,
                     "cell_number": cell_num,
                     "insert_below_cell": True,
+                    "sort_key": float(cell_num) + 0.60,  # explícitamente debajo
+                    "dom_seq": bump_seq(),
                 }
             )
+
+        # Reset de acumuladores/estado
         accumulated_html.clear()
         current_metadata = None
         locked_cell_number = None
 
-    # >>> ESTE ES EL BUCLE PRINCIPAL (en vez de soup.descendants) <<<
+    processed_outputs = set()
+
+    # >>> Bucle principal por el DOM (no usamos soup.descendants) <<<
     for el in soup.find_all(True, recursive=True):
-        # actualizar cell_number de contexto
+        # Actualiza el contexto de celda con memo
         if el.name in ("div", "p", "h1", "h2", "h3", "h4", "h5"):
             nearest_num = find_nearest_cell_number(el, _cache=nearest_cache)
             if nearest_num is not None:
                 current_cell_number = nearest_num
 
+        # Al cruzar wrappers de celda, vacía texto si hay
         if is_cell_wrapper(el):
             flush_text()
             continue
@@ -509,18 +702,18 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                 if metadata:
                     current_metadata = metadata
                     pending_metadata = metadata
-                    # bloqueamos el número de celda en el momento del comentario
                     locked_cell_number = (
                         find_nearest_cell_number(el, _cache=nearest_cache)
                         or current_cell_number
                     )
             continue
 
+        # Prompts de entrada -> cortar acumulación
         if is_input_prompt(el):
             flush_text()
             continue
 
-        # Entrada de código (posibles exportaciones)
+        # Código (posibles exportaciones a archivo)
         if el.name in ("div", "pre") and "jp-CodeMirrorEditor" in " ".join(
             el.get("class") or []
         ):
@@ -539,71 +732,112 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                                     base_uploaded.lower() == clean_name.lower()
                                     and uploaded_name not in used_files
                                 ):
+                                    b = base_num()
                                     results.append(
                                         {
                                             "type": "table",
                                             "title": clean_metric_name(base_uploaded),
                                             "file_path": file_map[uploaded_name],
-                                            "cell_number": (
-                                                current_cell_number
-                                                if isinstance(current_cell_number, int)
-                                                else 8000
-                                            ),
+                                            "cell_number": b,
                                             "inserted_in_place": True,
+                                            "sort_key": float(b) + 0.20,
+                                            "dom_seq": bump_seq(),
                                         }
                                     )
                                     used_files.add(uploaded_name)
             continue
 
-        # Salidas de celda (texto)
+        # Salidas de celda (texto/plots embebidos como texto)
         if (
-            el.name in ("pre", "div")
-            and "output" in " ".join(el.get("class") or [])
+            is_text_output(el)
             and current_metadata is None
             and not el.find("table", class_="dataframe")
         ):
-            raw_text = clean_text_basic(el.get_text().strip())
-            if file_map and raw_text:
-                matches = TO_EXPORT_RE.findall(raw_text)
-                referenced = {os.path.basename(fname.strip()) for _, fname in matches}
-                for clean_name in referenced:
-                    for uploaded_name in file_map:
-                        base_uploaded = os.path.basename(uploaded_name).strip()
-                        if (
-                            base_uploaded.lower() == clean_name.lower()
-                            and uploaded_name not in used_files
-                        ):
-                            results.append(
-                                {
-                                    "type": "table",
-                                    "title": clean_metric_name(base_uploaded),
-                                    "file_path": file_map[uploaded_name],
-                                    "cell_number": (
-                                        current_cell_number
-                                        if isinstance(current_cell_number, int)
-                                        else 8000
-                                    ),
-                                    "inserted_in_place": True,
-                                }
-                            )
-                            used_files.add(uploaded_name)
+            classes = " ".join(el.get("class") or [])
+            # canónico: el propio RenderedText o su ancestro RenderedText
+            canonical = (
+                el
+                if "RenderedText" in classes
+                else el.find_parent("div", class_="jp-RenderedText") or el
+            )
 
-            possible_kpis = extract_kpis_from_text(raw_text)
-            if (
-                possible_kpis
-                and len(possible_kpis) == 1
-                and not is_probably_junk(possible_kpis[0]["value"])
-            ):
-                possible_kpis[0]["cell_number"] = (
-                    current_cell_number
-                    if isinstance(current_cell_number, int)
-                    else 8000
-                )
-                results.append(possible_kpis[0])
+            key = id(canonical)
+            if key in processed_outputs:
+                continue
+            processed_outputs.add(key)
+
+            raw_text = clean_text_basic(canonical.get_text().strip())
+
+            # >>> descartamos ruido (df.info, summaries, tochos sin estructura)
+            if is_noise_text_block(raw_text):
                 current_metadata = None
+                continue
+
+            # 1) Siempre intenta armar un bloque de métricas legible
+            title, html_block = build_metrics_block_html(raw_text)
+
+            # 2) Luego extrae KPIs (dos pasadas: normal y fallback)
+            possible_kpis = extract_kpis_from_text(raw_text)
+            if not possible_kpis:
+                possible_kpis = extract_print_block_kpis(raw_text)  # tu fallback
+
+            b = base_num()
+
+            def add_kpis(kpis):
+                for k in kpis:
+                    if not is_probably_junk(k["title"]) and not is_probably_junk(
+                        k["value"]
+                    ):
+                        results.append(
+                            {
+                                "type": "kpi",
+                                "title": k["title"],
+                                "value": k["value"],
+                                "cell_number": b,
+                                "sort_key": float(b) + 0.15,
+                                "dom_seq": bump_seq(),
+                            }
+                        )
+
+            def add_text_block():
+                if html_block and (
+                    html_block.count("<li>") >= 2 or raw_text.count("\n") >= 2
+                ):
+                    artefact = {
+                        "type": "text",
+                        "text": html_block,
+                        "cell_number": b,
+                        "sort_key": float(b) + 0.50,
+                        "dom_seq": bump_seq(),
+                    }
+                    t = (title or "").strip()
+                    if t:  # solo setear si hay título
+                        artefact["title"] = t
+                    results.append(artefact)
+
+            mode = (group_print_kpis_mode or "auto").lower()
+            if mode == "kpis":
+                if possible_kpis:
+                    add_kpis(possible_kpis)
+            elif mode == "text":
+                add_text_block()
+            elif mode == "both":
+                add_text_block()
+                if possible_kpis:
+                    add_kpis(possible_kpis)
+            else:  # auto
+                # si hay varios KPI -> bloque; si hay uno -> KPI; si no hay -> bloque
+                if possible_kpis and len(possible_kpis) == 1:
+                    add_kpis(possible_kpis)
+                else:
+                    add_text_block()
+                    if possible_kpis and len(possible_kpis) > 1:
+                        add_kpis(possible_kpis)
+
+            current_metadata = None
             continue
 
-        # Markdown renderizado fuera de "Mint it"
+        # Markdown renderizado (fuera de "Mint it")
         if (
             el.name == "div"
             and "jp-RenderedMarkdown" in (el.get("class") or [])
@@ -626,13 +860,19 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
             title_text = (
                 clean_text_rich(title_el.get_text(strip=True)) if title_el else "Text"
             )
-            html_cleaned = ANCHOR_LINK_RE.sub("<br/><br/>", raw_html)
+            html_cleaned = ANCHOR_LINK_RE.sub("", raw_html)
 
             cell_num = (
                 find_nearest_cell_number(el, _cache=nearest_cache)
                 or current_cell_number
                 or 8000
             )
+            s_key, prev_n, next_n = compute_markdown_sort_key(
+                el, fallback_base=cell_num, debug=True
+            )
+
+            if s_key >= 9000:
+                s_key = float(cell_num) + 0.50
 
             results.append(
                 {
@@ -640,16 +880,35 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                     "title": title_text,
                     "text": html_cleaned,
                     "cell_number": cell_num,
+                    "sort_key": float(s_key),
+                    "dom_seq": bump_seq(),
                 }
             )
 
+            log.debug(
+                "[md sort] title=%r prev=%r next=%r cell_num=%r -> sort_key=%r",
+                title_text,
+                prev_n,
+                next_n,
+                cell_num,
+                s_key,
+            )
+
+            # KPI único dentro del markdown (opcional, justo después del texto)
             possible_kpis = extract_kpis_from_text(raw_text)
             if (
                 possible_kpis
                 and len(possible_kpis) == 1
                 and not is_probably_junk(possible_kpis[0]["value"])
             ):
-                results.append(possible_kpis[0])
+                results.append(
+                    {
+                        **possible_kpis[0],
+                        "cell_number": cell_num,
+                        "sort_key": float(s_key) + 0.01,
+                        "dom_seq": bump_seq(),
+                    }
+                )
                 current_metadata = None
             continue
 
@@ -702,26 +961,29 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                     )
                     if active_metadata and active_metadata.get("type") == "chart":
                         tlist = active_metadata.get("titles", []) or []
-                        title = (
+                        raw_title = (
                             tlist.pop(0)
                             if tlist
                             else (find_plt_title_upwards_only(el) or "Chart")
                         )
-                        title = clean_text_rich(title)[:MAX_TITLE_LEN]
+                        title = sanitize_title(raw_title)[:MAX_TITLE_LEN]
+                        b = (
+                            locked_cell_number
+                            if isinstance(locked_cell_number, int)
+                            else (
+                                current_cell_number
+                                if isinstance(current_cell_number, int)
+                                else 8000
+                            )
+                        )
                         results.append(
                             {
                                 "type": "chart",
                                 "title": title,
                                 "image_base64": src,
-                                "cell_number": (
-                                    locked_cell_number
-                                    if isinstance(locked_cell_number, int)
-                                    else (
-                                        current_cell_number
-                                        if isinstance(current_cell_number, int)
-                                        else 8000
-                                    )
-                                ),
+                                "cell_number": b,
+                                "sort_key": float(b) + 0.10,
+                                "dom_seq": bump_seq(),
                             }
                         )
                         used_imgs.add(src)
@@ -730,7 +992,7 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                         current_metadata = None
 
             elif mtype == "kpi":
-                cell_num = (
+                b = (
                     locked_cell_number
                     if isinstance(locked_cell_number, int)
                     else (
@@ -747,18 +1009,21 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                                     "type": "kpi",
                                     "title": t,
                                     "value": v,
-                                    "cell_number": cell_num,
+                                    "cell_number": b,
+                                    "sort_key": float(b) + 0.55,
+                                    "dom_seq": bump_seq(),
                                 }
                             )
                     current_metadata = None
                 elif value_raw and not is_probably_junk(value_raw):
-                    title = titles[0] if titles else "KPI"
                     results.append(
                         {
                             "type": "kpi",
-                            "title": title,
+                            "title": titles[0] if titles else "KPI",
                             "value": value_raw,
-                            "cell_number": cell_num,
+                            "cell_number": b,
+                            "sort_key": float(b) + 0.55,
+                            "dom_seq": bump_seq(),
                         }
                     )
                     current_metadata = None
@@ -766,27 +1031,29 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                     if "value" in current_metadata and current_metadata["value"]:
                         extracted = clean_text_basic(el.get_text())
                         if extracted and not is_probably_junk(extracted):
-                            title = titles[0] if titles else "KPI"
                             results.append(
                                 {
                                     "type": "kpi",
-                                    "title": title,
+                                    "title": titles[0] if titles else "KPI",
                                     "value": extracted,
-                                    "cell_number": cell_num,
+                                    "cell_number": b,
+                                    "sort_key": float(b) + 0.55,
+                                    "dom_seq": bump_seq(),
                                 }
                             )
                     current_metadata = None
 
-    # vaciado final
+    # Vaciado final
     flush_text()
 
-    # imágenes sueltas
+    # Imágenes sueltas (charts que no capturó el bloque Mint)
     for img in soup.find_all("img"):
         src = img.get("src", "")
         if src.startswith("data:image") and src not in used_imgs:
-            title = (find_plt_title_upwards_only(img) or "Untitled Chart")[
+            raw_title = (find_plt_title_upwards_only(img) or "Untitled Chart")[
                 :MAX_TITLE_LEN
             ]
+            title = sanitize_title(raw_title)
             cell_num = find_cell_number_for_element(img)
             if not is_probably_junk(title):
                 results.append(
@@ -795,11 +1062,13 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                         "title": clean_text_rich(title),
                         "image_base64": src,
                         "cell_number": cell_num,
+                        "sort_key": float(cell_num) + 0.10,
+                        "dom_seq": bump_seq(),
                     }
                 )
                 used_imgs.add(src)
 
-    # tablas no insertadas en lugar
+    # Tablas no insertadas "in place"
     if file_map:
         for fname, path in file_map.items():
             if fname not in used_files:
@@ -811,25 +1080,34 @@ def parse_jupyter_html(content, file_map=None, return_modified_html=False):
                         "file_path": path,
                         "cell_number": 9998,
                         "inserted_in_place": False,
+                        "sort_key": 9998.80,
+                        "dom_seq": bump_seq(),
                     }
                 )
                 used_files.add(fname)
 
-    # normalizar & ordenar
+    # Normalizar & ordenar
     for r in results:
-        if not isinstance(r.get("cell_number"), int):
+        if not isinstance(r.get("cell_number"), (int, float)):
             r["cell_number"] = 9999
-    results.sort(key=lambda x: x["cell_number"])
+        if "sort_key" not in r:
+            r["sort_key"] = float(r["cell_number"])
+        if "dom_seq" not in r:
+            r["dom_seq"] = bump_seq()
 
-    # insertar observaciones en el DOM
+    results.sort(key=lambda x: (x["sort_key"], x["dom_seq"]))
+
+    # Insertar observaciones en el DOM (solo los marcados)
     try:
         for r in results:
             if (
                 r.get("type") == "text"
                 and r.get("insert_below_cell")
-                and isinstance(r.get("cell_number"), int)
+                and isinstance(r.get("cell_number"), (int, float))
             ):
-                _insert_markdown_after_cell_number(soup, r["cell_number"], r["text"])
+                _insert_markdown_after_cell_number(
+                    soup, int(r["cell_number"]), r["text"]
+                )
     except Exception as e:
         log.exception("Error insertando observaciones en el DOM: %s", e)
 
