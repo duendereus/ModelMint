@@ -1,29 +1,30 @@
 {% load static %}
-<!-- Guest Top Header -->
-<div class="top-header-guest bg-white border-bottom py-2 px-4">
-    <div class="d-flex justify-content-between align-items-center h-100">
-        <!-- Izquierda -->
-        <div class="d-flex align-items-center">
-            <a href="{% url 'labs:labs_landing' %}" target="_blank" class="me-3">
-                {% if org_logo %}
-                    <img src="{{ org_logo }}" height="28" alt="{{ org_name }}">
-                {% else %}
-                    <img src="{% static 'img/logo-white.svg' %}" height="28" alt="ModelMint Logo">
-                {% endif %}
-                <span style="background-color: white; color: #00c266; font-size: 1rem; font-weight: 600; padding: 2px 6px; border-radius: 6px;">
-                    LABS
-                </span>
-            </a>
-            {% if notebook.organization %}
-                <div class="position-absolute top-50 start-50 translate-middle text-white small fw-semibold" style="font-size: x-large !important;">
-                    <strong>{{ notebook.organization.name }}</strong>
-                </div>
-            {% endif %}
-        </div>
 
-        <!-- Derecha -->
-        <!-- <a href="{% url 'labs:labs_landing' %}" target="_blank" class="btn btn-outline-light btn-sm">
-            <i class="ti ti-external-link me-1"></i> Visit ModelMint
-        </a> -->
+<div
+  class="top-header-guest border-bottom py-2 px-4 {% if branding_enabled %}has-branding{% endif %}"
+  {% if branding_enabled %}
+    style="--brand-primary: {{ primary_color }};
+           --brand-text: {{ text_color }};
+           --brand-secondary: {{ secondary_color }};"
+  {% endif %}
+>
+  <div class="d-flex justify-content-between align-items-center h-100">
+    <div class="d-flex align-items-center">
+      <a href="{% url 'labs:labs_landing' %}" target="_blank" class="me-3">
+        {% if org_logo %}
+          <img src="{{ org_logo }}" height="28" alt="{{ org_name }}">
+        {% else %}
+          <img src="{% static 'img/logo-white.svg' %}" height="28" alt="ModelMint Logo">
+        {% endif %}
+
+        <span class="labs-badge">LABS</span>
+      </a>
+
+      {% if notebook.organization %}
+        <div class="position-absolute top-50 start-50 translate-middle small fw-semibold org-title">
+          <strong>{{ notebook.organization.name }}</strong>
+        </div>
+      {% endif %}
     </div>
+  </div>
 </div>

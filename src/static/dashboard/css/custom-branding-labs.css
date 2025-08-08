@@ -224,5 +224,27 @@ button#publish-btn:hover:not(:disabled) {
     border-radius: 10px;
 }
 
+/* El header cuando hay branding (la plantilla le pone .has-branding) */
+.top-header-guest.has-branding {
+  background-color: var(--brand-primary) !important;
+  color: var(--brand-text) !important;
+}
 
+/* Badge LABS con branding */
+.top-header-guest.has-branding .labs-badge {
+  background-color: var(--brand-secondary) !important;
+  color: var(--brand-text) !important;
+}
 
+/* Aumentar tamaño del título de la organización en el header LABS */
+.top-header-guest .org-title {
+    color: inherit;
+    font-size: 1.8rem;   /* ajusta a tu gusto: 1.4rem ~ 22px */
+    font-weight: 700;    /* más grueso */
+    line-height: 1.2;    /* mejor alineación vertical */
+}
+
+.top-header-guest img {
+    height: 40px;
+    width: auto;
+}

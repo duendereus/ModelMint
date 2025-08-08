@@ -33,6 +33,7 @@ from labs.utils.otp import (
     generate_otp_code,
     send_lab_otp_email,
 )
+from labs.utils.branding_helper import compute_branding_context
 from subscriptions.utils import get_plan_limits
 import os, uuid, logging, json, base64, requests
 from weasyprint import HTML
@@ -532,6 +533,8 @@ def lab_notebook_detail_view(request, organization_slug, notebook_slug):
 
     is_guest = not request.user.is_authenticated
 
+    branding_ctx = compute_branding_context(organization) if is_guest else {}
+
     return render(
         request,
         "labs/dashboard/lab_notebook_detail.html",
@@ -542,6 +545,7 @@ def lab_notebook_detail_view(request, organization_slug, notebook_slug):
             "metrics": metrics,
             "plan_limits": plan_limits,
             "is_guest": is_guest,
+            **branding_ctx,
         },
     )
 
