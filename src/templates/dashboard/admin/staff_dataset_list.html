@@ -102,7 +102,7 @@
                                                                     Process
                                                                 </a>
                                                                 <a href="{% url 'dashboard:analytics:staff_preview_report_by_report' report.id %}"
-                                                                class="btn {% if report.processed %}btn-secondary{% else %}btn-outline-secondary disabled{% endif %} btn-sm mt-1"
+                                                                class="btn {% if report.processed %}btn-secondary{% else %}btn-outline-secondary {% endif %} btn-sm mt-1"
                                                                 {% if not report.processed %}onclick="return false;"{% endif %}>
                                                                     Preview
                                                                 </a>
