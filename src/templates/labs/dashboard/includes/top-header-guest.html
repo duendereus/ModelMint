@@ -6,7 +6,7 @@
     style="--brand-primary: {{ primary_color }}; --brand-text: {{ text_color }}; --brand-secondary: {{ secondary_color }};"
   {% endif %}
 >
-  <div class="guest-bar">
+  <div class="guest-bar d-flex justify-content-between align-items-center">
     <!-- Izquierda -->
     <div class="brand-left">
       <a href="{% url 'labs:labs_landing' %}" target="_blank" class="d-inline-flex align-items-center gap-2">
@@ -16,18 +16,21 @@
           <img class="org-logo" src="{% static 'img/logo-white.svg' %}" alt="ModelMint Logo">
         {% endif %}
         <span class="labs-badge">labs</span>
+        
       </a>
     </div>
 
     <!-- Centro -->
-    <div class="brand-title">
+    <div class="brand-title text-center flex-grow-1">
       {% if notebook.organization %}
         <strong>{{ notebook.organization.name }}</strong>
       {% endif %}
     </div>
 
     <!-- Derecha (espaciador opcional; puede quedar vacío) -->
-    <div></div>
+    <div>
+      <a href="{% url 'labs:labs_register' %}" target="_blank" class="btn btn-outline-dark">Register for Free!</a>
+    </div>
   </div>
 </div>
 
