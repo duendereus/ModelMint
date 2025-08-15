@@ -224,7 +224,7 @@
         {% if metric_type == "table" and metric.table_data %}
             {% with col_count=metric.table_data.columns|length %}
             <div class="metric landscape avoid-page-break">
-                <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
+                <div class="metric-name">{{ metric.name }}</div>
                 <div class="table-wrapper">
                     <table class="{% if col_count > 15 %}extra-small-table{% elif col_count > 8 %}small-table{% endif %}">
                         <thead>
@@ -250,9 +250,8 @@
         {% else %}
             <!-- 🎯 Métricas regulares -->
             <div class="metric avoid-page-break">
-                <div class="metric-name">{{ metric.name }} ({{ metric.get_type_display }})</div>
-
                 {% if metric_type == "single_value" %}
+                <div class="metric-name">{{ metric.name }}</div>
                     <p style="font-size: 16px;"><strong>{{ metric.value|safe }}</strong></p>
 
                 {% elif metric_type == "text" %}

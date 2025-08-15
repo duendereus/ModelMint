@@ -101,11 +101,17 @@
                                                                 <a href="{% url 'dashboard:analytics:staff_process_report' report.id %}" class="btn btn-success btn-sm mt-1">
                                                                     Process
                                                                 </a>
+                                                                
+                                                                {% if report.processed %}
                                                                 <a href="{% url 'dashboard:analytics:staff_preview_report_by_report' report.id %}"
-                                                                class="btn {% if report.processed %}btn-secondary{% else %}btn-outline-secondary {% endif %} btn-sm mt-1"
-                                                                {% if not report.processed %}onclick="return false;"{% endif %}>
-                                                                    Preview
-                                                                </a>
+                                                                    class="btn btn-secondary btn-sm mt-1">Preview</a>
+                                                                {% else %}
+                                                                <a href="#"
+                                                                    class="btn btn-outline-secondary btn-sm mt-1 disabled"
+                                                                    tabindex="-1" aria-disabled="true">Preview</a>
+                                                                {% endif %}
+
+
                                                             {% endif %}
                                                         </div>
                                                     {% endwith %}

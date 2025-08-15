@@ -20,15 +20,29 @@ def test_task():
 
 
 @shared_task
-def process_metrics_task(report_id, upload_id=None, file_entries=None):
+def process_metrics_task(
+    report_id, upload_id=None, jupyter_report_id=None, file_entries=None
+):
     """
-    Procesa métricas del HTML + archivos complementarios usando los JupyterReport asociados.
-    Evita insertar tablas duplicadas: si ya fueron insertadas por el parser,
-    no se vuelven a añadir como complementarias.
+    Procesa métricas del HTML + archivos complementarios.
+    Solo procesa el JupyterReport indicado (o el más reciente).
     """
     try:
         report = Report.objects.get(id=report_id)
-        jupyter_reports = report.jupyter_reports.select_related("upload").all()
+
+        if jupyter_report_id:
+            jupyter_reports = report.jupyter_reports.select_related("upload").filter(
+                id=jupyter_report_id
+            )
+        else:
+            # Fallback determinista: solo el más reciente
+            jupyter_reports = report.jupyter_reports.select_related("upload").order_by(
+                "-uploaded_at", "-id"
+            )[:1]
+
+        if not jupyter_reports:
+            print(f"⚠️ No JupyterReports found for report {report_id}")
+            return "No HTML to process."
 
         upload = None
         if upload_id:
@@ -39,24 +53,18 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
 
         total_metrics = 0
         processed_tables_all = set()
-
-        for jupyter_report in jupyter_reports:
-            jupyter_upload = jupyter_report.upload
-            with default_storage.open(jupyter_report.file.name, "r") as f:
-                metric_count, processed_tables = process_jupyter_metrics(
-                    f, report, jupyter_upload, file_entries=file_entries
-                )
-                processed_tables_all.update(processed_tables)
-                total_metrics += metric_count
-                print(
-                    f"✅ {metric_count} metrics parsed from HTML: {jupyter_report.file.name}"
-                )
-
         VALID_TABLE_EXTENSIONS = {".csv", ".xls", ".xlsx"}
-        processed_tables_all_normalized = {
-            t.strip().lower() for t in processed_tables_all
-        }
 
+        for jr in jupyter_reports:
+            with default_storage.open(jr.file.name, "rb") as f:
+                metric_count, processed_tables = process_jupyter_metrics(
+                    f, report, jr.upload, file_entries=file_entries
+                )
+            processed_tables_all.update({t.strip().lower() for t in processed_tables})
+            total_metrics += metric_count
+            print(f"✅ {metric_count} metrics parsed from HTML: {jr.file.name}")
+
+        # Complementarios (solo los que el parser NO insertó)
         for entry in file_entries or []:
             stored_path = entry["stored_path"]
             original_name = entry["original_name"]
@@ -66,10 +74,8 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
                 print(f"⚠️ Skipped unsupported file: {original_name}")
                 continue
 
-            if (
-                os.path.basename(original_name).strip().lower()
-                in processed_tables_all_normalized
-            ):
+            base_norm = os.path.basename(original_name).strip().lower()
+            if base_norm in processed_tables_all:
                 print(f"⏩ Skipping duplicate table: {original_name}")
                 continue
 
@@ -85,6 +91,9 @@ def process_metrics_task(report_id, upload_id=None, file_entries=None):
                     name=clean_metric_name(original_name),
                     file=file,
                 )
+
+        if total_metrics > 0:
+            Report.objects.filter(id=report_id).update(processed=True)
 
         print(f"✅ Metrics processing complete for report {report_id}")
         return f"Processed {total_metrics} HTML metrics and {len(file_entries or [])} complementary files."

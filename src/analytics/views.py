@@ -872,10 +872,11 @@ def staff_process_report_view(request, report_id):
         process_metrics_task.delay(
             report_id=report.id,
             upload_id=upload_instance.id if upload_instance else None,
+            jupyter_report_id=jupyter_report.id,
             file_entries=complementary_info,
         )
 
-        mark_as_processed(report)
+        # mark_as_processed(report)
 
         messages.success(
             request,
