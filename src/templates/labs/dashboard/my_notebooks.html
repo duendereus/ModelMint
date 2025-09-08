@@ -33,6 +33,7 @@
                 </a>
               </div>
 
+              {# Versiónes disponibles como badges #}
               {% if notebook.versions.all %}
                 <div class="mb-2">
                   {% for version in notebook.versions.all|dictsortreversed:"version_number" %}
@@ -46,19 +47,19 @@
               <p class="card-text text-muted small">
                 {{ notebook.description|truncatechars:100|safe }}
               </p>
-
               <p class="text-muted small mt-auto">
                 Uploaded {{ notebook.created_at|date:"M d, Y" }} 
               </p>
 
-              <a href="{% url 'labs:lab_notebook_detail' notebook.organization.slug notebook.slug %}" class="btn btn-outline-primary mt-2">
+              <a href="{% url 'labs:lab_notebook_detail' notebook.organization.slug notebook.slug %}" class="btn btn-outline-primary mt-2 w-100">
                 View Notebook
               </a>
 
-              <a href="{% url 'labs:lab_notebook_upload_version' notebook.organization.slug notebook.id %}" class="btn btn-outline-secondary mt-2">
+              <a href="{% url 'labs:lab_notebook_upload_version' notebook.organization.slug notebook.id %}"
+                class="btn btn-outline-secondary mt-2 w-100">
                 Upload New Version
               </a>
-
+              
               <button
                 type="button"
                 class="btn btn-outline-danger mt-2 w-100"
@@ -69,6 +70,7 @@
                 🗑 Delete Notebook
               </button>
             </div>
+
           </div>
         </div>
       {% endfor %}
